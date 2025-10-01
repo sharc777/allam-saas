@@ -327,6 +327,30 @@ const Dashboard = () => {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* Tahseli Comprehensive Content Card */}
+              {testType === "تحصيلي" && (
+                <Card className="border-2 border-accent/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="w-6 h-6 text-accent" />
+                      المحتوى الشامل للتحصيلي
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-muted-foreground">
+                      استعرض جميع أقسام ومواضيع اختبار التحصيلي للمسار {track === "علمي" ? "العلمي" : "النظري"}
+                    </p>
+                    <Button 
+                      className="w-full gradient-accent text-accent-foreground"
+                      onClick={() => navigate("/tahseli-content")}
+                    >
+                      <BookOpen className="ml-2 w-5 h-5" />
+                      عرض المحتوى الكامل
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Sidebar */}
