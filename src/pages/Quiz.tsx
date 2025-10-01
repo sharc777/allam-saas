@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -22,6 +22,7 @@ interface Question {
 }
 
 const Quiz = () => {
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const dayNumber = parseInt(searchParams.get("day") || "1");
   const contentId = searchParams.get("contentId"); // Get daily_content_id from URL
@@ -50,16 +51,37 @@ const Quiz = () => {
   );
 
   const generateQuiz = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
+      
+      // Get parameters from URL
+      const params = new URLSearchParams(location.search);
+      const dayParam = params.get("day");
+      const contentIdParam = params.get("contentId");
+      const modeParam = params.get("mode") || "daily";
+      const difficultyParam = params.get("difficulty") || "medium";
+      const testTypeParam = params.get("testType");
+      const trackParam = params.get("track");
+      
+      console.log("Quiz params:", { dayParam, contentIdParam, modeParam, difficultyParam });
+
+      const requestBody: any = {
+        difficulty: difficultyParam,
+        testType: testTypeParam || testType,
+        track: trackParam || track,
+      };
+
+      // Add either contentId or dayNumber based on mode
+      if (contentIdParam) {
+        requestBody.contentId = contentIdParam;
+      } else if (dayParam) {
+        requestBody.dayNumber = parseInt(dayParam);
+      } else if (profile?.current_day) {
+        requestBody.dayNumber = profile.current_day;
+      }
+
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: { 
-          dayNumber, 
-          difficulty: "medium",
-          testType,
-          track: testType === "تحصيلي" ? track : "عام",
-          contentId // Pass content ID to edge function
-        }
+        body: requestBody,
       });
 
       if (error) throw error;

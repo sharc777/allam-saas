@@ -24,7 +24,8 @@ import {
   Brain,
   Loader2,
   Settings,
-  ChevronDown
+  ChevronDown,
+  Zap
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -279,60 +280,91 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Quiz Card */}
+              {/* Quizzes Section */}
               <Card className="border-2 border-secondary/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Target className="w-6 h-6 text-secondary" />
-                    الاختبار اليومي
+                    <Brain className="w-6 h-6" />
+                    الاختبارات
                   </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">تدرب واختبر مستواك</p>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-muted-foreground">
-                    {dailyContent 
-                      ? "اختبر معلوماتك في درس اليوم مع 10 أسئلة مولّدة بالذكاء الاصطناعي"
-                      : "قم بإكمال الدرس أولاً للوصول للاختبار المرتبط به"
-                    }
-                  </p>
-                  {todayProgress && !Array.isArray(todayProgress) && todayProgress.quiz_completed ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg border border-success/20">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-5 h-5 text-success" />
-                          <span className="text-sm font-medium">تم إكمال الاختبار</span>
+                <CardContent className="space-y-3">
+                  {/* Daily Quiz */}
+                  {dailyContent && (
+                    <Card className="bg-primary/5 border-primary/20">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Target className="h-5 w-5 text-primary" />
+                            <h4 className="font-semibold">اختبار اليوم</h4>
+                          </div>
+                          {todayProgress && !Array.isArray(todayProgress) && todayProgress.quiz_completed && (
+                            <span className="text-sm font-medium text-success">✓ مكتمل</span>
+                          )}
                         </div>
-                        {quizStats?.recentResults && quizStats.recentResults.length > 0 && (
-                          <Badge variant="outline" className="border-success text-success">
-                            {quizStats.recentResults[0].percentage?.toFixed(0)}%
-                          </Badge>
-                        )}
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {todayProgress && !Array.isArray(todayProgress) && todayProgress.quiz_completed
+                            ? `نتيجتك: ${quizStats?.recentResults?.[0]?.percentage?.toFixed(0) || 0}%`
+                            : "اختبر معلوماتك في محتوى اليوم"}
+                        </p>
+                        <Button 
+                          className="w-full"
+                          size="sm"
+                          onClick={() => {
+                            if (dailyContent) {
+                              window.location.href = `/quiz?day=${currentDay}&contentId=${dailyContent.id}`;
+                            }
+                          }}
+                          variant={todayProgress && !Array.isArray(todayProgress) && todayProgress.quiz_completed ? "outline" : "default"}
+                        >
+                          {todayProgress && !Array.isArray(todayProgress) && todayProgress.quiz_completed ? "أعد الاختبار" : "ابدأ الاختبار"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Practice Quiz */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Zap className="h-5 w-5 text-primary" />
+                        <h4 className="font-semibold">اختبار تدريبي حر</h4>
                       </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        اختر المواضيع والصعوبة
+                      </p>
                       <Button 
-                        className="w-full"
                         variant="outline"
-                        onClick={() => {
-                          if (dailyContent) {
-                            window.location.href = `/quiz?day=${currentDay}&contentId=${dailyContent.id}`;
-                          }
-                        }}
-                        disabled={!dailyContent}
+                        size="sm"
+                        className="w-full"
+                        onClick={() => navigate("/practice-quiz")}
                       >
-                        إعادة الاختبار
+                        ابدأ التدريب
                       </Button>
-                    </div>
-                  ) : (
-                    <Button 
-                      className="w-full gradient-secondary text-secondary-foreground"
-                      onClick={() => {
-                        if (dailyContent) {
-                          window.location.href = `/quiz?day=${currentDay}&contentId=${dailyContent.id}`;
-                        }
-                      }}
-                      disabled={!dailyContent}
-                    >
-                      <Target className="ml-2 w-5 h-5" />
-                      {dailyContent ? "ابدأ اختبار اليوم" : "غير متاح"}
-                    </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Quiz History */}
+                  {quizStats && quizStats.totalQuizzes > 0 && (
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <BookOpen className="h-5 w-5 text-primary" />
+                          <h4 className="font-semibold">سجل الاختبارات</h4>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">عدد الاختبارات:</span>
+                            <span className="font-medium">{quizStats.totalQuizzes}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">المتوسط:</span>
+                            <span className="font-medium">{quizStats.averageScore.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
                 </CardContent>
               </Card>

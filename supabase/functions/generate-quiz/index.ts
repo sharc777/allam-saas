@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام" } = await req.json();
+    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", contentId } = await req.json();
     
     const authHeader = req.headers.get("authorization");
     console.log("Auth header received:", authHeader ? "Present" : "Missing");
@@ -44,15 +44,57 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    // Get daily content
-    const { data: content, error: contentError } = await supabase
-      .from("daily_content")
-      .select("*")
-      .eq("day_number", dayNumber)
-      .single();
+    // Get daily content (by contentId or dayNumber)
+    let content: any;
+    let contentError: any;
+    
+    if (contentId) {
+      // Fetch by contentId for lesson-specific quizzes
+      const result = await supabase
+        .from("daily_content")
+        .select("*")
+        .eq("id", contentId)
+        .single();
+      content = result.data;
+      contentError = result.error;
+    } else if (dayNumber) {
+      // Fetch by dayNumber for daily quizzes
+      const result = await supabase
+        .from("daily_content")
+        .select("*")
+        .eq("day_number", dayNumber)
+        .single();
+      content = result.data;
+      contentError = result.error;
+    } else {
+      throw new Error("يجب تحديد contentId أو dayNumber");
+    }
 
     if (contentError || !content) {
-      throw new Error("المحتوى اليومي غير موجود");
+      throw new Error("المحتوى غير موجود");
+    }
+
+    // Fetch additional knowledge base content related to topics
+    let additionalKnowledge = "";
+    if (content.topics) {
+      const topicsData = content.topics as any;
+      const sections = topicsData?.sections || [];
+      const allTopics = sections.flatMap((section: any) => section.subtopics || []);
+      
+      if (allTopics.length > 0) {
+        const { data: knowledgeData } = await supabase
+          .from("knowledge_base")
+          .select("*")
+          .eq("test_type", testType)
+          .eq("track", track)
+          .eq("is_active", true)
+          .limit(5);
+        
+        if (knowledgeData && knowledgeData.length > 0) {
+          additionalKnowledge = "\n\n📚 **محتوى معرفي إضافي:**\n" + 
+            knowledgeData.map(kb => `- ${kb.title}: ${kb.content || ""}`).join("\n");
+        }
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -216,6 +258,7 @@ serve(async (req) => {
 
 📝 **النص الكامل:**
 ${content.content_text || ""}
+${additionalKnowledge}
 
 ⚠️ **متطلبات مهمة:**
 - كل سؤال يختبر فهماً حقيقياً وليس حفظاً

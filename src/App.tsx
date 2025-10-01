@@ -12,7 +12,7 @@ import Quiz from "./pages/Quiz";
 import NotFound from "./pages/NotFound";
 import TestTypeSelection from "./pages/TestTypeSelection";
 import Lesson from "./pages/Lesson";
-
+import PracticeQuiz from "./pages/PracticeQuiz";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +28,7 @@ const App = () => (
           <Route path="/test-selection" element={<TestTypeSelection />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/quiz" element={<Quiz />} />
+          <Route path="/practice-quiz" element={<PracticeQuiz />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/lesson/:dayNumber/:topicId" element={<Lesson />} />
           
