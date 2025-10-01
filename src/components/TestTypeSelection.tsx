@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,11 +18,35 @@ export const TestTypeSelection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  useEffect(() => {
+    const pendingSelection = localStorage.getItem("pending_test_selection");
+    if (pendingSelection) {
+      try {
+        const { testType: savedTestType, track: savedTrack } = JSON.parse(pendingSelection);
+        if (savedTestType) setTestType(savedTestType);
+        if (savedTrack) setTrack(savedTrack);
+        localStorage.removeItem("pending_test_selection");
+      } catch (error) {
+        console.error("Error loading pending selection:", error);
+      }
+    }
+  }, []);
+
   const handleSave = async () => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
+      
+      if (!user) {
+        localStorage.setItem("pending_test_selection", JSON.stringify({ testType, track }));
+        toast({
+          title: "تسجيل الدخول مطلوب",
+          description: "سجّل دخولك لحفظ تفضيلاتك",
+        });
+        navigate("/auth?redirect=/test-selection");
+        setLoading(false);
+        return;
+      }
 
       const { error } = await supabase
         .from("profiles")
@@ -44,7 +68,7 @@ export const TestTypeSelection = () => {
       console.error("Error saving preferences:", error);
       toast({
         title: "خطأ",
-        description: "حدث خطأ أثناء حفظ التفضيلات",
+        description: "تعذّر الحفظ، حاول مجدداً",
         variant: "destructive",
       });
     } finally {
@@ -53,7 +77,7 @@ export const TestTypeSelection = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 flex items-center justify-center p-4" dir="rtl">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <GraduationCap className="w-16 h-16 mx-auto mb-4 text-primary" />
@@ -64,14 +88,14 @@ export const TestTypeSelection = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
-            <Label className="text-lg font-semibold">نوع الاختبار</Label>
+            <Label className="text-lg font-semibold text-right block">نوع الاختبار</Label>
             <RadioGroup value={testType} onValueChange={(value) => setTestType(value as TestType)}>
-              <div className="flex items-center space-x-2 space-x-reverse p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
+              <div className="flex flex-row-reverse items-center gap-3 p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
                 <RadioGroupItem value="قدرات" id="qudurat" />
                 <Label htmlFor="qudurat" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-row-reverse items-center gap-3">
                     <BookOpen className="w-5 h-5" />
-                    <div>
+                    <div className="text-right">
                       <div className="font-semibold">اختبار القدرات</div>
                       <div className="text-sm text-muted-foreground">
                         يقيس القدرات التحليلية والاستنتاجية (كمي ولفظي)
@@ -80,12 +104,12 @@ export const TestTypeSelection = () => {
                   </div>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 space-x-reverse p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
+              <div className="flex flex-row-reverse items-center gap-3 p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
                 <RadioGroupItem value="تحصيلي" id="tahsili" />
                 <Label htmlFor="tahsili" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-row-reverse items-center gap-3">
                     <GraduationCap className="w-5 h-5" />
-                    <div>
+                    <div className="text-right">
                       <div className="font-semibold">الاختبار التحصيلي</div>
                       <div className="text-sm text-muted-foreground">
                         يقيس التحصيل الدراسي في المواد العلمية أو النظرية
@@ -99,20 +123,20 @@ export const TestTypeSelection = () => {
 
           {testType === "تحصيلي" && (
             <div className="space-y-4 animate-in fade-in duration-300">
-              <Label className="text-lg font-semibold">المسار</Label>
+              <Label className="text-lg font-semibold text-right block">المسار</Label>
               <RadioGroup value={track} onValueChange={(value) => setTrack(value as Track)}>
-                <div className="flex items-center space-x-2 space-x-reverse p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
+                <div className="flex flex-row-reverse items-center gap-3 p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
                   <RadioGroupItem value="علمي" id="scientific" />
-                  <Label htmlFor="scientific" className="flex-1 cursor-pointer">
+                  <Label htmlFor="scientific" className="flex-1 cursor-pointer text-right">
                     <div className="font-semibold">المسار العلمي</div>
                     <div className="text-sm text-muted-foreground">
                       (فيزياء، كيمياء، أحياء، رياضيات)
                     </div>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 space-x-reverse p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
+                <div className="flex flex-row-reverse items-center gap-3 p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer">
                   <RadioGroupItem value="نظري" id="literary" />
-                  <Label htmlFor="literary" className="flex-1 cursor-pointer">
+                  <Label htmlFor="literary" className="flex-1 cursor-pointer text-right">
                     <div className="font-semibold">المسار النظري</div>
                     <div className="text-sm text-muted-foreground">
                       (تاريخ، جغرافيا، فقه، نحو، أدب)
@@ -130,10 +154,10 @@ export const TestTypeSelection = () => {
             size="lg"
           >
             {loading ? (
-              <>
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                جاري الحفظ...
-              </>
+              <div className="flex items-center gap-2">
+                <span>جاري الحفظ...</span>
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
             ) : (
               "ابدأ التعلم"
             )}
