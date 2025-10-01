@@ -22,8 +22,15 @@ import { useAuth } from "@/hooks/useAuth";
 import AITutor from "@/components/AITutor";
 
 const Dashboard = () => {
+  // All hooks MUST be called before any conditional returns
   const { loading } = useAuth(true);
+  const [currentDay] = useState(5);
+  const [showAIChat, setShowAIChat] = useState(false);
+  
+  const totalDays = 30;
+  const progress = (currentDay / totalDays) * 100;
 
+  // Conditional return AFTER all hooks
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -31,10 +38,6 @@ const Dashboard = () => {
       </div>
     );
   }
-  const [currentDay] = useState(5);
-  const totalDays = 30;
-  const progress = (currentDay / totalDays) * 100;
-  const [showAIChat, setShowAIChat] = useState(false);
 
   const todayTopics = [
     { id: 1, title: "الجبر المتقدم", duration: "45 دقيقة", completed: true },
