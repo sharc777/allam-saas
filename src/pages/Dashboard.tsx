@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import AITutor from "@/components/AITutor";
 
 const Dashboard = () => {
   const { loading } = useAuth(true);
@@ -156,19 +157,19 @@ const Dashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Brain className="w-6 h-6 text-primary" />
-                    المساعد الذكي
+                    المدرس الذكي
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-muted-foreground">
-                    مساعدك الشخصي متاح الآن للإجابة على أسئلتك وشرح المفاهيم الصعبة
+                    مدرسك الشخصي متاح الآن للإجابة على أسئلتك وشرح المفاهيم الصعبة بطريقة مبسطة
                   </p>
                   <Button 
                     className="w-full gradient-primary text-primary-foreground shadow-elegant hover:shadow-glow"
                     onClick={() => setShowAIChat(true)}
                   >
                     <MessageSquare className="ml-2 w-5 h-5" />
-                    تحدث مع المساعد الذكي
+                    تحدث مع المدرس الذكي
                   </Button>
                 </CardContent>
               </Card>
@@ -275,51 +276,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* AI Chat Modal (Simple placeholder) */}
-      {showAIChat && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl max-h-[80vh] border-2 shadow-elegant">
-            <CardHeader className="gradient-primary text-primary-foreground">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="w-6 h-6" />
-                  المساعد الذكي
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary-foreground hover:bg-white/20"
-                  onClick={() => setShowAIChat(false)}
-                >
-                  ✕
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4 mb-4 h-96 overflow-y-auto">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center flex-shrink-0">
-                    <Brain className="w-5 h-5 text-primary-foreground" />
-                  </div>
-                  <div className="bg-muted p-3 rounded-lg flex-1">
-                    <p>مرحباً! أنا مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="اكتب سؤالك هنا..."
-                  className="flex-1 px-4 py-2 rounded-lg border-2 border-border focus:border-primary outline-none"
-                />
-                <Button className="gradient-primary text-primary-foreground">
-                  إرسال
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* AI Tutor */}
+      {showAIChat && <AITutor onClose={() => setShowAIChat(false)} />}
     </div>
   );
 };
