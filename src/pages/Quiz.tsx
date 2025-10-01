@@ -128,6 +128,9 @@ const Quiz = () => {
     
     const percentage = (score / questions.length) * 100;
     const timeTaken = Math.round((Date.now() - startTime) / 60000);
+    
+    const MIN_PASSING_SCORE = 70;
+    const hasPassed = percentage >= MIN_PASSING_SCORE;
 
     // Calculate strengths and weaknesses
     const topicScores: { [key: string]: { correct: number; total: number } } = {};
@@ -149,6 +152,8 @@ const Quiz = () => {
     );
 
     try {
+      console.log("Saving quiz result with contentId:", contentId);
+      
       // Save quiz result with daily_content_id link
       const { error: resultError } = await supabase.from("quiz_results").insert({
         user_id: profile?.id,
@@ -176,14 +181,24 @@ const Quiz = () => {
 
       if (resultError) throw resultError;
 
-      // Update student progress
+      // Update student progress - only mark quiz_completed if passed
+      // If lesson quiz passed, also mark content_completed
+      const progressUpdate: any = {
+        user_id: profile?.id,
+        day_number: dayNumber,
+        quiz_completed: hasPassed, // Only mark completed if passed
+      };
+      
+      // If this is a lesson quiz (has contentId) and user passed, mark content as completed
+      if (contentId && hasPassed) {
+        progressUpdate.content_completed = true;
+        progressUpdate.completed_at = new Date().toISOString();
+        console.log("Marking content as completed (quiz passed with", percentage.toFixed(0) + "%)");
+      }
+
       const { error: progressError } = await supabase
         .from("student_progress")
-        .upsert({
-          user_id: profile?.id,
-          day_number: dayNumber,
-          quiz_completed: true,
-        }, {
+        .upsert(progressUpdate, {
           onConflict: "user_id,day_number"
         });
 
@@ -191,10 +206,19 @@ const Quiz = () => {
 
       setShowResults(true);
       
-      toast({
-        title: "تم إكمال الاختبار!",
-        description: `حصلت على ${score} من ${questions.length} (${percentage.toFixed(0)}%)`,
-      });
+      if (hasPassed) {
+        toast({
+          title: "🎉 رائع! تم إكمال الاختبار بنجاح",
+          description: `حصلت على ${score} من ${questions.length} (${percentage.toFixed(0)}%)` + 
+            (contentId ? " - تم إكمال الدرس تلقائياً" : ""),
+        });
+      } else {
+        toast({
+          title: "تم إكمال الاختبار",
+          description: `حصلت على ${score} من ${questions.length} (${percentage.toFixed(0)}%) - يمكنك إعادة المحاولة`,
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       console.error("Error saving quiz:", error);
       toast({
@@ -287,6 +311,9 @@ const Quiz = () => {
   }
 
   if (showResults) {
+    const MIN_PASSING_SCORE = 70;
+    const hasPassed = percentage >= MIN_PASSING_SCORE;
+    
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto">
@@ -301,12 +328,23 @@ const Quiz = () => {
             </div>
             
             <div className="text-center mb-8">
-              <div className="text-6xl font-bold mb-2">
+              <div className={`text-6xl font-bold mb-2 ${hasPassed ? 'text-success' : 'text-destructive'}`}>
                 {percentage.toFixed(0)}%
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-2">
                 {score} من {questions.length} إجابة صحيحة
               </p>
+              {hasPassed ? (
+                <div className="flex items-center justify-center gap-2 text-success">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="font-medium">ممتاز! لقد نجحت في الاختبار</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2 text-destructive">
+                  <XCircle className="h-5 w-5" />
+                  <span className="font-medium">لم تتجاوز الحد الأدنى ({MIN_PASSING_SCORE}%) - يمكنك إعادة المحاولة</span>
+                </div>
+              )}
             </div>
 
             {/* Performance by Section/Subject */}

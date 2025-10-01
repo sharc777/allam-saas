@@ -28,6 +28,8 @@ import {
   Zap
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AITutor from "@/components/AITutor";
 import { useProfile } from "@/hooks/useProfile";
@@ -75,6 +77,30 @@ const Dashboard = () => {
     );
   }
 
+  // Fetch quiz result for today's lesson
+  const { data: todayQuizResult } = useQuery({
+    queryKey: ["today-quiz-result", dailyContent?.id, profile?.id],
+    queryFn: async () => {
+      if (!profile?.id || !dailyContent?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("quiz_results")
+        .select("*")
+        .eq("user_id", profile.id)
+        .eq("daily_content_id", dailyContent.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') return null;
+      return data;
+    },
+    enabled: !!profile?.id && !!dailyContent?.id,
+  });
+
+  const MIN_PASSING_SCORE = 70;
+  const hasPassedQuiz = todayQuizResult && (todayQuizResult.percentage || 0) >= MIN_PASSING_SCORE;
+  
   // Prepare today's topics from daily content
   const isProgressCompleted = todayProgress && !Array.isArray(todayProgress) 
     ? todayProgress.content_completed 
@@ -92,6 +118,9 @@ const Dashboard = () => {
           title: subtopic,
           duration: `${dailyContent.duration_minutes || 30} دقيقة`,
           completed: isProgressCompleted,
+          quizTaken: !!todayQuizResult,
+          quizPassed: hasPassedQuiz,
+          quizScore: todayQuizResult?.percentage || 0,
         }))
       }));
     }
@@ -232,6 +261,8 @@ const Dashboard = () => {
                                   className={`p-3 mx-2 rounded-lg border transition-smooth ${
                                     topic.completed
                                       ? "bg-success/5 border-success/20"
+                                      : topic.quizTaken && !topic.quizPassed
+                                      ? "bg-destructive/5 border-destructive/20"
                                       : "bg-card border-border hover:border-primary/30"
                                   }`}
                                 >
@@ -239,28 +270,44 @@ const Dashboard = () => {
                                     <div className="flex items-center gap-3">
                                       {topic.completed ? (
                                         <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
+                                      ) : topic.quizTaken && !topic.quizPassed ? (
+                                        <div className="w-5 h-5 flex items-center justify-center text-xs">🔄</div>
                                       ) : (
                                         <BookOpen className="w-5 h-5 text-primary flex-shrink-0" />
                                       )}
                                       <div>
                                         <h4 className="font-medium text-sm">{topic.title}</h4>
-                                        <p className="text-xs text-muted-foreground">{topic.duration}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-xs text-muted-foreground">{topic.duration}</p>
+                                          {topic.quizTaken && (
+                                            <Badge 
+                                              variant="outline" 
+                                              className={`text-xs ${
+                                                topic.quizPassed 
+                                                  ? "border-success text-success" 
+                                                  : "border-destructive text-destructive"
+                                              }`}
+                                            >
+                                              {topic.quizScore.toFixed(0)}%
+                                            </Badge>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                      {!topic.completed && (
                                       <Button
                                         size="sm"
-                                        className="gradient-primary text-primary-foreground"
+                                        className={topic.quizTaken && !topic.quizPassed ? "bg-destructive hover:bg-destructive/90" : "gradient-primary text-primary-foreground"}
                                         onClick={() => {
                                           navigate(`/lesson/${dailyContent?.day_number}/${topic.id || '1'}`);
                                         }}
                                       >
-                                        ابدأ
+                                        {topic.quizTaken && !topic.quizPassed ? "إعادة" : "ابدأ"}
                                       </Button>
                                     )}
                                     {topic.completed && (
                                       <Badge variant="outline" className="border-success text-success text-xs">
-                                        ✓
+                                        ✓ مكتمل
                                       </Badge>
                                     )}
                                   </div>

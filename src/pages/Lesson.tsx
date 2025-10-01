@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, CheckCircle2, BookOpen, Video, FileText } from "lucide-react";
+import { Loader2, CheckCircle2, BookOpen, Video, FileText, Lock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 
@@ -79,6 +79,31 @@ export default function Lesson() {
     },
     enabled: !!user && !!dayNumber,
   });
+
+  // Fetch quiz result for this lesson to check if passed
+  const { data: quizResult } = useQuery({
+    queryKey: ["lesson-quiz-result", content?.id, user?.id],
+    queryFn: async () => {
+      if (!user || !content?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("quiz_results")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("daily_content_id", content.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user && !!content?.id,
+  });
+
+  const MIN_PASSING_SCORE = 70;
+  const hasPassedQuiz = quizResult && (quizResult.percentage || 0) >= MIN_PASSING_SCORE;
+  const canMarkComplete = hasPassedQuiz;
 
   const updateProgressMutation = useMutation({
     mutationFn: async ({ completed, notes: newNotes }: { completed?: boolean; notes?: string }) => {
@@ -304,22 +329,70 @@ export default function Lesson() {
 
             <Card className="p-6">
               <h3 className="text-xl font-bold mb-4">إتمام الدرس</h3>
-              <p className="text-muted-foreground mb-4">
-                هل أنهيت دراسة هذا الدرس؟
-              </p>
-              <Button 
-                onClick={handleMarkComplete}
-                disabled={progress?.content_completed || updateProgressMutation.isPending}
-                className="w-full"
-                variant={progress?.content_completed ? "outline" : "default"}
-              >
-                {updateProgressMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                ) : progress?.content_completed ? (
-                  <CheckCircle2 className="h-4 w-4 ml-2" />
-                ) : null}
-                {progress?.content_completed ? "تم الإكمال" : "وضع علامة كمكتمل"}
-              </Button>
+              
+              {progress?.content_completed ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-success mb-2">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span className="font-medium">تم إكمال الدرس بنجاح!</span>
+                  </div>
+                  {quizResult && (
+                    <p className="text-sm text-muted-foreground">
+                      نتيجة الاختبار: {quizResult.percentage?.toFixed(0)}%
+                    </p>
+                  )}
+                </div>
+              ) : !hasPassedQuiz ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      لإتمام الدرس، يجب:
+                    </p>
+                    <ul className="text-sm space-y-1 text-muted-foreground">
+                      <li>• إكمال اختبار الدرس</li>
+                      <li>• الحصول على درجة {MIN_PASSING_SCORE}% أو أكثر</li>
+                    </ul>
+                  </div>
+                  {quizResult && quizResult.percentage && quizResult.percentage < MIN_PASSING_SCORE && (
+                    <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+                      <p className="text-sm text-destructive">
+                        نتيجتك الحالية: {quizResult.percentage.toFixed(0)}%
+                        <br />
+                        يمكنك إعادة المحاولة للحصول على درجة أفضل
+                      </p>
+                    </div>
+                  )}
+                  <Button 
+                    onClick={handleMarkComplete}
+                    disabled={true}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Lock className="h-4 w-4 ml-2" />
+                    أكمل الاختبار أولاً
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 bg-success/5 border border-success/20 rounded-lg">
+                    <p className="text-sm text-success">
+                      ✓ لقد نجحت في اختبار الدرس ({quizResult?.percentage?.toFixed(0)}%)
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={handleMarkComplete}
+                    disabled={updateProgressMutation.isPending}
+                    className="w-full"
+                  >
+                    {updateProgressMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 ml-2" />
+                    )}
+                    تأكيد إتمام الدرس
+                  </Button>
+                </div>
+              )}
             </Card>
 
             <Card className="p-6 bg-primary/5">
