@@ -144,7 +144,6 @@ export default function Lesson() {
       <Navbar />
       
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* العنوان والتقدم */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -165,9 +164,7 @@ export default function Lesson() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* المحتوى الرئيسي */}
           <div className="lg:col-span-2 space-y-6">
-            {/* الفيديو */}
             {content.video_url && (
               <Card className="p-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -185,7 +182,6 @@ export default function Lesson() {
               </Card>
             )}
 
-            {/* المحتوى النصي */}
             {content.content_text && (
               <Card className="p-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -198,7 +194,6 @@ export default function Lesson() {
               </Card>
             )}
 
-            {/* المواضيع */}
             {topics.length > 0 && (
               <Card className="p-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -226,7 +221,6 @@ export default function Lesson() {
               </Card>
             )}
 
-            {/* الأهداف التعليمية */}
             {content.learning_objectives && content.learning_objectives.length > 0 && (
               <Card className="p-6">
                 <h3 className="text-xl font-bold mb-4">الأهداف التعليمية</h3>
@@ -242,9 +236,7 @@ export default function Lesson() {
             )}
           </div>
 
-          {/* الشريط الجانبي */}
           <div className="space-y-6">
-            {/* الملاحظات */}
             <Card className="p-6">
               <h3 className="text-xl font-bold mb-4">ملاحظاتي</h3>
               <Textarea
@@ -266,7 +258,6 @@ export default function Lesson() {
               </Button>
             </Card>
 
-            {/* إتمام الدرس */}
             <Card className="p-6">
               <h3 className="text-xl font-bold mb-4">إتمام الدرس</h3>
               <p className="text-muted-foreground mb-4">
@@ -287,7 +278,6 @@ export default function Lesson() {
               </Button>
             </Card>
 
-            {/* الاختبار */}
             <Card className="p-6 bg-primary/5">
               <h3 className="text-xl font-bold mb-4">الاختبار اليومي</h3>
               <p className="text-muted-foreground mb-4">
