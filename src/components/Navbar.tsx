@@ -1,10 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Menu, X, BookOpen, Target, Trophy } from "lucide-react";
+import { Menu, X, Target, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { signOut, user } = useAuth(false);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border">
@@ -25,15 +27,24 @@ const Navbar = () => {
             <Link to="/" className="text-foreground hover:text-primary transition-smooth font-medium">
               الرئيسية
             </Link>
-            <Link to="/dashboard" className="text-foreground hover:text-primary transition-smooth font-medium">
-              لوحة التحكم
-            </Link>
-            <Link to="/about" className="text-foreground hover:text-primary transition-smooth font-medium">
-              عن التحدي
-            </Link>
-            <Button className="gradient-primary text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
-              ابدأ الآن
-            </Button>
+            {user ? (
+              <>
+                <Link to="/dashboard" className="text-foreground hover:text-primary transition-smooth font-medium">
+                  لوحة التحكم
+                </Link>
+                <Link to="/admin" className="text-foreground hover:text-primary transition-smooth font-medium">
+                  الإدارة
+                </Link>
+                <Button variant="outline" onClick={signOut}>
+                  <LogOut className="ml-2 h-4 w-4" />
+                  تسجيل خروج
+                </Button>
+              </>
+            ) : (
+              <Button className="gradient-primary text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth" asChild>
+                <Link to="/auth">تسجيل الدخول</Link>
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -55,23 +66,32 @@ const Navbar = () => {
             >
               الرئيسية
             </Link>
-            <Link
-              to="/dashboard"
-              className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              لوحة التحكم
-            </Link>
-            <Link
-              to="/about"
-              className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              عن التحدي
-            </Link>
-            <Button className="w-full gradient-primary text-primary-foreground">
-              ابدأ الآن
-            </Button>
+            {user ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
+                  onClick={() => setIsOpen(false)}
+                >
+                  لوحة التحكم
+                </Link>
+                <Link
+                  to="/admin"
+                  className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
+                  onClick={() => setIsOpen(false)}
+                >
+                  الإدارة
+                </Link>
+                <Button className="w-full" variant="outline" onClick={signOut}>
+                  <LogOut className="ml-2 h-4 w-4" />
+                  تسجيل خروج
+                </Button>
+              </>
+            ) : (
+              <Button className="w-full gradient-primary text-primary-foreground" asChild>
+                <Link to="/auth">تسجيل الدخول</Link>
+              </Button>
+            )}
           </div>
         )}
       </div>

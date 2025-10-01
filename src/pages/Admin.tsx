@@ -11,10 +11,21 @@ import {
   Plus,
   Upload,
   Brain,
-  BarChart3
+  BarChart3,
+  Loader2
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Admin = () => {
+  const { loading } = useAuth(true);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
