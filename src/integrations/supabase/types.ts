@@ -354,10 +354,12 @@ export type Database = {
         Row: {
           completed_at: string
           created_at: string
+          daily_content_id: string | null
           day_number: number | null
           id: string
           percentage: number | null
           questions: Json
+          quiz_mode: string | null
           quiz_type: string | null
           score: number
           strengths: string[] | null
@@ -371,10 +373,12 @@ export type Database = {
         Insert: {
           completed_at?: string
           created_at?: string
+          daily_content_id?: string | null
           day_number?: number | null
           id?: string
           percentage?: number | null
           questions: Json
+          quiz_mode?: string | null
           quiz_type?: string | null
           score: number
           strengths?: string[] | null
@@ -388,10 +392,12 @@ export type Database = {
         Update: {
           completed_at?: string
           created_at?: string
+          daily_content_id?: string | null
           day_number?: number | null
           id?: string
           percentage?: number | null
           questions?: Json
+          quiz_mode?: string | null
           quiz_type?: string | null
           score?: number
           strengths?: string[] | null
@@ -403,6 +409,13 @@ export type Database = {
           weaknesses?: string[] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "quiz_results_daily_content_id_fkey"
+            columns: ["daily_content_id"]
+            isOneToOne: false
+            referencedRelation: "daily_content"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quiz_results_user_id_fkey"
             columns: ["user_id"]

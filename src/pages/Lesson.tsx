@@ -17,15 +17,43 @@ export default function Lesson() {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
 
-  const { data: content, isLoading: contentLoading } = useQuery({
-    queryKey: ["daily-content", dayNumber],
+  // Get profile to use preferences
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
     queryFn: async () => {
+      if (!user) return null;
       const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const testType = profile?.test_type_preference || "قدرات";
+  const track = profile?.track_preference || "عام";
+
+  const { data: content, isLoading: contentLoading } = useQuery({
+    queryKey: ["daily-content", dayNumber, testType, track],
+    queryFn: async () => {
+      let query = supabase
         .from("daily_content")
         .select("*")
         .eq("day_number", parseInt(dayNumber || "0"))
-        .eq("is_published", true)
-        .maybeSingle();
+        .eq("is_published", true);
+
+      // Filter by user preferences
+      if (testType) {
+        query = query.eq("test_type", testType);
+      }
+      if (track && testType === "تحصيلي") {
+        query = query.eq("track", track);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
       return data;
@@ -128,8 +156,17 @@ export default function Lesson() {
         <div className="container mx-auto px-4 py-8">
           <Card className="p-8 text-center">
             <h2 className="text-2xl font-bold mb-4">المحتوى غير متوفر</h2>
-            <p className="text-muted-foreground mb-4">لم يتم العثور على محتوى لهذا اليوم</p>
-            <Button onClick={() => navigate("/dashboard")}>العودة للرئيسية</Button>
+            <p className="text-muted-foreground mb-4">
+              لم يتم العثور على محتوى لهذا اليوم لتفضيلاتك الحالية ({testType} - {track})
+            </p>
+            <div className="space-y-3">
+              <Button onClick={() => navigate("/dashboard")} className="w-full">
+                العودة للرئيسية
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/test-selection")} className="w-full">
+                تغيير التفضيلات
+              </Button>
+            </div>
           </Card>
         </div>
       </div>
@@ -279,15 +316,15 @@ export default function Lesson() {
             </Card>
 
             <Card className="p-6 bg-primary/5">
-              <h3 className="text-xl font-bold mb-4">الاختبار اليومي</h3>
+              <h3 className="text-xl font-bold mb-4">اختبار الدرس</h3>
               <p className="text-muted-foreground mb-4">
-                جاهز لاختبار معلوماتك؟
+                اختبر معلوماتك في محتوى هذا الدرس
               </p>
               <Button 
-                onClick={() => navigate(`/quiz?day=${dayNumber}`)}
+                onClick={() => navigate(`/quiz?day=${dayNumber}&contentId=${content.id}`)}
                 className="w-full"
               >
-                ابدأ الاختبار
+                ابدأ اختبار الدرس
               </Button>
             </Card>
           </div>

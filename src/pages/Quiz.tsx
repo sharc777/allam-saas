@@ -24,6 +24,7 @@ interface Question {
 const Quiz = () => {
   const [searchParams] = useSearchParams();
   const dayNumber = parseInt(searchParams.get("day") || "1");
+  const contentId = searchParams.get("contentId"); // Get daily_content_id from URL
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: profile } = useProfile();
@@ -56,7 +57,8 @@ const Quiz = () => {
           dayNumber, 
           difficulty: "medium",
           testType,
-          track: testType === "تحصيلي" ? track : "عام"
+          track: testType === "تحصيلي" ? track : "عام",
+          contentId // Pass content ID to edge function
         }
       });
 
@@ -125,10 +127,12 @@ const Quiz = () => {
     );
 
     try {
-      // Save quiz result
+      // Save quiz result with daily_content_id link
       const { error: resultError } = await supabase.from("quiz_results").insert({
         user_id: profile?.id,
         day_number: dayNumber,
+        daily_content_id: contentId || null, // Link to daily content if available
+        quiz_mode: contentId ? 'daily' : 'practice', // Set mode based on content link
         quiz_type: "daily",
         test_type: testType,
         track: testType === "تحصيلي" ? track : "عام",
@@ -142,6 +146,7 @@ const Quiz = () => {
         })),
         total_questions: questions.length,
         score,
+        percentage,
         time_taken_minutes: timeTaken,
         strengths,
         weaknesses,

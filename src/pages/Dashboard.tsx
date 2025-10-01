@@ -289,24 +289,49 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-muted-foreground">
-                    اختبر معلوماتك في محتوى اليوم مع 10 أسئلة مولّدة بالذكاء الاصطناعي
+                    {dailyContent 
+                      ? "اختبر معلوماتك في درس اليوم مع 10 أسئلة مولّدة بالذكاء الاصطناعي"
+                      : "قم بإكمال الدرس أولاً للوصول للاختبار المرتبط به"
+                    }
                   </p>
                   {todayProgress && !Array.isArray(todayProgress) && todayProgress.quiz_completed ? (
-                    <Button 
-                      className="w-full"
-                      variant="outline"
-                      onClick={() => window.location.href = `/quiz?day=${currentDay}`}
-                    >
-                      <CheckCircle2 className="ml-2 w-5 h-5 text-success" />
-                      إعادة الاختبار
-                    </Button>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg border border-success/20">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-success" />
+                          <span className="text-sm font-medium">تم إكمال الاختبار</span>
+                        </div>
+                        {quizStats?.recentResults && quizStats.recentResults.length > 0 && (
+                          <Badge variant="outline" className="border-success text-success">
+                            {quizStats.recentResults[0].percentage?.toFixed(0)}%
+                          </Badge>
+                        )}
+                      </div>
+                      <Button 
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => {
+                          if (dailyContent) {
+                            window.location.href = `/quiz?day=${currentDay}&contentId=${dailyContent.id}`;
+                          }
+                        }}
+                        disabled={!dailyContent}
+                      >
+                        إعادة الاختبار
+                      </Button>
+                    </div>
                   ) : (
                     <Button 
                       className="w-full gradient-secondary text-secondary-foreground"
-                      onClick={() => window.location.href = `/quiz?day=${currentDay}`}
+                      onClick={() => {
+                        if (dailyContent) {
+                          window.location.href = `/quiz?day=${currentDay}&contentId=${dailyContent.id}`;
+                        }
+                      }}
+                      disabled={!dailyContent}
                     >
                       <Target className="ml-2 w-5 h-5" />
-                      ابدأ الاختبار
+                      {dailyContent ? "ابدأ اختبار اليوم" : "غير متاح"}
                     </Button>
                   )}
                 </CardContent>
