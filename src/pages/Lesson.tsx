@@ -173,8 +173,19 @@ export default function Lesson() {
     );
   }
 
-  const topics = (content.topics as any[]) || [];
-  const currentTopic = topics.find((t: any) => t.id === topicId) || topics[0];
+  // Handle topics structure (can be object with sections or array)
+  const topicsData = content.topics as any;
+  const sections = topicsData?.sections || [];
+  const allSubtopics = sections.flatMap((section: any) => 
+    (section.subtopics || []).map((subtopic: string, idx: number) => ({
+      id: `${section.name}-${idx}`,
+      title: subtopic,
+      section: section.name
+    }))
+  );
+  
+  // Find current topic or use first one
+  const currentTopic = allSubtopics.find((t: any) => t.id === topicId) || allSubtopics[0];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5" dir="rtl">
@@ -231,27 +242,23 @@ export default function Lesson() {
               </Card>
             )}
 
-            {topics.length > 0 && (
+            {sections.length > 0 && (
               <Card className="p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <BookOpen className="h-5 w-5 text-primary" />
                   <h3 className="text-xl font-bold">المواضيع</h3>
                 </div>
-                <div className="space-y-4">
-                  {topics.map((topic: any, index: number) => (
-                    <div key={index} className="border-r-4 border-primary pr-4">
-                      <h4 className="font-bold text-lg mb-2">{topic.title}</h4>
-                      <p className="text-muted-foreground mb-3">{topic.description}</p>
-                      {topic.examples && topic.examples.length > 0 && (
-                        <div className="bg-muted p-4 rounded-lg">
-                          <p className="font-medium mb-2">أمثلة:</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            {topic.examples.map((example: string, idx: number) => (
-                              <li key={idx}>{example}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                <div className="space-y-6">
+                  {sections.map((section: any, sectionIdx: number) => (
+                    <div key={sectionIdx} className="space-y-3">
+                      <h4 className="font-bold text-xl mb-3 text-primary">{section.name}</h4>
+                      <div className="space-y-3">
+                        {(section.subtopics || []).map((subtopic: string, idx: number) => (
+                          <div key={idx} className="border-r-4 border-primary/50 pr-4 bg-muted/30 p-3 rounded-lg">
+                            <p className="font-medium">{subtopic}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
