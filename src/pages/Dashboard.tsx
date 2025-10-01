@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -34,7 +35,6 @@ import { useStudentProgress } from "@/hooks/useStudentProgress";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useQuizStats } from "@/hooks/useQuizStats";
 import { useAllProgress } from "@/hooks/useAllProgress";
-import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   // All hooks MUST be called before any conditional returns
@@ -246,8 +246,14 @@ const Dashboard = () => {
                                         <p className="text-xs text-muted-foreground">{topic.duration}</p>
                                       </div>
                                     </div>
-                                    {!topic.completed && (
-                                      <Button size="sm" className="gradient-primary text-primary-foreground">
+                                     {!topic.completed && (
+                                      <Button
+                                        size="sm"
+                                        className="gradient-primary text-primary-foreground"
+                                        onClick={() => {
+                                          navigate(`/lesson/${dailyContent?.day_number}/${topic.id || '1'}`);
+                                        }}
+                                      >
                                         ابدأ
                                       </Button>
                                     )}

@@ -5,3 +5,10 @@ verify_jwt = true
 
 [functions.generate-quiz]
 verify_jwt = true
+
+[functions.upload-pdf-content]
+verify_jwt = true
+
+[functions.import-questions-excel]
+verify_jwt = true
+

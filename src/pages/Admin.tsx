@@ -15,6 +15,9 @@ import {
   Loader2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { ContentManagement } from "@/components/admin/ContentManagement";
+import { AISettings } from "@/components/admin/AISettings";
+import { KnowledgeBase } from "@/components/admin/KnowledgeBase";
 
 const Admin = () => {
   const { loading } = useAuth(true);
@@ -102,51 +105,23 @@ const Admin = () => {
           </div>
 
           {/* Main Content Tabs */}
-          <Tabs defaultValue="content" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+          <Tabs defaultValue="content" className="space-y-6" dir="rtl">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto">
               <TabsTrigger value="content">المحتوى</TabsTrigger>
-              <TabsTrigger value="questions">قاعدة الأسئلة</TabsTrigger>
-              <TabsTrigger value="ai">الذكاء الاصطناعي</TabsTrigger>
+              <TabsTrigger value="knowledge">قاعدة المعرفة</TabsTrigger>
+              <TabsTrigger value="questions">الأسئلة</TabsTrigger>
+              <TabsTrigger value="ai">AI</TabsTrigger>
               <TabsTrigger value="users">المستخدمين</TabsTrigger>
             </TabsList>
 
             {/* Content Management */}
             <TabsContent value="content" className="space-y-6">
-              <Card className="border-2">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="w-6 h-6 text-primary" />
-                      إدارة المحتوى التعليمي
-                    </CardTitle>
-                    <Button className="gradient-primary text-primary-foreground">
-                      <Plus className="ml-2 w-4 h-4" />
-                      إضافة درس جديد
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map((day) => (
-                      <div key={day} className="flex items-center justify-between p-4 border-2 rounded-lg hover:border-primary/50 transition-smooth">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                            {day}
-                          </div>
-                          <div>
-                            <h4 className="font-bold">اليوم {day}: أساسيات الجبر</h4>
-                            <p className="text-sm text-muted-foreground">3 موضوعات • 45 دقيقة</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">تعديل</Button>
-                          <Button variant="outline" size="sm">معاينة</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <ContentManagement />
+            </TabsContent>
+
+            {/* Knowledge Base */}
+            <TabsContent value="knowledge" className="space-y-6">
+              <KnowledgeBase />
             </TabsContent>
 
             {/* Questions Database */}
@@ -226,63 +201,7 @@ const Admin = () => {
 
             {/* AI Settings */}
             <TabsContent value="ai" className="space-y-6">
-              <Card className="border-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="w-6 h-6 text-primary" />
-                    إعدادات الذكاء الاصطناعي
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <h3 className="font-bold mb-2">سلوك المساعد الذكي</h3>
-                    <textarea
-                      className="w-full h-32 px-4 py-2 rounded-lg border-2 border-border focus:border-primary outline-none"
-                      placeholder="حدد كيف يجب أن يتصرف المساعد الذكي عند الإجابة على أسئلة الطلاب..."
-                      defaultValue="أنت مساعد تعليمي ذكي متخصص في مساعدة الطلاب على فهم مفاهيم اختبارات القدرات والتحصيلي. يجب أن تكون إجاباتك واضحة ومبسطة وتعليمية."
-                    />
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold mb-2">معايير توليد الاختبارات</h3>
-                    <div className="space-y-3">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm text-muted-foreground mb-1 block">عدد الأسئلة الافتراضي</label>
-                          <input
-                            type="number"
-                            defaultValue="10"
-                            className="w-full px-4 py-2 rounded-lg border-2 border-border"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm text-muted-foreground mb-1 block">مستوى الصعوبة</label>
-                          <select className="w-full px-4 py-2 rounded-lg border-2 border-border">
-                            <option>متكيف</option>
-                            <option>سهل</option>
-                            <option>متوسط</option>
-                            <option>صعب</option>
-                            <option>مختلط</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm text-muted-foreground mb-1 block">توزيع المواضيع</label>
-                        <textarea
-                          className="w-full h-24 px-4 py-2 rounded-lg border-2 border-border"
-                          placeholder="مثال: 50% جبر، 30% هندسة، 20% إحصاء"
-                          defaultValue="40% جبر، 30% هندسة، 20% إحصاء، 10% منطق"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button className="gradient-primary text-primary-foreground shadow-elegant">
-                    <Settings className="ml-2 w-4 h-4" />
-                    حفظ الإعدادات
-                  </Button>
-                </CardContent>
-              </Card>
+              <AISettings />
             </TabsContent>
 
             {/* Users Management */}

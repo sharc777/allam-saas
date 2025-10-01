@@ -103,6 +103,33 @@ export type Database = {
           },
         ]
       }
+      ai_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       daily_content: {
         Row: {
           content_text: string | null
@@ -151,6 +178,78 @@ export type Database = {
           track?: Database["public"]["Enums"]["academic_track"] | null
           updated_at?: string
           video_url?: string | null
+        }
+        Relationships: []
+      }
+      generated_questions_log: {
+        Row: {
+          created_at: string | null
+          day_number: number
+          id: string
+          question_data: Json | null
+          question_hash: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          day_number: number
+          id?: string
+          question_data?: Json | null
+          question_hash: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          day_number?: number
+          id?: string
+          question_data?: Json | null
+          question_hash?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      knowledge_base: {
+        Row: {
+          content: string | null
+          content_type: string
+          created_at: string | null
+          file_url: string | null
+          id: string
+          is_active: boolean | null
+          metadata: Json | null
+          related_topics: string[] | null
+          test_type: Database["public"]["Enums"]["test_type"] | null
+          title: string
+          track: Database["public"]["Enums"]["academic_track"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          content?: string | null
+          content_type: string
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          related_topics?: string[] | null
+          test_type?: Database["public"]["Enums"]["test_type"] | null
+          title: string
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string | null
+          content_type?: string
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          related_topics?: string[] | null
+          test_type?: Database["public"]["Enums"]["test_type"] | null
+          title?: string
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          updated_at?: string | null
         }
         Relationships: []
       }
