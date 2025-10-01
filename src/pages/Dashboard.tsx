@@ -63,20 +63,6 @@ const Dashboard = () => {
   const { data: quizStats, isLoading: quizLoading } = useQuizStats();
   const { data: allProgressData, isLoading: allProgressLoading } = useAllProgress();
   
-  const totalDays = 30;
-  const progress = (currentDay / totalDays) * 100;
-
-  // Conditional return AFTER all hooks
-  const isLoading = authLoading || profileLoading || contentLoading || progressLoading || achievementsLoading || quizLoading || allProgressLoading;
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   // Fetch quiz result for today's lesson
   const { data: todayQuizResult } = useQuery({
     queryKey: ["today-quiz-result", dailyContent?.id, profile?.id],
@@ -97,6 +83,20 @@ const Dashboard = () => {
     },
     enabled: !!profile?.id && !!dailyContent?.id,
   });
+  
+  const totalDays = 30;
+  const progress = (currentDay / totalDays) * 100;
+
+  // Conditional return AFTER all hooks
+  const isLoading = authLoading || profileLoading || contentLoading || progressLoading || achievementsLoading || quizLoading || allProgressLoading;
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   const MIN_PASSING_SCORE = 70;
   const hasPassedQuiz = todayQuizResult && (todayQuizResult.percentage || 0) >= MIN_PASSING_SCORE;
