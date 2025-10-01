@@ -344,13 +344,23 @@ export default function Lesson() {
                 </div>
               ) : !hasPassedQuiz ? (
                 <div className="space-y-3">
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      لإتمام الدرس، يجب:
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-2">
+                      📋 متطلبات إتمام الدرس:
                     </p>
-                    <ul className="text-sm space-y-1 text-muted-foreground">
-                      <li>• إكمال اختبار الدرس</li>
-                      <li>• الحصول على درجة {MIN_PASSING_SCORE}% أو أكثر</li>
+                    <ul className="text-sm space-y-1.5 text-amber-700 dark:text-amber-400">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5">1.</span>
+                        <span>إكمال اختبار الدرس من الأسفل</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5">2.</span>
+                        <span>الحصول على درجة {MIN_PASSING_SCORE}% أو أكثر للنجاح</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5">3.</span>
+                        <span>سيتم إكمال الدرس تلقائياً عند النجاح</span>
+                      </li>
                     </ul>
                   </div>
                   {quizResult && quizResult.percentage && quizResult.percentage < MIN_PASSING_SCORE && (

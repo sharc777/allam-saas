@@ -152,7 +152,12 @@ const Quiz = () => {
     );
 
     try {
-      console.log("Saving quiz result with contentId:", contentId);
+      // المرحلة 3: إضافة logging مفصل للتحقق من ربط daily_content_id
+      console.log("📝 حفظ نتيجة الاختبار:");
+      console.log("  - contentId:", contentId || "غير موجود");
+      console.log("  - dayNumber:", dayNumber);
+      console.log("  - النتيجة:", percentage.toFixed(0) + "%");
+      console.log("  - النجاح:", hasPassed ? "نعم ✓" : "لا ✗");
       
       // Save quiz result with daily_content_id link
       const { error: resultError } = await supabase.from("quiz_results").insert({
@@ -193,7 +198,9 @@ const Quiz = () => {
       if (contentId && hasPassed) {
         progressUpdate.content_completed = true;
         progressUpdate.completed_at = new Date().toISOString();
-        console.log("Marking content as completed (quiz passed with", percentage.toFixed(0) + "%)");
+        console.log("✅ تم إكمال الدرس تلقائياً - نجح الطالب بنسبة", percentage.toFixed(0) + "%");
+      } else if (contentId && !hasPassed) {
+        console.log("⚠️ لم يتم إكمال الدرس - النسبة", percentage.toFixed(0) + "% أقل من الحد الأدنى 70%");
       }
 
       const { error: progressError } = await supabase

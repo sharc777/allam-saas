@@ -101,10 +101,9 @@ const Dashboard = () => {
   const MIN_PASSING_SCORE = 70;
   const hasPassedQuiz = todayQuizResult && (todayQuizResult.percentage || 0) >= MIN_PASSING_SCORE;
   
-  // Prepare today's topics from daily content
-  const isProgressCompleted = todayProgress && !Array.isArray(todayProgress) 
-    ? todayProgress.content_completed 
-    : false;
+  // المرحلة 1: إصلاح منطق الإكمال - استخدام نتيجة الاختبار الفعلية بدلاً من content_completed
+  // الدرس مكتمل فقط إذا نجح الطالب في الاختبار بنسبة 70% أو أكثر
+  const isLessonCompleted = hasPassedQuiz;
     
   // Process topics with sections structure (works for both قدرات and تحصيلي)
   const topicSections = dailyContent?.topics ? (() => {
@@ -117,7 +116,7 @@ const Dashboard = () => {
           id: `${section.name}-${index}`,
           title: subtopic,
           duration: `${dailyContent.duration_minutes || 30} دقيقة`,
-          completed: isProgressCompleted,
+          completed: isLessonCompleted, // استخدام نتيجة الاختبار الفعلية
           quizTaken: !!todayQuizResult,
           quizPassed: hasPassedQuiz,
           quizScore: todayQuizResult?.percentage || 0,
