@@ -328,29 +328,268 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Tahseli Comprehensive Content Card */}
-              {testType === "تحصيلي" && (
-                <Card className="border-2 border-accent/30">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="w-6 h-6 text-accent" />
-                      المحتوى الشامل للتحصيلي
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-muted-foreground">
-                      استعرض جميع أقسام ومواضيع اختبار التحصيلي للمسار {track === "علمي" ? "العلمي" : "النظري"}
-                    </p>
-                    <Button 
-                      className="w-full gradient-accent text-accent-foreground"
-                      onClick={() => navigate("/tahseli-content")}
-                    >
-                      <BookOpen className="ml-2 w-5 h-5" />
-                      عرض المحتوى الكامل
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Comprehensive Content Card */}
+              <Card className="border-2 border-accent/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="w-6 h-6 text-accent" />
+                    المحتوى الشامل
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    استعرض جميع أقسام ومواضيع الاختبار
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="multiple" className="space-y-3">
+                    {/* قسم القدرات - يظهر دائماً */}
+                    <AccordionItem value="qudurat" className="border-2 rounded-lg overflow-hidden">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-primary/5">
+                        <div className="flex items-center gap-3 text-right w-full">
+                          <Brain className="w-5 h-5 text-primary" />
+                          <span className="font-bold text-lg">القدرات العامة</span>
+                          <Badge className="mr-auto bg-warning text-warning-foreground">
+                            9 مواضيع
+                          </Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-2 pb-2">
+                        <Accordion type="multiple" className="space-y-2">
+                          {/* القسم اللفظي */}
+                          <AccordionItem value="verbal" className="border rounded-lg mx-2">
+                            <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-primary/5">
+                              <div className="flex items-center gap-2 text-right w-full">
+                                <div className="w-2 h-2 rounded-full bg-primary" />
+                                <span className="font-semibold">القسم اللفظي</span>
+                                <Badge variant="secondary" className="mr-auto">5 مواضيع</Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-3 pb-2">
+                              <div className="space-y-2">
+                                {["التناظر اللفظي", "الخطأ السياقي", "إكمال الجمل", "الاستيعاب المقروء", "المفردة الشاذة"].map((topic, i) => (
+                                  <div key={i} className="p-2 rounded-lg border bg-card hover:border-primary/30 transition-smooth">
+                                    <div className="flex items-center gap-2">
+                                      <BookOpen className="w-4 h-4 text-primary" />
+                                      <span className="text-sm">{topic}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+
+                          {/* القسم الكمي */}
+                          <AccordionItem value="quantitative" className="border rounded-lg mx-2">
+                            <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-secondary/5">
+                              <div className="flex items-center gap-2 text-right w-full">
+                                <div className="w-2 h-2 rounded-full bg-secondary" />
+                                <span className="font-semibold">القسم الكمي</span>
+                                <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-3 pb-2">
+                              <div className="space-y-2">
+                                {["العمليات الحسابية", "الهندسة", "الجبر", "التحليل والاستنتاج"].map((topic, i) => (
+                                  <div key={i} className="p-2 rounded-lg border bg-card hover:border-secondary/30 transition-smooth">
+                                    <div className="flex items-center gap-2">
+                                      <Target className="w-4 h-4 text-secondary" />
+                                      <span className="text-sm">{topic}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* قسم التحصيلي - يظهر فقط إذا كان test_type هو تحصيلي */}
+                    {testType === "تحصيلي" && (
+                      <AccordionItem value="tahseli" className="border-2 rounded-lg overflow-hidden border-accent/30">
+                        <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-accent/5">
+                          <div className="flex items-center gap-3 text-right w-full">
+                            <Sparkles className="w-5 h-5 text-accent" />
+                            <span className="font-bold text-lg">التحصيلي - {track === "علمي" ? "المسار العلمي" : "المسار النظري"}</span>
+                            <Badge className="mr-auto bg-warning text-warning-foreground">
+                              {track === "علمي" ? "16 موضوع" : "12 موضوع"}
+                            </Badge>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-2">
+                          <Accordion type="multiple" className="space-y-2">
+                            {track === "علمي" ? (
+                              <>
+                                {/* الرياضيات */}
+                                <AccordionItem value="math" className="border rounded-lg mx-2 border-blue-500/30">
+                                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-blue-500/5">
+                                    <div className="flex items-center gap-2 text-right w-full">
+                                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                      <span className="font-semibold">الرياضيات</span>
+                                      <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 pb-2">
+                                    <div className="space-y-2">
+                                      {["الجبر", "الهندسة", "التفاضل والتكامل", "الإحصاء"].map((topic, i) => (
+                                        <div key={i} className="p-2 rounded-lg border bg-card hover:border-blue-500/30 transition-smooth">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4 text-blue-500" />
+                                            <span className="text-sm">{topic}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+
+                                {/* الفيزياء */}
+                                <AccordionItem value="physics" className="border rounded-lg mx-2 border-purple-500/30">
+                                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-purple-500/5">
+                                    <div className="flex items-center gap-2 text-right w-full">
+                                      <div className="w-2 h-2 rounded-full bg-purple-500" />
+                                      <span className="font-semibold">الفيزياء</span>
+                                      <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 pb-2">
+                                    <div className="space-y-2">
+                                      {["الميكانيكا", "الحرارة", "الكهرباء والمغناطيسية", "الموجات والبصريات"].map((topic, i) => (
+                                        <div key={i} className="p-2 rounded-lg border bg-card hover:border-purple-500/30 transition-smooth">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4 text-purple-500" />
+                                            <span className="text-sm">{topic}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+
+                                {/* الكيمياء */}
+                                <AccordionItem value="chemistry" className="border rounded-lg mx-2 border-green-500/30">
+                                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-green-500/5">
+                                    <div className="flex items-center gap-2 text-right w-full">
+                                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                                      <span className="font-semibold">الكيمياء</span>
+                                      <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 pb-2">
+                                    <div className="space-y-2">
+                                      {["الكيمياء العامة", "الكيمياء العضوية", "الكيمياء الحيوية", "الكيمياء الفيزيائية"].map((topic, i) => (
+                                        <div key={i} className="p-2 rounded-lg border bg-card hover:border-green-500/30 transition-smooth">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4 text-green-500" />
+                                            <span className="text-sm">{topic}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+
+                                {/* الأحياء */}
+                                <AccordionItem value="biology" className="border rounded-lg mx-2 border-teal-500/30">
+                                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-teal-500/5">
+                                    <div className="flex items-center gap-2 text-right w-full">
+                                      <div className="w-2 h-2 rounded-full bg-teal-500" />
+                                      <span className="font-semibold">الأحياء</span>
+                                      <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 pb-2">
+                                    <div className="space-y-2">
+                                      {["الخلية", "الوراثة", "التشريح", "علم البيئة"].map((topic, i) => (
+                                        <div key={i} className="p-2 rounded-lg border bg-card hover:border-teal-500/30 transition-smooth">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4 text-teal-500" />
+                                            <span className="text-sm">{topic}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </>
+                            ) : (
+                              <>
+                                {/* العلوم الشرعية */}
+                                <AccordionItem value="sharia" className="border rounded-lg mx-2 border-amber-500/30">
+                                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-amber-500/5">
+                                    <div className="flex items-center gap-2 text-right w-full">
+                                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                      <span className="font-semibold">العلوم الشرعية</span>
+                                      <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 pb-2">
+                                    <div className="space-y-2">
+                                      {["التفسير", "الحديث", "الفقه", "التوحيد"].map((topic, i) => (
+                                        <div key={i} className="p-2 rounded-lg border bg-card hover:border-amber-500/30 transition-smooth">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4 text-amber-500" />
+                                            <span className="text-sm">{topic}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+
+                                {/* اللغة العربية */}
+                                <AccordionItem value="arabic" className="border rounded-lg mx-2 border-rose-500/30">
+                                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-rose-500/5">
+                                    <div className="flex items-center gap-2 text-right w-full">
+                                      <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                      <span className="font-semibold">اللغة العربية</span>
+                                      <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 pb-2">
+                                    <div className="space-y-2">
+                                      {["النحو", "الصرف", "البلاغة", "الأدب"].map((topic, i) => (
+                                        <div key={i} className="p-2 rounded-lg border bg-card hover:border-rose-500/30 transition-smooth">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4 text-rose-500" />
+                                            <span className="text-sm">{topic}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+
+                                {/* العلوم الاجتماعية */}
+                                <AccordionItem value="social" className="border rounded-lg mx-2 border-indigo-500/30">
+                                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-indigo-500/5">
+                                    <div className="flex items-center gap-2 text-right w-full">
+                                      <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                                      <span className="font-semibold">العلوم الاجتماعية</span>
+                                      <Badge variant="secondary" className="mr-auto">4 مواضيع</Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 pb-2">
+                                    <div className="space-y-2">
+                                      {["التاريخ", "الجغرافيا", "الاقتصاد", "علم الاجتماع"].map((topic, i) => (
+                                        <div key={i} className="p-2 rounded-lg border bg-card hover:border-indigo-500/30 transition-smooth">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen className="w-4 h-4 text-indigo-500" />
+                                            <span className="text-sm">{topic}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </>
+                            )}
+                          </Accordion>
+                        </AccordionContent>
+                      </AccordionItem>
+                    )}
+                  </Accordion>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Sidebar */}

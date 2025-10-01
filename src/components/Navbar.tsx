@@ -32,9 +32,6 @@ const Navbar = () => {
                 <Link to="/dashboard" className="text-foreground hover:text-primary transition-smooth font-medium">
                   لوحة التحكم
                 </Link>
-                <Link to="/tahseli-content" className="text-foreground hover:text-primary transition-smooth font-medium">
-                  محتوى التحصيلي
-                </Link>
                 <Link to="/admin" className="text-foreground hover:text-primary transition-smooth font-medium">
                   الإدارة
                 </Link>
@@ -77,13 +74,6 @@ const Navbar = () => {
                   onClick={() => setIsOpen(false)}
                 >
                   لوحة التحكم
-                </Link>
-                <Link
-                  to="/tahseli-content"
-                  className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
-                  onClick={() => setIsOpen(false)}
-                >
-                  محتوى التحصيلي
                 </Link>
                 <Link
                   to="/admin"
