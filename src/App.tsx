@@ -9,6 +9,7 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import Quiz from "./pages/Quiz";
 import NotFound from "./pages/NotFound";
+import TestTypeSelection from "./pages/TestTypeSelection";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/test-selection" element={<TestTypeSelection />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/admin" element={<Admin />} />

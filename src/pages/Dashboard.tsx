@@ -15,7 +15,8 @@ import {
   Lock,
   Sparkles,
   Brain,
-  Loader2
+  Loader2,
+  Settings
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,16 +27,27 @@ import { useStudentProgress } from "@/hooks/useStudentProgress";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useQuizStats } from "@/hooks/useQuizStats";
 import { useAllProgress } from "@/hooks/useAllProgress";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   // All hooks MUST be called before any conditional returns
   const { loading: authLoading } = useAuth(true);
   const [showAIChat, setShowAIChat] = useState(false);
+  const navigate = useNavigate();
   
   // Fetch data from Supabase
   const { data: profile, isLoading: profileLoading } = useProfile();
+  
+  // Redirect to test selection if no preferences set
+  if (profile && !profile.test_type_preference) {
+    navigate("/test-selection");
+    return null;
+  }
+  
   const currentDay = profile?.current_day || 1;
-  const { data: dailyContent, isLoading: contentLoading } = useDailyContent(currentDay);
+  const testType = profile?.test_type_preference || "قدرات";
+  const track = profile?.track_preference || "عام";
+  const { data: dailyContent, isLoading: contentLoading } = useDailyContent(currentDay, testType, track);
   const { data: todayProgress, isLoading: progressLoading } = useStudentProgress(currentDay);
   const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
   const { data: quizStats, isLoading: quizLoading } = useQuizStats();
@@ -83,12 +95,36 @@ const Dashboard = () => {
         <div className="container mx-auto max-w-7xl">
           {/* Welcome Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">
-              مرحباً بك في <span className="text-primary">لوحة التحكم</span>
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              استمر في التقدم وحقق أهدافك اليومية
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-4xl font-bold mb-2">
+                  مرحباً بك في <span className="text-primary">لوحة التحكم</span>
+                </h1>
+                <p className="text-muted-foreground text-lg">
+                  استمر في التقدم وحقق أهدافك اليومية
+                </p>
+              </div>
+              <Card className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div className="text-sm text-muted-foreground">نوع الاختبار</div>
+                    <div className="font-bold">{testType}</div>
+                    {testType === "تحصيلي" && (
+                      <Badge variant="secondary" className="mt-1">
+                        {track === "علمي" ? "المسار العلمي" : "المسار النظري"}
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => navigate("/test-selection")}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">

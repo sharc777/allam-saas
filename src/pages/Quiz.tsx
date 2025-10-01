@@ -27,6 +27,12 @@ const Quiz = () => {
   const { toast } = useToast();
   const { data: profile } = useProfile();
 
+  // Redirect to test selection if no preferences set
+  if (profile && !profile.test_type_preference) {
+    navigate("/test-selection");
+    return null;
+  }
+
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -34,8 +40,12 @@ const Quiz = () => {
   const [showResults, setShowResults] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [startTime] = useState(Date.now());
-  const [testType, setTestType] = useState<"قدرات" | "تحصيلي">("قدرات");
-  const [track, setTrack] = useState<"عام" | "علمي" | "نظري">("عام");
+  const [testType, setTestType] = useState<"قدرات" | "تحصيلي">(
+    profile?.test_type_preference || "قدرات"
+  );
+  const [track, setTrack] = useState<"عام" | "علمي" | "نظري">(
+    profile?.track_preference || "عام"
+  );
 
   const generateQuiz = async () => {
     setLoading(true);

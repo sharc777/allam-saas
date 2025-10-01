@@ -163,7 +163,9 @@ export type Database = {
           id: string
           role: Database["public"]["Enums"]["user_role"]
           streak_days: number | null
+          test_type_preference: Database["public"]["Enums"]["test_type"] | null
           total_points: number | null
+          track_preference: Database["public"]["Enums"]["academic_track"] | null
           updated_at: string
         }
         Insert: {
@@ -174,7 +176,11 @@ export type Database = {
           id: string
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
+          test_type_preference?: Database["public"]["Enums"]["test_type"] | null
           total_points?: number | null
+          track_preference?:
+            | Database["public"]["Enums"]["academic_track"]
+            | null
           updated_at?: string
         }
         Update: {
@@ -185,7 +191,11 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
+          test_type_preference?: Database["public"]["Enums"]["test_type"] | null
           total_points?: number | null
+          track_preference?:
+            | Database["public"]["Enums"]["academic_track"]
+            | null
           updated_at?: string
         }
         Relationships: []
