@@ -20,18 +20,34 @@ import {
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import AITutor from "@/components/AITutor";
+import { useProfile } from "@/hooks/useProfile";
+import { useDailyContent } from "@/hooks/useDailyContent";
+import { useStudentProgress } from "@/hooks/useStudentProgress";
+import { useAchievements } from "@/hooks/useAchievements";
+import { useQuizStats } from "@/hooks/useQuizStats";
+import { useAllProgress } from "@/hooks/useAllProgress";
 
 const Dashboard = () => {
   // All hooks MUST be called before any conditional returns
-  const { loading } = useAuth(true);
-  const [currentDay] = useState(5);
+  const { loading: authLoading } = useAuth(true);
   const [showAIChat, setShowAIChat] = useState(false);
+  
+  // Fetch data from Supabase
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const currentDay = profile?.current_day || 1;
+  const { data: dailyContent, isLoading: contentLoading } = useDailyContent(currentDay);
+  const { data: todayProgress, isLoading: progressLoading } = useStudentProgress(currentDay);
+  const { data: achievementsData, isLoading: achievementsLoading } = useAchievements();
+  const { data: quizStats, isLoading: quizLoading } = useQuizStats();
+  const { data: allProgressData, isLoading: allProgressLoading } = useAllProgress();
   
   const totalDays = 30;
   const progress = (currentDay / totalDays) * 100;
 
   // Conditional return AFTER all hooks
-  if (loading) {
+  const isLoading = authLoading || profileLoading || contentLoading || progressLoading || achievementsLoading || quizLoading || allProgressLoading;
+  
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -39,17 +55,25 @@ const Dashboard = () => {
     );
   }
 
-  const todayTopics = [
-    { id: 1, title: "الجبر المتقدم", duration: "45 دقيقة", completed: true },
-    { id: 2, title: "حل المسائل اللفظية", duration: "30 دقيقة", completed: false },
-    { id: 3, title: "اختبار قصير", duration: "20 دقيقة", completed: false },
-  ];
+  // Prepare today's topics from daily content
+  const isProgressCompleted = todayProgress && !Array.isArray(todayProgress) 
+    ? todayProgress.content_completed 
+    : false;
+    
+  const todayTopics = dailyContent?.topics ? (dailyContent.topics as any[]).map((topic: any, index: number) => ({
+    id: index + 1,
+    title: topic.title || topic,
+    duration: `${dailyContent.duration_minutes || 30} دقيقة`,
+    completed: isProgressCompleted,
+  })) : [];
 
-  const achievements = [
-    { id: 1, name: "بداية قوية", icon: "🔥", unlocked: true },
-    { id: 2, name: "5 أيام متتالية", icon: "⭐", unlocked: true },
-    { id: 3, name: "مبدع الأسبوع", icon: "🏆", unlocked: false },
-  ];
+  // Prepare achievements data
+  const achievements = achievementsData?.slice(0, 3).map(item => ({
+    id: item.id,
+    name: (item.achievement as any)?.name_ar || (item.achievement as any)?.name || "إنجاز",
+    icon: (item.achievement as any)?.icon || "🏆",
+    unlocked: true,
+  })) || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -94,15 +118,15 @@ const Dashboard = () => {
                   
                   <div className="grid grid-cols-3 gap-4 pt-4">
                     <div className="text-center p-3 rounded-lg bg-primary/10">
-                      <div className="text-2xl font-bold text-primary">12</div>
+                      <div className="text-2xl font-bold text-primary">{allProgressData?.completedLessons || 0}</div>
                       <div className="text-sm text-muted-foreground">دروس مكتملة</div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-secondary/10">
-                      <div className="text-2xl font-bold text-secondary">89%</div>
+                      <div className="text-2xl font-bold text-secondary">{quizStats?.averageScore.toFixed(0) || 0}%</div>
                       <div className="text-sm text-muted-foreground">نسبة النجاح</div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-success/10">
-                      <div className="text-2xl font-bold text-success">5</div>
+                      <div className="text-2xl font-bold text-success">{profile?.streak_days || 0}</div>
                       <div className="text-sm text-muted-foreground">أيام متتالية</div>
                     </div>
                   </div>
@@ -114,11 +138,14 @@ const Dashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="w-6 h-6 text-secondary" />
-                    محتوى اليوم - اليوم الخامس
+                    {dailyContent?.title || `محتوى اليوم - اليوم ${currentDay}`}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {todayTopics.map((topic) => (
+                  {dailyContent?.description && (
+                    <p className="text-muted-foreground mb-4">{dailyContent.description}</p>
+                  )}
+                  {todayTopics.length > 0 ? todayTopics.map((topic) => (
                     <div
                       key={topic.id}
                       className={`p-4 rounded-lg border-2 transition-smooth ${
@@ -151,7 +178,12 @@ const Dashboard = () => {
                         )}
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>لا يوجد محتوى متاح لهذا اليوم</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -191,7 +223,7 @@ const Dashboard = () => {
                 <CardContent>
                   <div className="text-center space-y-2">
                     <div className="text-6xl font-bold text-secondary">🔥</div>
-                    <div className="text-4xl font-bold">5</div>
+                    <div className="text-4xl font-bold">{profile?.streak_days || 0}</div>
                     <p className="text-sm text-muted-foreground">أيام متتالية من التعلم!</p>
                     <p className="text-xs text-muted-foreground pt-2">
                       استمر لتحافظ على سلسلتك
@@ -209,7 +241,7 @@ const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {achievements.map((achievement) => (
+                  {achievements.length > 0 ? achievements.map((achievement) => (
                     <div
                       key={achievement.id}
                       className={`p-3 rounded-lg border transition-smooth ${
@@ -228,7 +260,13 @@ const Dashboard = () => {
                         )}
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <Trophy className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">لا توجد إنجازات بعد</p>
+                      <p className="text-xs">ابدأ التعلم لفتح الإنجازات!</p>
+                    </div>
+                  )}
                   <Button variant="outline" className="w-full">
                     عرض الكل
                   </Button>
@@ -244,34 +282,45 @@ const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">نقاط القوة</span>
-                      <span className="text-sm font-bold text-success">ممتاز</span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-success" />
-                        <span>الجبر</span>
+                  {quizStats && quizStats.strengths.length > 0 && (
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">نقاط القوة</span>
+                        <span className="text-sm font-bold text-success">ممتاز</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-success" />
-                        <span>الهندسة</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">يحتاج تحسين</span>
-                      <span className="text-sm font-bold text-secondary">جيد</span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Target className="w-4 h-4 text-secondary" />
-                        <span>المسائل اللفظية</span>
+                      <div className="space-y-2 text-sm">
+                        {quizStats.strengths.slice(0, 3).map((strength, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-success" />
+                            <span>{strength}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  )}
+                  {quizStats && quizStats.weaknesses.length > 0 && (
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">يحتاج تحسين</span>
+                        <span className="text-sm font-bold text-secondary">جيد</span>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        {quizStats.weaknesses.slice(0, 3).map((weakness, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Target className="w-4 h-4 text-secondary" />
+                            <span>{weakness}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(!quizStats || (quizStats.strengths.length === 0 && quizStats.weaknesses.length === 0)) && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">لا توجد بيانات أداء بعد</p>
+                      <p className="text-xs">أكمل بعض الاختبارات لرؤية أدائك</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
