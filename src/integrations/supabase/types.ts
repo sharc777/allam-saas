@@ -14,7 +14,369 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      achievements: {
+        Row: {
+          created_at: string
+          description: string | null
+          description_ar: string | null
+          icon: string
+          id: string
+          name: string
+          name_ar: string
+          points: number | null
+          requirement_type: string
+          requirement_value: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          description_ar?: string | null
+          icon: string
+          id?: string
+          name: string
+          name_ar: string
+          points?: number | null
+          requirement_type: string
+          requirement_value: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          description_ar?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          name_ar?: string
+          points?: number | null
+          requirement_type?: string
+          requirement_value?: number
+        }
+        Relationships: []
+      }
+      ai_conversations: {
+        Row: {
+          context_type:
+            | Database["public"]["Enums"]["conversation_context"]
+            | null
+          created_at: string
+          id: string
+          messages: Json
+          related_topic: string | null
+          title: string | null
+          tokens_used: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context_type?:
+            | Database["public"]["Enums"]["conversation_context"]
+            | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          related_topic?: string | null
+          title?: string | null
+          tokens_used?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context_type?:
+            | Database["public"]["Enums"]["conversation_context"]
+            | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          related_topic?: string | null
+          title?: string | null
+          tokens_used?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_content: {
+        Row: {
+          content_text: string | null
+          created_at: string
+          day_number: number
+          description: string | null
+          duration_minutes: number
+          id: string
+          is_published: boolean | null
+          learning_objectives: string[] | null
+          title: string
+          topics: Json | null
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          content_text?: string | null
+          created_at?: string
+          day_number: number
+          description?: string | null
+          duration_minutes: number
+          id?: string
+          is_published?: boolean | null
+          learning_objectives?: string[] | null
+          title: string
+          topics?: Json | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          content_text?: string | null
+          created_at?: string
+          day_number?: number
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_published?: boolean | null
+          learning_objectives?: string[] | null
+          title?: string
+          topics?: Json | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          current_day: number | null
+          full_name: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          streak_days: number | null
+          total_points: number | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          current_day?: number | null
+          full_name: string
+          id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          current_day?: number | null
+          full_name?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      questions_bank: {
+        Row: {
+          correct_answer: string
+          created_at: string
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          explanation: string | null
+          id: string
+          options: Json | null
+          question_text: string
+          question_type: Database["public"]["Enums"]["question_type"]
+          subject: Database["public"]["Enums"]["question_subject"]
+          success_rate: number | null
+          tags: string[] | null
+          topic: string
+          updated_at: string
+          usage_count: number | null
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          explanation?: string | null
+          id?: string
+          options?: Json | null
+          question_text: string
+          question_type: Database["public"]["Enums"]["question_type"]
+          subject: Database["public"]["Enums"]["question_subject"]
+          success_rate?: number | null
+          tags?: string[] | null
+          topic: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string
+          difficulty?: Database["public"]["Enums"]["difficulty_level"]
+          explanation?: string | null
+          id?: string
+          options?: Json | null
+          question_text?: string
+          question_type?: Database["public"]["Enums"]["question_type"]
+          subject?: Database["public"]["Enums"]["question_subject"]
+          success_rate?: number | null
+          tags?: string[] | null
+          topic?: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
+      quiz_results: {
+        Row: {
+          completed_at: string
+          created_at: string
+          day_number: number | null
+          id: string
+          percentage: number | null
+          questions: Json
+          quiz_type: string | null
+          score: number
+          strengths: string[] | null
+          time_taken_minutes: number | null
+          total_questions: number
+          user_id: string
+          weaknesses: string[] | null
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          day_number?: number | null
+          id?: string
+          percentage?: number | null
+          questions: Json
+          quiz_type?: string | null
+          score: number
+          strengths?: string[] | null
+          time_taken_minutes?: number | null
+          total_questions: number
+          user_id: string
+          weaknesses?: string[] | null
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          day_number?: number | null
+          id?: string
+          percentage?: number | null
+          questions?: Json
+          quiz_type?: string | null
+          score?: number
+          strengths?: string[] | null
+          time_taken_minutes?: number | null
+          total_questions?: number
+          user_id?: string
+          weaknesses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_results_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_achievements: {
+        Row: {
+          achievement_id: string
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_achievements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_progress: {
+        Row: {
+          completed_at: string | null
+          content_completed: boolean | null
+          created_at: string
+          day_number: number
+          exercises_completed: boolean | null
+          id: string
+          notes: string | null
+          quiz_completed: boolean | null
+          time_spent_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          content_completed?: boolean | null
+          created_at?: string
+          day_number: number
+          exercises_completed?: boolean | null
+          id?: string
+          notes?: string | null
+          quiz_completed?: boolean | null
+          time_spent_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          content_completed?: boolean | null
+          created_at?: string
+          day_number?: number
+          exercises_completed?: boolean | null
+          id?: string
+          notes?: string | null
+          quiz_completed?: boolean | null
+          time_spent_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +385,20 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      conversation_context:
+        | "general"
+        | "quiz_help"
+        | "topic_explanation"
+        | "study_plan"
+      difficulty_level: "easy" | "medium" | "hard"
+      question_subject:
+        | "math"
+        | "arabic"
+        | "science"
+        | "english"
+        | "logical_reasoning"
+      question_type: "multiple_choice" | "true_false" | "short_answer"
+      user_role: "student" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +525,23 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      conversation_context: [
+        "general",
+        "quiz_help",
+        "topic_explanation",
+        "study_plan",
+      ],
+      difficulty_level: ["easy", "medium", "hard"],
+      question_subject: [
+        "math",
+        "arabic",
+        "science",
+        "english",
+        "logical_reasoning",
+      ],
+      question_type: ["multiple_choice", "true_false", "short_answer"],
+      user_role: ["student", "admin"],
+    },
   },
 } as const
