@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -281,56 +282,98 @@ const Quiz = () => {
               </p>
             </div>
 
-            {testType === "قدرات" && (
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <Card className="p-4 text-center">
-                  <div className="text-sm text-muted-foreground mb-1">القسم اللفظي</div>
-                  <div className="text-2xl font-bold">
-                    {questions.filter((q, idx) => q.section === "لفظي" && selectedAnswers[idx] === q.correct_answer).length} / {questions.filter(q => q.section === "لفظي").length}
-                  </div>
-                </Card>
-                <Card className="p-4 text-center">
-                  <div className="text-sm text-muted-foreground mb-1">القسم الكمي</div>
-                  <div className="text-2xl font-bold">
-                    {questions.filter((q, idx) => q.section === "كمي" && selectedAnswers[idx] === q.correct_answer).length} / {questions.filter(q => q.section === "كمي").length}
-                  </div>
-                </Card>
-              </div>
-            )}
+            {/* Performance by Section/Subject */}
+            <div className="mb-8">
+              {testType === "قدرات" ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <Card className="p-4 text-center bg-primary/5">
+                    <div className="text-sm text-muted-foreground mb-1">القسم اللفظي</div>
+                    <div className="text-2xl font-bold text-primary">
+                      {questions.filter((q, idx) => q.section === "لفظي" && selectedAnswers[idx] === q.correct_answer).length} / {questions.filter(q => q.section === "لفظي").length}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {((questions.filter((q, idx) => q.section === "لفظي" && selectedAnswers[idx] === q.correct_answer).length / questions.filter(q => q.section === "لفظي").length) * 100).toFixed(0)}%
+                    </div>
+                  </Card>
+                  <Card className="p-4 text-center bg-secondary/5">
+                    <div className="text-sm text-muted-foreground mb-1">القسم الكمي</div>
+                    <div className="text-2xl font-bold text-secondary">
+                      {questions.filter((q, idx) => q.section === "كمي" && selectedAnswers[idx] === q.correct_answer).length} / {questions.filter(q => q.section === "كمي").length}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {((questions.filter((q, idx) => q.section === "كمي" && selectedAnswers[idx] === q.correct_answer).length / questions.filter(q => q.section === "كمي").length) * 100).toFixed(0)}%
+                    </div>
+                  </Card>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {Array.from(new Set(questions.map(q => q.topic))).map((subject) => {
+                    const subjectQuestions = questions.filter(q => q.topic === subject);
+                    const correctCount = questions.filter((q, idx) => q.topic === subject && selectedAnswers[idx] === q.correct_answer).length;
+                    return (
+                      <Card key={subject} className="p-3 text-center bg-accent/5">
+                        <div className="text-xs text-muted-foreground mb-1">{subject}</div>
+                        <div className="text-lg font-bold text-accent">
+                          {correctCount} / {subjectQuestions.length}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {((correctCount / subjectQuestions.length) * 100).toFixed(0)}%
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <div className="space-y-6">
               {questions.map((q, idx) => {
                 const isCorrect = selectedAnswers[idx] === q.correct_answer;
                 return (
-                  <Card key={idx} className="p-6">
+                  <Card key={idx} className={`p-6 border-r-4 ${isCorrect ? 'border-r-success' : 'border-r-destructive'}`}>
                     <div className="flex items-start gap-3 mb-4">
                       {isCorrect ? (
-                        <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
+                        <CheckCircle2 className="h-6 w-6 text-success flex-shrink-0 mt-1" />
                       ) : (
-                        <XCircle className="h-6 w-6 text-red-500 flex-shrink-0 mt-1" />
+                        <XCircle className="h-6 w-6 text-destructive flex-shrink-0 mt-1" />
                       )}
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <p className="font-semibold">
-                            {idx + 1}. {q.question_text}
-                          </p>
-                          {q.section && (
-                            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                              {q.section}
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge variant="outline" className={`${
+                            testType === "قدرات"
+                              ? q.section === "لفظي" 
+                                ? "bg-primary/10 text-primary border-primary/20"
+                                : "bg-secondary/10 text-secondary border-secondary/20"
+                              : "bg-accent/10 text-accent border-accent/20"
+                          }`}>
+                            {q.section || q.topic}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {q.topic}
+                          </Badge>
+                        </div>
+                        <p className="font-semibold mb-3 text-base">
+                          {idx + 1}. {q.question_text}
+                        </p>
+                        <div className="space-y-2 mb-3">
+                          <p className="text-sm">
+                            <span className="text-muted-foreground">إجابتك:</span>{" "}
+                            <span className={isCorrect ? "text-success font-medium" : "text-destructive font-medium"}>
+                              {selectedAnswers[idx] || "لم تجب"}
                             </span>
+                          </p>
+                          {!isCorrect && (
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">الإجابة الصحيحة:</span>{" "}
+                              <span className="text-success font-medium">{q.correct_answer}</span>
+                            </p>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          إجابتك: {selectedAnswers[idx] || "لم تجب"}
-                        </p>
-                        {!isCorrect && (
-                          <p className="text-sm text-green-600 mb-2">
-                            الإجابة الصحيحة: {q.correct_answer}
+                        <div className="p-3 bg-muted/50 rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">💡 التفسير:</span> {q.explanation}
                           </p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                          {q.explanation}
-                        </p>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -363,13 +406,19 @@ const Quiz = () => {
               </span>
               <div className="flex items-center gap-2">
                 {currentQ?.section && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                  <Badge variant="outline" className={`${
+                    testType === "قدرات"
+                      ? currentQ.section === "لفظي" 
+                        ? "bg-primary/10 text-primary border-primary/20"
+                        : "bg-secondary/10 text-secondary border-secondary/20"
+                      : "bg-accent/10 text-accent border-accent/20"
+                  }`}>
                     {currentQ.section}
-                  </span>
+                  </Badge>
                 )}
-                <span className="text-sm text-muted-foreground">
+                <Badge variant="secondary" className="text-xs">
                   {currentQ?.topic}
-                </span>
+                </Badge>
               </div>
             </div>
             <Progress value={progress} className="h-2" />

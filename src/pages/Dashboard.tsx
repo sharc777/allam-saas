@@ -3,6 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { 
   Calendar, 
   Target, 
@@ -16,7 +22,8 @@ import {
   Sparkles,
   Brain,
   Loader2,
-  Settings
+  Settings,
+  ChevronDown
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -72,30 +79,19 @@ const Dashboard = () => {
     ? todayProgress.content_completed 
     : false;
     
-  // Handle different topic structures for different test types
-  const todayTopics = dailyContent?.topics ? (() => {
+  // Process topics with sections structure (works for both قدرات and تحصيلي)
+  const topicSections = dailyContent?.topics ? (() => {
     const topics = dailyContent.topics as any;
     
-    // For قدرات: topics has sections structure
     if (topics.sections && Array.isArray(topics.sections)) {
-      return topics.sections.flatMap((section: any, sectionIndex: number) => 
-        (section.subtopics || []).map((subtopic: string, subIndex: number) => ({
-          id: `${sectionIndex}-${subIndex}`,
+      return topics.sections.map((section: any) => ({
+        name: section.name,
+        subtopics: (section.subtopics || []).map((subtopic: string, index: number) => ({
+          id: `${section.name}-${index}`,
           title: subtopic,
           duration: `${dailyContent.duration_minutes || 30} دقيقة`,
           completed: isProgressCompleted,
-          section: section.name,
         }))
-      );
-    }
-    
-    // For تحصيلي: topics is an array
-    if (Array.isArray(topics)) {
-      return topics.map((topic: any, index: number) => ({
-        id: index + 1,
-        title: topic.name || topic,
-        duration: `${dailyContent.duration_minutes || 30} دقيقة`,
-        completed: isProgressCompleted,
       }));
     }
     
@@ -204,40 +200,71 @@ const Dashboard = () => {
                   {dailyContent?.description && (
                     <p className="text-muted-foreground mb-4">{dailyContent.description}</p>
                   )}
-                  {todayTopics.length > 0 ? todayTopics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className={`p-4 rounded-lg border-2 transition-smooth ${
-                        topic.completed
-                          ? "bg-success/5 border-success/20"
-                          : "bg-card border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {topic.completed ? (
-                            <CheckCircle2 className="w-6 h-6 text-success" />
-                          ) : (
-                            <BookOpen className="w-6 h-6 text-primary" />
-                          )}
-                          <div>
-                            <h4 className="font-bold">{topic.title}</h4>
-                            <p className="text-sm text-muted-foreground">{topic.duration}</p>
-                          </div>
-                        </div>
-                        {!topic.completed && (
-                          <Button className="gradient-primary text-primary-foreground">
-                            ابدأ
-                          </Button>
-                        )}
-                        {topic.completed && (
-                          <Badge variant="outline" className="border-success text-success">
-                            مكتمل ✓
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  )) : (
+                  {topicSections.length > 0 ? (
+                    <Accordion type="multiple" className="space-y-2" defaultValue={topicSections.map((_, i) => `section-${i}`)}>
+                      {topicSections.map((section, sectionIndex) => (
+                        <AccordionItem 
+                          key={`section-${sectionIndex}`} 
+                          value={`section-${sectionIndex}`}
+                          className="border-2 rounded-lg overflow-hidden"
+                        >
+                          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-primary/5">
+                            <div className="flex items-center gap-3 text-right w-full">
+                              <div className={`w-2 h-2 rounded-full ${
+                                testType === "قدرات" 
+                                  ? section.name === "لفظي" || section.name === "القسم اللفظي" 
+                                    ? "bg-primary" 
+                                    : "bg-secondary"
+                                  : "bg-accent"
+                              }`} />
+                              <span className="font-bold text-lg">{section.name}</span>
+                              <Badge variant="secondary" className="mr-auto">
+                                {section.subtopics.length} مواضيع
+                              </Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-2 pb-2">
+                            <div className="space-y-2">
+                              {section.subtopics.map((topic) => (
+                                <div
+                                  key={topic.id}
+                                  className={`p-3 mx-2 rounded-lg border transition-smooth ${
+                                    topic.completed
+                                      ? "bg-success/5 border-success/20"
+                                      : "bg-card border-border hover:border-primary/30"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      {topic.completed ? (
+                                        <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
+                                      ) : (
+                                        <BookOpen className="w-5 h-5 text-primary flex-shrink-0" />
+                                      )}
+                                      <div>
+                                        <h4 className="font-medium text-sm">{topic.title}</h4>
+                                        <p className="text-xs text-muted-foreground">{topic.duration}</p>
+                                      </div>
+                                    </div>
+                                    {!topic.completed && (
+                                      <Button size="sm" className="gradient-primary text-primary-foreground">
+                                        ابدأ
+                                      </Button>
+                                    )}
+                                    {topic.completed && (
+                                      <Badge variant="outline" className="border-success text-success text-xs">
+                                        ✓
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p>لا يوجد محتوى متاح لهذا اليوم</p>
