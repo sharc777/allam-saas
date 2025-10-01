@@ -187,6 +187,39 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
+              {/* Quiz Card */}
+              <Card className="border-2 border-secondary/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="w-6 h-6 text-secondary" />
+                    الاختبار اليومي
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted-foreground">
+                    اختبر معلوماتك في محتوى اليوم مع 10 أسئلة مولّدة بالذكاء الاصطناعي
+                  </p>
+                  {todayProgress && !Array.isArray(todayProgress) && todayProgress.quiz_completed ? (
+                    <Button 
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => window.location.href = `/quiz?day=${currentDay}`}
+                    >
+                      <CheckCircle2 className="ml-2 w-5 h-5 text-success" />
+                      إعادة الاختبار
+                    </Button>
+                  ) : (
+                    <Button 
+                      className="w-full gradient-secondary text-secondary-foreground"
+                      onClick={() => window.location.href = `/quiz?day=${currentDay}`}
+                    >
+                      <Target className="ml-2 w-5 h-5" />
+                      ابدأ الاختبار
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* AI Assistant Card */}
               <Card className="border-2 border-primary/30 shadow-elegant">
                 <CardHeader>
