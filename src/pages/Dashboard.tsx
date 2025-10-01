@@ -72,12 +72,35 @@ const Dashboard = () => {
     ? todayProgress.content_completed 
     : false;
     
-  const todayTopics = dailyContent?.topics ? (dailyContent.topics as any[]).map((topic: any, index: number) => ({
-    id: index + 1,
-    title: topic.title || topic,
-    duration: `${dailyContent.duration_minutes || 30} دقيقة`,
-    completed: isProgressCompleted,
-  })) : [];
+  // Handle different topic structures for different test types
+  const todayTopics = dailyContent?.topics ? (() => {
+    const topics = dailyContent.topics as any;
+    
+    // For قدرات: topics has sections structure
+    if (topics.sections && Array.isArray(topics.sections)) {
+      return topics.sections.flatMap((section: any, sectionIndex: number) => 
+        (section.subtopics || []).map((subtopic: string, subIndex: number) => ({
+          id: `${sectionIndex}-${subIndex}`,
+          title: subtopic,
+          duration: `${dailyContent.duration_minutes || 30} دقيقة`,
+          completed: isProgressCompleted,
+          section: section.name,
+        }))
+      );
+    }
+    
+    // For تحصيلي: topics is an array
+    if (Array.isArray(topics)) {
+      return topics.map((topic: any, index: number) => ({
+        id: index + 1,
+        title: topic.name || topic,
+        duration: `${dailyContent.duration_minutes || 30} دقيقة`,
+        completed: isProgressCompleted,
+      }));
+    }
+    
+    return [];
+  })() : [];
 
   // Prepare achievements data
   const achievements = achievementsData?.slice(0, 3).map(item => ({
