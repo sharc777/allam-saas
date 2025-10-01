@@ -113,8 +113,10 @@ export type Database = {
           id: string
           is_published: boolean | null
           learning_objectives: string[] | null
+          test_type: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics: Json | null
+          track: Database["public"]["Enums"]["academic_track"] | null
           updated_at: string
           video_url: string | null
         }
@@ -127,8 +129,10 @@ export type Database = {
           id?: string
           is_published?: boolean | null
           learning_objectives?: string[] | null
+          test_type?: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics?: Json | null
+          track?: Database["public"]["Enums"]["academic_track"] | null
           updated_at?: string
           video_url?: string | null
         }
@@ -141,8 +145,10 @@ export type Database = {
           id?: string
           is_published?: boolean | null
           learning_objectives?: string[] | null
+          test_type?: Database["public"]["Enums"]["test_type"] | null
           title?: string
           topics?: Json | null
+          track?: Database["public"]["Enums"]["academic_track"] | null
           updated_at?: string
           video_url?: string | null
         }
@@ -246,8 +252,10 @@ export type Database = {
           quiz_type: string | null
           score: number
           strengths: string[] | null
+          test_type: Database["public"]["Enums"]["test_type"] | null
           time_taken_minutes: number | null
           total_questions: number
+          track: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses: string[] | null
         }
@@ -261,8 +269,10 @@ export type Database = {
           quiz_type?: string | null
           score: number
           strengths?: string[] | null
+          test_type?: Database["public"]["Enums"]["test_type"] | null
           time_taken_minutes?: number | null
           total_questions: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses?: string[] | null
         }
@@ -276,8 +286,10 @@ export type Database = {
           quiz_type?: string | null
           score?: number
           strengths?: string[] | null
+          test_type?: Database["public"]["Enums"]["test_type"] | null
           time_taken_minutes?: number | null
           total_questions?: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id?: string
           weaknesses?: string[] | null
         }
@@ -388,6 +400,7 @@ export type Database = {
       }
     }
     Enums: {
+      academic_track: "عام" | "علمي" | "نظري"
       conversation_context:
         | "general"
         | "quiz_help"
@@ -400,7 +413,20 @@ export type Database = {
         | "science"
         | "english"
         | "logical_reasoning"
+        | "رياضيات"
+        | "فيزياء"
+        | "كيمياء"
+        | "أحياء"
+        | "توحيد"
+        | "فقه"
+        | "حديث"
+        | "نحو"
+        | "بلاغة"
+        | "أدب"
+        | "تاريخ"
+        | "جغرافيا"
       question_type: "multiple_choice" | "true_false" | "short_answer"
+      test_type: "قدرات" | "تحصيلي"
       user_role: "student" | "admin"
     }
     CompositeTypes: {
@@ -529,6 +555,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      academic_track: ["عام", "علمي", "نظري"],
       conversation_context: [
         "general",
         "quiz_help",
@@ -542,8 +569,21 @@ export const Constants = {
         "science",
         "english",
         "logical_reasoning",
+        "رياضيات",
+        "فيزياء",
+        "كيمياء",
+        "أحياء",
+        "توحيد",
+        "فقه",
+        "حديث",
+        "نحو",
+        "بلاغة",
+        "أدب",
+        "تاريخ",
+        "جغرافيا",
       ],
       question_type: ["multiple_choice", "true_false", "short_answer"],
+      test_type: ["قدرات", "تحصيلي"],
       user_role: ["student", "admin"],
     },
   },

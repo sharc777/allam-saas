@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Question {
   question_text: string;
@@ -16,6 +17,7 @@ interface Question {
   correct_answer: string;
   explanation: string;
   topic: string;
+  section?: string;
 }
 
 const Quiz = () => {
@@ -32,12 +34,19 @@ const Quiz = () => {
   const [showResults, setShowResults] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [startTime] = useState(Date.now());
+  const [testType, setTestType] = useState<"قدرات" | "تحصيلي">("قدرات");
+  const [track, setTrack] = useState<"عام" | "علمي" | "نظري">("عام");
 
   const generateQuiz = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: { dayNumber, difficulty: "medium" }
+        body: { 
+          dayNumber, 
+          difficulty: "medium",
+          testType,
+          track: testType === "تحصيلي" ? track : "عام"
+        }
       });
 
       if (error) throw error;
@@ -110,12 +119,15 @@ const Quiz = () => {
         user_id: profile?.id,
         day_number: dayNumber,
         quiz_type: "daily",
+        test_type: testType,
+        track: testType === "تحصيلي" ? track : "عام",
         questions: questions.map((q, idx) => ({
           question: q.question_text,
           selected: selectedAnswers[idx],
           correct: q.correct_answer,
           explanation: q.explanation,
           topic: q.topic,
+          section: q.section,
         })),
         total_questions: questions.length,
         score,
@@ -164,12 +176,69 @@ const Quiz = () => {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-2xl mx-auto">
-          <Card className="p-8 text-center">
-            <h1 className="text-3xl font-bold mb-4">اختبار اليوم {dayNumber}</h1>
-            <p className="text-muted-foreground mb-8">
-              سيتم توليد 10 أسئلة بناءً على محتوى اليوم
-            </p>
-            <Button onClick={generateQuiz} disabled={loading} size="lg">
+          <Card className="p-8">
+            <h1 className="text-3xl font-bold mb-6 text-center">اختر نوع الاختبار</h1>
+            
+            <div className="space-y-6 mb-8">
+              <div className="space-y-3">
+                <Label className="text-lg font-semibold">نوع الاختبار</Label>
+                <Select value={testType} onValueChange={(value) => {
+                  setTestType(value as "قدرات" | "تحصيلي");
+                  if (value === "قدرات") setTrack("عام");
+                }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="قدرات">اختبار القدرات العامة (GAT)</SelectItem>
+                    <SelectItem value="تحصيلي">الاختبار التحصيلي (SAAT)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {testType === "تحصيلي" && (
+                <div className="space-y-3">
+                  <Label className="text-lg font-semibold">المسار الدراسي</Label>
+                  <Select value={track} onValueChange={(value) => setTrack(value as "علمي" | "نظري")}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="علمي">المسار العلمي</SelectItem>
+                      <SelectItem value="نظري">المسار النظري (الأدبي)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
+                {testType === "قدرات" ? (
+                  <div>
+                    <p className="font-semibold mb-2">📝 اختبار القدرات يتكون من:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>5 أسئلة في القسم اللفظي</li>
+                      <li>5 أسئلة في القسم الكمي</li>
+                    </ul>
+                  </div>
+                ) : track === "علمي" ? (
+                  <div>
+                    <p className="font-semibold mb-2">🔬 التحصيلي العلمي يتكون من:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>رياضيات، فيزياء، كيمياء، أحياء</li>
+                    </ul>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-semibold mb-2">📖 التحصيلي النظري يتكون من:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>علوم شرعية، لغة عربية، علوم اجتماعية</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Button onClick={generateQuiz} disabled={loading} size="lg" className="w-full">
               {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               ابدأ الاختبار
             </Button>
@@ -184,7 +253,14 @@ const Quiz = () => {
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto">
           <Card className="p-8">
-            <h1 className="text-3xl font-bold mb-6 text-center">نتيجة الاختبار</h1>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-3xl font-bold">نتيجة الاختبار</h1>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">
+                  {testType === "قدرات" ? "اختبار القدرات" : `التحصيلي ${track}`}
+                </div>
+              </div>
+            </div>
             
             <div className="text-center mb-8">
               <div className="text-6xl font-bold mb-2">
@@ -194,6 +270,23 @@ const Quiz = () => {
                 {score} من {questions.length} إجابة صحيحة
               </p>
             </div>
+
+            {testType === "قدرات" && (
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <Card className="p-4 text-center">
+                  <div className="text-sm text-muted-foreground mb-1">القسم اللفظي</div>
+                  <div className="text-2xl font-bold">
+                    {questions.filter((q, idx) => q.section === "لفظي" && selectedAnswers[idx] === q.correct_answer).length} / {questions.filter(q => q.section === "لفظي").length}
+                  </div>
+                </Card>
+                <Card className="p-4 text-center">
+                  <div className="text-sm text-muted-foreground mb-1">القسم الكمي</div>
+                  <div className="text-2xl font-bold">
+                    {questions.filter((q, idx) => q.section === "كمي" && selectedAnswers[idx] === q.correct_answer).length} / {questions.filter(q => q.section === "كمي").length}
+                  </div>
+                </Card>
+              </div>
+            )}
 
             <div className="space-y-6">
               {questions.map((q, idx) => {
@@ -207,9 +300,16 @@ const Quiz = () => {
                         <XCircle className="h-6 w-6 text-red-500 flex-shrink-0 mt-1" />
                       )}
                       <div className="flex-1">
-                        <p className="font-semibold mb-2">
-                          {idx + 1}. {q.question_text}
-                        </p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <p className="font-semibold">
+                            {idx + 1}. {q.question_text}
+                          </p>
+                          {q.section && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                              {q.section}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground mb-2">
                           إجابتك: {selectedAnswers[idx] || "لم تجب"}
                         </p>
@@ -251,9 +351,16 @@ const Quiz = () => {
               <span className="text-sm text-muted-foreground">
                 السؤال {currentQuestion + 1} من {questions.length}
               </span>
-              <span className="text-sm text-muted-foreground">
-                الموضوع: {currentQ?.topic}
-              </span>
+              <div className="flex items-center gap-2">
+                {currentQ?.section && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                    {currentQ.section}
+                  </span>
+                )}
+                <span className="text-sm text-muted-foreground">
+                  {currentQ?.topic}
+                </span>
+              </div>
             </div>
             <Progress value={progress} className="h-2" />
           </div>

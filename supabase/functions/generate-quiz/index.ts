@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { dayNumber, difficulty = "medium" } = await req.json();
+    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام" } = await req.json();
     
     const authHeader = req.headers.get("authorization");
     console.log("Auth header received:", authHeader ? "Present" : "Missing");
@@ -60,26 +60,153 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Generating quiz for day:", dayNumber, "difficulty:", difficulty);
+    console.log("Generating quiz - Day:", dayNumber, "Difficulty:", difficulty, "Test Type:", testType, "Track:", track);
 
-    const systemPrompt = `أنت خبير في تصميم اختبارات القدرات والتحصيلي للمرحلة الثانوية.
+    // تحديد نوع الاختبار والمحتوى المطلوب
+    let systemPrompt = "";
+    let questionStructure = {};
 
-معايير الجودة المطلوبة:
-1. **الوضوح**: كل سؤال واضح ومباشر بدون غموض
-2. **الخيارات المشتتة**: يجب أن تكون معقولة لكن خاطئة بوضوح
-3. **التنوع**: تغطية جميع جوانب المحتوى
-4. **المستوى**: ${difficulty} - مناسب للطلاب
-5. **اللغة**: عربية فصحى صحيحة بدون أخطاء
+    if (testType === "قدرات") {
+      systemPrompt = `أنت خبير في تصميم اختبار القدرات العامة (GAT) السعودي.
 
-قواعد إنشاء الأسئلة:
-- السؤال يجب أن يكون مفهوماً بدون قراءة الخيارات
-- الخيارات الـ 4 يجب أن تكون متجانسة في الطول والصياغة
-- إجابة واحدة فقط صحيحة بشكل قاطع
-- التفسير يوضح لماذا الإجابة صحيحة والباقي خاطئ
-- تجنب استخدام "كل ما سبق" أو "لا شيء مما سبق"
-- استخدم أمثلة من الحياة الواقعية عندما يكون ذلك ممكناً`;
+📋 **هيكل الاختبار:**
+الاختبار يتكون من قسمين رئيسيين (10 أسئلة):
 
-    const userPrompt = `قم بتوليد 10 أسئلة اختبار عالية الجودة بناءً على هذا المحتوى:
+📝 **القسم اللفظي** (5 أسئلة):
+1. استيعاب المقروء: نص قصير + سؤال فهم
+2. إكمال الجمل: جملة ناقصة + اختيار الكلمة المناسبة
+3. التناظر اللفظي: علاقة بين كلمتين (ترادف، تضاد، جزء-كل، سبب-نتيجة)
+4. الخطأ السياقي: جملة بها كلمة غير مناسبة للسياق
+5. الارتباط والاختلاف: تحديد الكلمة المختلفة في المجموعة
+
+🔢 **القسم الكمي** (5 أسئلة):
+1. الحساب: عمليات حسابية، نسب مئوية، تناسب، متوسطات
+2. الجبر: معادلات، متراجحات، أنماط، متتابعات
+3. الهندسة: زوايا، مثلثات، مساحات، محيطات، حجوم
+4. الإحصاء والاحتمالات: تحليل بيانات، رسوم بيانية، جداول
+5. مسائل منطقية: استنتاج وحل مسائل تطبيقية
+
+**معايير الجودة:**
+- أسئلة واضحة ومباشرة بدون غموض
+- خيارات معقولة ومتجانسة في الطول
+- مستوى: ${difficulty}
+- لغة عربية فصحى صحيحة`;
+
+      questionStructure = {
+        verbal_questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              question_type: { 
+                type: "string", 
+                enum: ["استيعاب_المقروء", "إكمال_الجمل", "التناظر_اللفظي", "الخطأ_السياقي", "الارتباط_والاختلاف"]
+              },
+              question_text: { type: "string" },
+              passage: { type: "string", description: "النص المرجعي (للاستيعاب المقروء فقط)" },
+              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+              correct_answer: { type: "string" },
+              explanation: { type: "string" }
+            },
+            required: ["question_type", "question_text", "options", "correct_answer", "explanation"]
+          },
+          minItems: 5,
+          maxItems: 5
+        },
+        quantitative_questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              question_type: { 
+                type: "string", 
+                enum: ["حساب", "جبر", "هندسة", "إحصاء", "منطق"]
+              },
+              question_text: { type: "string" },
+              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+              correct_answer: { type: "string" },
+              explanation: { type: "string" }
+            },
+            required: ["question_type", "question_text", "options", "correct_answer", "explanation"]
+          },
+          minItems: 5,
+          maxItems: 5
+        }
+      };
+    } else if (testType === "تحصيلي" && track === "علمي") {
+      systemPrompt = `أنت خبير في تصميم الاختبار التحصيلي العلمي (SAAT).
+
+📚 **هيكل الاختبار:**
+الاختبار يتكون من 10 أسئلة موزعة على المواد العلمية:
+
+1. **الرياضيات** (3 أسئلة): جبر، هندسة، تفاضل وتكامل، حساب مثلثات
+2. **الفيزياء** (3 أسئلة): ميكانيكا، كهرباء، مغناطيسية، بصريات
+3. **الكيمياء** (2 أسئلة): كيمياء عامة، عضوية، تفاعلات، معادلات
+4. **الأحياء** (2 أسئلة): الخلية، الوراثة، التصنيف، البيئة
+
+**معايير الجودة:**
+- أسئلة تقيس الفهم والتطبيق والتحليل
+- خيارات دقيقة علمياً
+- مستوى: ${difficulty}
+- توزيع: 20% أول ثانوي، 30% ثاني ثانوي، 50% ثالث ثانوي`;
+
+      questionStructure = {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              subject: { type: "string", enum: ["رياضيات", "فيزياء", "كيمياء", "أحياء"] },
+              question_text: { type: "string" },
+              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+              correct_answer: { type: "string" },
+              explanation: { type: "string" },
+              grade_level: { type: "string", enum: ["أول_ثانوي", "ثاني_ثانوي", "ثالث_ثانوي"] }
+            },
+            required: ["subject", "question_text", "options", "correct_answer", "explanation", "grade_level"]
+          },
+          minItems: 10,
+          maxItems: 10
+        }
+      };
+    } else if (testType === "تحصيلي" && track === "نظري") {
+      systemPrompt = `أنت خبير في تصميم الاختبار التحصيلي النظري (الأدبي).
+
+📖 **هيكل الاختبار:**
+الاختبار يتكون من 10 أسئلة موزعة على المواد النظرية:
+
+1. **العلوم الشرعية** (4 أسئلة): توحيد، فقه، حديث وثقافة إسلامية
+2. **اللغة العربية** (4 أسئلة): نحو وصرف، بلاغة ونقد، أدب
+3. **العلوم الاجتماعية** (2 أسئلة): تاريخ، جغرافيا
+
+**معايير الجودة:**
+- أسئلة تقيس الفهم والتحليل
+- دقة في المعلومات الشرعية والتاريخية
+- مستوى: ${difficulty}
+- توزيع: 20% أول ثانوي، 30% ثاني ثانوي، 50% ثالث ثانوي`;
+
+      questionStructure = {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              subject: { type: "string", enum: ["توحيد", "فقه", "حديث", "نحو", "بلاغة", "أدب", "تاريخ", "جغرافيا"] },
+              question_text: { type: "string" },
+              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+              correct_answer: { type: "string" },
+              explanation: { type: "string" },
+              grade_level: { type: "string", enum: ["أول_ثانوي", "ثاني_ثانوي", "ثالث_ثانوي"] }
+            },
+            required: ["subject", "question_text", "options", "correct_answer", "explanation", "grade_level"]
+          },
+          minItems: 10,
+          maxItems: 10
+        }
+      };
+    }
+
+    const userPrompt = `قم بتوليد ${testType === "قدرات" ? "اختبار قدرات (5 لفظي + 5 كمي)" : `اختبار تحصيلي ${track} (10 أسئلة)`} بناءً على المحتوى التالي:
 
 📚 **المحتوى:**
 العنوان: ${content.title}
@@ -91,10 +218,11 @@ serve(async (req) => {
 ${content.content_text || ""}
 
 ⚠️ **متطلبات مهمة:**
-- تأكد من أن كل سؤال يختبر فهم حقيقي وليس حفظ فقط
-- اجعل الخيارات الخاطئة معقولة (ليست سخيفة أو واضحة)
-- تنوع الأسئلة: بعضها مباشر، بعضها تطبيقي، بعضها تحليلي
-- كل تفسير يجب أن يعلّم الطالب شيئاً جديداً`;
+- كل سؤال يختبر فهماً حقيقياً وليس حفظاً
+- الخيارات الخاطئة معقولة ومقنعة
+- ${testType === "قدرات" ? "تنوع بين الأسئلة اللفظية والكمية" : "تغطية شاملة للمواد الدراسية"}
+- كل تفسير تعليمي واضح ومفيد
+${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة أول ثانوي، 3 أسئلة ثاني ثانوي، 5 أسئلة ثالث ثانوي` : ""}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -112,38 +240,20 @@ ${content.content_text || ""}
           {
             type: "function",
             function: {
-              name: "generate_quiz",
-              description: "توليد اختبار من 10 أسئلة",
+              name: testType === "قدرات" ? "generate_qudurat_quiz" : "generate_tahseeli_quiz",
+              description: `Generate ${testType} quiz questions`,
               parameters: {
                 type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question_text: { type: "string", description: "نص السؤال" },
-                        options: {
-                          type: "array",
-                          items: { type: "string" },
-                          description: "4 خيارات للسؤال"
-                        },
-                        correct_answer: { type: "string", description: "الإجابة الصحيحة" },
-                        explanation: { type: "string", description: "شرح الإجابة" },
-                        topic: { type: "string", description: "الموضوع" }
-                      },
-                      required: ["question_text", "options", "correct_answer", "explanation", "topic"]
-                    },
-                    minItems: 10,
-                    maxItems: 10
-                  }
-                },
-                required: ["questions"]
+                properties: questionStructure,
+                required: testType === "قدرات" ? ["verbal_questions", "quantitative_questions"] : ["questions"]
               }
             }
           }
         ],
-        tool_choice: { type: "function", function: { name: "generate_quiz" } }
+        tool_choice: { 
+          type: "function", 
+          function: { name: testType === "قدرات" ? "generate_qudurat_quiz" : "generate_tahseeli_quiz" } 
+        }
       }),
     });
 
@@ -177,8 +287,35 @@ ${content.content_text || ""}
 
     const quizData = JSON.parse(toolCall.function.arguments);
     
+    // تحويل البيانات حسب نوع الاختبار
+    let allQuestions: any[] = [];
+    
+    if (testType === "قدرات") {
+      // دمج الأسئلة اللفظية والكمية
+      const verbalQuestions = quizData.verbal_questions?.map((q: any) => ({
+        ...q,
+        section: "لفظي",
+        topic: q.question_type
+      })) || [];
+      
+      const quantQuestions = quizData.quantitative_questions?.map((q: any) => ({
+        ...q,
+        section: "كمي",
+        topic: q.question_type
+      })) || [];
+      
+      allQuestions = [...verbalQuestions, ...quantQuestions];
+    } else {
+      // أسئلة التحصيلي
+      allQuestions = quizData.questions?.map((q: any) => ({
+        ...q,
+        section: track,
+        topic: q.subject
+      })) || [];
+    }
+    
     // Validate questions quality
-    const validatedQuestions = quizData.questions.filter((q: any) => {
+    const validatedQuestions = allQuestions.filter((q: any) => {
       // التحقق من أن كل سؤال لديه 4 خيارات مختلفة
       const uniqueOptions = new Set(q.options);
       if (uniqueOptions.size !== 4) {
@@ -205,13 +342,15 @@ ${content.content_text || ""}
       throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/10)`);
     }
 
-    console.log(`Validated ${validatedQuestions.length} out of ${quizData.questions.length} questions`);
+    console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions`);
     
     return new Response(
       JSON.stringify({
         questions: validatedQuestions.slice(0, 10),
         dayNumber,
-        contentTitle: content.title
+        contentTitle: content.title,
+        testType,
+        track
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
