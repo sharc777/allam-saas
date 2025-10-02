@@ -6,7 +6,8 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, CheckCircle2, BookOpen, Video, FileText, Lock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, CheckCircle2, BookOpen, Video, FileText, Lock, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 
@@ -328,50 +329,81 @@ export default function Lesson() {
             </Card>
 
             <Card className="p-6">
-              <h3 className="text-xl font-bold mb-4">إتمام الدرس</h3>
+              <h3 className="text-xl font-bold mb-4">حالة الدرس</h3>
               
               {progress?.content_completed ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-success mb-2">
                     <CheckCircle2 className="h-5 w-5" />
-                    <span className="font-medium">تم إكمال الدرس بنجاح!</span>
+                    <span className="font-medium">تم إكمال الدرس بنجاح! 🎉</span>
                   </div>
                   {quizResult && (
-                    <p className="text-sm text-muted-foreground">
-                      نتيجة الاختبار: {quizResult.percentage?.toFixed(0)}%
-                    </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">نتيجة الاختبار</span>
+                        <span className="font-bold text-success">{quizResult.percentage?.toFixed(0)}%</span>
+                      </div>
+                      <Progress value={quizResult.percentage || 0} className="h-2" />
+                    </div>
                   )}
                 </div>
               ) : !hasPassedQuiz ? (
                 <div className="space-y-3">
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-2">
-                      📋 متطلبات إتمام الدرس:
+                  <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/20 rounded-lg">
+                    <p className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
+                      <span className="text-lg">📋</span>
+                      متطلبات إتمام الدرس
                     </p>
-                    <ul className="text-sm space-y-1.5 text-amber-700 dark:text-amber-400">
-                      <li className="flex items-start gap-2">
-                        <span className="mt-0.5">1.</span>
-                        <span>إكمال اختبار الدرس من الأسفل</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-0.5">2.</span>
-                        <span>الحصول على درجة {MIN_PASSING_SCORE}% أو أكثر للنجاح</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-0.5">3.</span>
-                        <span>سيتم إكمال الدرس تلقائياً عند النجاح</span>
-                      </li>
-                    </ul>
+                    <div className="space-y-2.5">
+                      <div className="flex items-start gap-2.5 text-sm">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">1</span>
+                        <span className="text-foreground/90">أكمل اختبار الدرس من الأسفل</span>
+                      </div>
+                      <div className="flex items-start gap-2.5 text-sm">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">2</span>
+                        <span className="text-foreground/90">احصل على <strong className="text-primary">{MIN_PASSING_SCORE}%</strong> أو أكثر للنجاح</span>
+                      </div>
+                      <div className="flex items-start gap-2.5 text-sm">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center font-bold text-xs">✓</span>
+                        <span className="text-foreground/90">سيتم الإكمال <strong className="text-success">تلقائياً</strong> عند النجاح</span>
+                      </div>
+                    </div>
                   </div>
-                  {quizResult && quizResult.percentage && quizResult.percentage < MIN_PASSING_SCORE && (
-                    <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
-                      <p className="text-sm text-destructive">
-                        نتيجتك الحالية: {quizResult.percentage.toFixed(0)}%
-                        <br />
-                        يمكنك إعادة المحاولة للحصول على درجة أفضل
+                  
+                  {/* المرحلة 3: عرض progress bar للنتيجة */}
+                  {quizResult && quizResult.percentage !== undefined && (
+                    <div className={`p-4 border-2 rounded-lg ${
+                      quizResult.percentage < MIN_PASSING_SCORE 
+                        ? 'bg-destructive/5 border-destructive/30' 
+                        : 'bg-success/5 border-success/30'
+                    }`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        {quizResult.percentage < MIN_PASSING_SCORE ? (
+                          <XCircle className="h-5 w-5 text-destructive" />
+                        ) : (
+                          <CheckCircle2 className="h-5 w-5 text-success" />
+                        )}
+                        <p className="text-sm font-semibold">
+                          نتيجتك الحالية: {quizResult.percentage.toFixed(0)}%
+                        </p>
+                      </div>
+                      <Progress 
+                        value={quizResult.percentage} 
+                        className={`h-2.5 mb-2 ${
+                          quizResult.percentage < MIN_PASSING_SCORE ? '[&>div]:bg-destructive' : '[&>div]:bg-success'
+                        }`}
+                      />
+                      <p className={`text-xs ${
+                        quizResult.percentage < MIN_PASSING_SCORE ? 'text-destructive' : 'text-success'
+                      }`}>
+                        {quizResult.percentage < MIN_PASSING_SCORE 
+                          ? `تحتاج ${(MIN_PASSING_SCORE - quizResult.percentage).toFixed(0)}% إضافية - حاول مرة أخرى! 💪`
+                          : 'ممتاز! لقد حققت الحد الأدنى ✓'
+                        }
                       </p>
                     </div>
                   )}
+                  
                   <Button 
                     onClick={handleMarkComplete}
                     disabled={true}
@@ -379,20 +411,30 @@ export default function Lesson() {
                     variant="outline"
                   >
                     <Lock className="h-4 w-4 ml-2" />
-                    أكمل الاختبار أولاً
+                    أكمل الاختبار أولاً ({MIN_PASSING_SCORE}%+)
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="p-3 bg-success/5 border border-success/20 rounded-lg">
-                    <p className="text-sm text-success">
-                      ✓ لقد نجحت في اختبار الدرس ({quizResult?.percentage?.toFixed(0)}%)
-                    </p>
+                  <div className="p-4 bg-success/5 border-2 border-success/30 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="h-5 w-5 text-success" />
+                      <p className="text-sm font-semibold text-success">
+                        أحسنت! لقد نجحت في الاختبار
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">نتيجتك</span>
+                        <span className="font-bold text-success">{quizResult?.percentage?.toFixed(0)}%</span>
+                      </div>
+                      <Progress value={quizResult?.percentage || 0} className="h-2.5 [&>div]:bg-success" />
+                    </div>
                   </div>
                   <Button 
                     onClick={handleMarkComplete}
                     disabled={updateProgressMutation.isPending}
-                    className="w-full"
+                    className="w-full gradient-primary"
                   >
                     {updateProgressMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin ml-2" />
@@ -405,16 +447,24 @@ export default function Lesson() {
               )}
             </Card>
 
-            <Card className="p-6 bg-primary/5">
-              <h3 className="text-xl font-bold mb-4">اختبار الدرس</h3>
-              <p className="text-muted-foreground mb-4">
-                اختبر معلوماتك في محتوى هذا الدرس
+            <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/20">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">📝</span>
+                <h3 className="text-xl font-bold">اختبار الدرس</h3>
+              </div>
+              <p className="text-muted-foreground mb-4 text-sm">
+                اختبر معلوماتك في محتوى هذا الدرس. الحد الأدنى للنجاح: <strong className="text-primary">{MIN_PASSING_SCORE}%</strong>
               </p>
               <Button 
                 onClick={() => navigate(`/quiz?day=${dayNumber}&contentId=${content.id}`)}
-                className="w-full"
+                className="w-full gradient-primary"
               >
-                ابدأ اختبار الدرس
+                {quizResult && quizResult.percentage && quizResult.percentage < MIN_PASSING_SCORE 
+                  ? '🔄 إعادة الاختبار' 
+                  : progress?.content_completed 
+                  ? '📊 مراجعة الاختبار'
+                  : '▶️ ابدأ اختبار الدرس'
+                }
               </Button>
             </Card>
           </div>

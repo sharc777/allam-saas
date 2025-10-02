@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Question {
   question_text: string;
@@ -29,6 +30,7 @@ const Quiz = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
 
   // Redirect to test selection if no preferences set
   if (profile && !profile.test_type_preference) {
@@ -210,6 +212,13 @@ const Quiz = () => {
         });
 
       if (progressError) throw progressError;
+
+      // المرحلة 2: تحديث تلقائي للـ Dashboard بعد إكمال الاختبار
+      queryClient.invalidateQueries({ queryKey: ["today-quiz-result"] });
+      queryClient.invalidateQueries({ queryKey: ["lesson-quiz-result"] });
+      queryClient.invalidateQueries({ queryKey: ["student-progress"] });
+      queryClient.invalidateQueries({ queryKey: ["all-progress"] });
+      queryClient.invalidateQueries({ queryKey: ["quiz-stats"] });
 
       setShowResults(true);
       

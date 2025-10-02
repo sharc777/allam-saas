@@ -101,9 +101,13 @@ const Dashboard = () => {
   const MIN_PASSING_SCORE = 70;
   const hasPassedQuiz = todayQuizResult && (todayQuizResult.percentage || 0) >= MIN_PASSING_SCORE;
   
-  // المرحلة 1: إصلاح منطق الإكمال - استخدام نتيجة الاختبار الفعلية بدلاً من content_completed
-  // الدرس مكتمل فقط إذا نجح الطالب في الاختبار بنسبة 70% أو أكثر
-  const isLessonCompleted = hasPassedQuiz;
+  // المرحلة 1: حالة الدرس على المستوى الكامل (وليس لكل subtopic)
+  const lessonStatus = {
+    completed: hasPassedQuiz,
+    attempted: !!todayQuizResult,
+    score: todayQuizResult?.percentage || 0,
+    passed: hasPassedQuiz,
+  };
     
   // Process topics with sections structure (works for both قدرات and تحصيلي)
   const topicSections = dailyContent?.topics ? (() => {
@@ -116,10 +120,6 @@ const Dashboard = () => {
           id: `${section.name}-${index}`,
           title: subtopic,
           duration: `${dailyContent.duration_minutes || 30} دقيقة`,
-          completed: isLessonCompleted, // استخدام نتيجة الاختبار الفعلية
-          quizTaken: !!todayQuizResult,
-          quizPassed: hasPassedQuiz,
-          quizScore: todayQuizResult?.percentage || 0,
         }))
       }));
     }
@@ -220,15 +220,44 @@ const Dashboard = () => {
               {/* Today's Content */}
               <Card className="border-2">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-6 h-6 text-secondary" />
-                    {dailyContent?.title || `محتوى اليوم - اليوم ${currentDay}`}
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="w-6 h-6 text-secondary" />
+                      {dailyContent?.title || `محتوى اليوم - اليوم ${currentDay}`}
+                    </CardTitle>
+                    {/* المرحلة 1: عرض حالة الدرس على المستوى الكامل */}
+                    {lessonStatus.completed ? (
+                      <Badge className="bg-success text-white">
+                        ✓ مكتمل - {lessonStatus.score.toFixed(0)}%
+                      </Badge>
+                    ) : lessonStatus.attempted ? (
+                      <Badge variant="destructive">
+                        🔄 إعادة محاولة - {lessonStatus.score.toFixed(0)}%
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">
+                        جديد
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {dailyContent?.description && (
                     <p className="text-muted-foreground mb-4">{dailyContent.description}</p>
                   )}
+                  
+                  {/* المرحلة 3: رسالة توضيحية للدرس الفاشل */}
+                  {lessonStatus.attempted && !lessonStatus.passed && (
+                    <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg mb-4">
+                      <p className="text-sm text-destructive font-medium">
+                        📊 نتيجتك: {lessonStatus.score.toFixed(0)}% - تحتاج {MIN_PASSING_SCORE}%+ للنجاح
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        راجع المحتوى وحاول مرة أخرى لتحقيق نتيجة أفضل
+                      </p>
+                    </div>
+                  )}
+                  
                   {topicSections.length > 0 ? (
                     <Accordion type="multiple" className="space-y-2" defaultValue={topicSections.map((_, i) => `section-${i}`)}>
                       {topicSections.map((section, sectionIndex) => (
@@ -257,58 +286,25 @@ const Dashboard = () => {
                               {section.subtopics.map((topic) => (
                                 <div
                                   key={topic.id}
-                                  className={`p-3 mx-2 rounded-lg border transition-smooth ${
-                                    topic.completed
-                                      ? "bg-success/5 border-success/20"
-                                      : topic.quizTaken && !topic.quizPassed
-                                      ? "bg-destructive/5 border-destructive/20"
-                                      : "bg-card border-border hover:border-primary/30"
-                                  }`}
+                                  className="p-3 mx-2 rounded-lg border transition-smooth bg-card border-border hover:border-primary/30"
                                 >
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                      {topic.completed ? (
-                                        <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
-                                      ) : topic.quizTaken && !topic.quizPassed ? (
-                                        <div className="w-5 h-5 flex items-center justify-center text-xs">🔄</div>
-                                      ) : (
-                                        <BookOpen className="w-5 h-5 text-primary flex-shrink-0" />
-                                      )}
+                                      <BookOpen className="w-5 h-5 text-primary flex-shrink-0" />
                                       <div>
                                         <h4 className="font-medium text-sm">{topic.title}</h4>
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-xs text-muted-foreground">{topic.duration}</p>
-                                          {topic.quizTaken && (
-                                            <Badge 
-                                              variant="outline" 
-                                              className={`text-xs ${
-                                                topic.quizPassed 
-                                                  ? "border-success text-success" 
-                                                  : "border-destructive text-destructive"
-                                              }`}
-                                            >
-                                              {topic.quizScore.toFixed(0)}%
-                                            </Badge>
-                                          )}
-                                        </div>
+                                        <p className="text-xs text-muted-foreground">{topic.duration}</p>
                                       </div>
                                     </div>
-                                     {!topic.completed && (
-                                      <Button
-                                        size="sm"
-                                        className={topic.quizTaken && !topic.quizPassed ? "bg-destructive hover:bg-destructive/90" : "gradient-primary text-primary-foreground"}
-                                        onClick={() => {
-                                          navigate(`/lesson/${dailyContent?.day_number}/${topic.id || '1'}`);
-                                        }}
-                                      >
-                                        {topic.quizTaken && !topic.quizPassed ? "إعادة" : "ابدأ"}
-                                      </Button>
-                                    )}
-                                    {topic.completed && (
-                                      <Badge variant="outline" className="border-success text-success text-xs">
-                                        ✓ مكتمل
-                                      </Badge>
-                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        navigate(`/lesson/${dailyContent?.day_number}/${topic.id || '1'}`);
+                                      }}
+                                    >
+                                      عرض
+                                    </Button>
                                   </div>
                                 </div>
                               ))}
