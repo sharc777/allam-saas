@@ -516,7 +516,7 @@ const Quiz = () => {
                 <RadioGroupItem value={option} id={`option-${idx}`} className="w-5 h-5" />
                 <Label
                   htmlFor={`option-${idx}`}
-                  className="flex-1 cursor-pointer p-4 rounded-lg border-2 hover:bg-accent/50 hover:border-primary transition-all"
+                  className="flex-1 text-right cursor-pointer p-4 rounded-lg border-2 hover:bg-accent/50 hover:border-primary transition-all"
                 >
                   {option}
                 </Label>
