@@ -512,11 +512,11 @@ const Quiz = () => {
             className="space-y-4"
           >
             {currentQ?.options.map((option, idx) => (
-              <div key={idx} className="flex items-center space-x-2 space-x-reverse">
-                <RadioGroupItem value={option} id={`option-${idx}`} />
+              <div key={idx} className="flex items-center gap-3" dir="rtl">
+                <RadioGroupItem value={option} id={`option-${idx}`} className="w-5 h-5" />
                 <Label
                   htmlFor={`option-${idx}`}
-                  className="flex-1 cursor-pointer p-4 rounded-lg border hover:bg-accent"
+                  className="flex-1 cursor-pointer p-4 rounded-lg border-2 hover:bg-accent/50 hover:border-primary transition-all"
                 >
                   {option}
                 </Label>
