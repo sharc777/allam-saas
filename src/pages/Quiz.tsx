@@ -180,7 +180,6 @@ const Quiz = () => {
         })),
         total_questions: questions.length,
         score,
-        percentage,
         time_taken_minutes: timeTaken,
         strengths,
         weaknesses,
