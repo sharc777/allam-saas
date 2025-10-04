@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", contentId } = await req.json();
+    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", contentId, mode } = await req.json();
     
     const authHeader = req.headers.get("authorization");
     console.log("Auth header received:", authHeader ? "Present" : "Missing");
@@ -44,9 +44,10 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    // Get daily content (by contentId or dayNumber)
+    // Get daily content (by contentId or dayNumber) or use practice mode
     let content: any;
     let contentError: any;
+    let isPracticeMode = false;
     
     if (contentId) {
       // Fetch by contentId for lesson-specific quizzes
@@ -66,17 +67,42 @@ serve(async (req) => {
         .single();
       content = result.data;
       contentError = result.error;
+    } else if (mode === "practice") {
+      // Practice mode: no specific content, use knowledge base only
+      isPracticeMode = true;
+      content = {
+        title: "اختبار تدريبي شامل",
+        description: "اختبار تدريبي يغطي جميع المواضيع",
+        content_text: "",
+        topics: null
+      };
     } else {
-      throw new Error("يجب تحديد contentId أو dayNumber");
+      throw new Error("يجب تحديد contentId أو dayNumber أو mode: practice");
     }
 
-    if (contentError || !content) {
+    if (!isPracticeMode && (contentError || !content)) {
       throw new Error("المحتوى غير موجود");
     }
 
-    // Fetch additional knowledge base content related to topics
+    // Fetch knowledge base content
     let additionalKnowledge = "";
-    if (content.topics) {
+    
+    if (isPracticeMode) {
+      // In practice mode, fetch ALL relevant knowledge base content
+      const { data: knowledgeData } = await supabase
+        .from("knowledge_base")
+        .select("*")
+        .eq("test_type", testType)
+        .eq("track", track)
+        .eq("is_active", true)
+        .limit(20); // More content for practice mode
+      
+      if (knowledgeData && knowledgeData.length > 0) {
+        additionalKnowledge = "\n\n📚 **المحتوى المعرفي للاختبار:**\n" + 
+          knowledgeData.map(kb => `- ${kb.title}: ${kb.content || ""}`).join("\n");
+      }
+    } else if (content.topics) {
+      // For lesson-specific quizzes, fetch related knowledge
       const topicsData = content.topics as any;
       const sections = topicsData?.sections || [];
       const allTopics = sections.flatMap((section: any) => section.subtopics || []);
@@ -248,7 +274,22 @@ serve(async (req) => {
       };
     }
 
-    const userPrompt = `قم بتوليد ${testType === "قدرات" ? "اختبار قدرات (5 لفظي + 5 كمي)" : `اختبار تحصيلي ${track} (10 أسئلة)`} بناءً على المحتوى التالي:
+    const userPrompt = isPracticeMode 
+      ? `قم بتوليد ${testType === "قدرات" ? "اختبار قدرات تدريبي شامل (5 لفظي + 5 كمي)" : `اختبار تحصيلي ${track} تدريبي شامل (10 أسئلة)`} بناءً على المنهج الكامل:
+
+📚 **نوع الاختبار:** ${testType} ${testType === "تحصيلي" ? `- ${track}` : ""}
+📊 **مستوى الصعوبة:** ${difficulty}
+
+${additionalKnowledge}
+
+⚠️ **متطلبات مهمة:**
+- أسئلة متنوعة تغطي جميع جوانب المنهج
+- كل سؤال يختبر فهماً حقيقياً وليس حفظاً
+- الخيارات الخاطئة معقولة ومقنعة
+- ${testType === "قدرات" ? "تنوع بين الأسئلة اللفظية والكمية" : "تغطية شاملة للمواد الدراسية"}
+- كل تفسير تعليمي واضح ومفيد
+${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة أول ثانوي، 3 أسئلة ثاني ثانوي، 5 أسئلة ثالث ثانوي` : ""}`
+      : `قم بتوليد ${testType === "قدرات" ? "اختبار قدرات (5 لفظي + 5 كمي)" : `اختبار تحصيلي ${track} (10 أسئلة)`} بناءً على المحتوى التالي:
 
 📚 **المحتوى:**
 العنوان: ${content.title}

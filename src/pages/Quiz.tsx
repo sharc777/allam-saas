@@ -71,14 +71,15 @@ const Quiz = () => {
         difficulty: difficultyParam,
         testType: testTypeParam || testType,
         track: trackParam || track,
+        mode: modeParam, // Pass mode to edge function
       };
 
-      // Add either contentId or dayNumber based on mode
+      // Add either contentId or dayNumber based on mode (not needed for practice mode)
       if (contentIdParam) {
         requestBody.contentId = contentIdParam;
       } else if (dayParam) {
         requestBody.dayNumber = parseInt(dayParam);
-      } else if (profile?.current_day) {
+      } else if (modeParam !== "practice" && profile?.current_day) {
         requestBody.dayNumber = profile.current_day;
       }
 
