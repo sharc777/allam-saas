@@ -120,45 +120,61 @@ export const ContentManagement = () => {
 
   const addToKnowledgeBaseMutation = useMutation({
     mutationFn: async (content: DailyContent) => {
-      // Extract main topics from content_text (first 3 lines or key phrases)
-      const topics = content.content_text
-        ?.split('\n')
-        .filter(line => line.trim())
-        .slice(0, 3) || [];
-
-      const { error } = await supabase
-        .from("knowledge_base")
-        .insert({
-          title: content.title,
-          content: content.content_text || "",
-          content_type: "text",
-          test_type: content.test_type,
-          track: content.track,
-          related_topics: [
-            ...topics,
-            content.test_type === "قدرات" ? "القسم الكمي" : "",
-            content.test_type === "قدرات" ? "القسم اللفظي" : "",
-          ].filter(Boolean),
-          is_active: true,
+      // استخراج المواضيع من المحتوى
+      const relatedTopics = [];
+      
+      // إضافة التصنيف الأساسي
+      if (content.test_type) relatedTopics.push(content.test_type);
+      if (content.track) relatedTopics.push(content.track);
+      
+      // استخراج المواضيع من أول 3 أسطر من المحتوى (إن وجدت)
+      if (content.content_text) {
+        const lines = content.content_text.split('\n').slice(0, 3);
+        lines.forEach(line => {
+          // البحث عن الكلمات المفتاحية
+          if (line.includes('القسم الكمي') || line.includes('كمي')) relatedTopics.push('القسم الكمي');
+          if (line.includes('القسم اللفظي') || line.includes('لفظي')) relatedTopics.push('القسم اللفظي');
+          if (line.includes('الجبر')) relatedTopics.push('الجبر');
+          if (line.includes('الهندسة')) relatedTopics.push('الهندسة');
+          if (line.includes('الإحصاء')) relatedTopics.push('الإحصاء');
         });
+      }
 
+      // إزالة التكرار
+      const uniqueTopics = [...new Set(relatedTopics)];
+
+      const { error } = await supabase.from('knowledge_base').insert({
+        title: content.title,
+        content: content.content_text || content.description || '',
+        content_type: 'lesson',
+        test_type: content.test_type,
+        track: content.track,
+        related_topics: uniqueTopics,
+        is_active: true,
+        metadata: {
+          source: 'daily_content',
+          day_number: content.day_number,
+          original_id: content.id
+        }
+      });
+      
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["knowledge-base"] });
-      toast({ 
-        title: "تمت الإضافة لقاعدة المعرفة", 
-        description: "يمكن للذكاء الاصطناعي الآن استخدام هذا المحتوى" 
+      toast({
+        title: "✅ تمت الإضافة بنجاح",
+        description: "تم تحويل المحتوى إلى قاعدة معرفة يستخدمها الذكاء الاصطناعي"
       });
     },
     onError: (error) => {
-      console.error("Error adding to knowledge base:", error);
+      console.error('Error adding to knowledge base:', error);
       toast({
-        title: "خطأ في الإضافة",
-        description: error.message,
-        variant: "destructive",
+        title: "❌ خطأ",
+        description: "فشل في إضافة المحتوى لقاعدة المعرفة",
+        variant: "destructive"
       });
-    },
+    }
   });
 
   const resetForm = () => {
@@ -385,21 +401,28 @@ export const ContentManagement = () => {
                 <p className="text-sm text-muted-foreground">المدة: {content.duration_minutes} دقيقة</p>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  size="sm"
+                  variant="secondary"
                   onClick={() => {
-                    if (confirm("إضافة هذا المحتوى لقاعدة معرفة الذكاء الاصطناعي؟")) {
+                    if (confirm("تحويل هذا المحتوى لمعرفة الذكاء الاصطناعي؟")) {
                       addToKnowledgeBaseMutation.mutate(content);
                     }
                   }}
                   disabled={addToKnowledgeBaseMutation.isPending}
+                  className="gap-2"
                   title="إضافة لقاعدة المعرفة"
                 >
                   {addToKnowledgeBaseMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      جاري التحويل...
+                    </>
                   ) : (
-                    <FileUp className="h-4 w-4" />
+                    <>
+                      <FileUp className="h-4 w-4" />
+                      تحويل لمعرفة الـ AI
+                    </>
                   )}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => handleEdit(content)}>

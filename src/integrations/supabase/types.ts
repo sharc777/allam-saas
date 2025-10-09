@@ -762,11 +762,39 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       increment_daily_count: {
         Args: { p_section: string; p_user_id: string }
         Returns: undefined
@@ -778,6 +806,7 @@ export type Database = {
     }
     Enums: {
       academic_track: "عام" | "علمي" | "نظري"
+      app_role: "admin" | "moderator" | "student"
       conversation_context:
         | "general"
         | "quiz_help"
@@ -933,6 +962,7 @@ export const Constants = {
   public: {
     Enums: {
       academic_track: ["عام", "علمي", "نظري"],
+      app_role: ["admin", "moderator", "student"],
       conversation_context: [
         "general",
         "quiz_help",

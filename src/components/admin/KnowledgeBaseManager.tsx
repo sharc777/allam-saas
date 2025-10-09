@@ -203,19 +203,25 @@ export const KnowledgeBaseManager = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Info Banner */}
-      <Card className="border-primary/20 bg-primary/5">
+      {/* بانر توضيحي */}
+      <Card className="border-primary/50 bg-primary/5">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
               <BookOpen className="h-5 w-5 text-primary" />
             </div>
-            <div className="flex-1 space-y-1">
-              <p className="font-semibold text-sm">📚 قاعدة المعرفة - معرفة الذكاء الاصطناعي</p>
-              <p className="text-xs text-muted-foreground">
-                هذه المواضيع يستخدمها الذكاء الاصطناعي في <code className="bg-muted px-1 py-0.5 rounded">generate-quiz</code> لإثراء السياق
-                عند توليد الأسئلة. كلما كان المحتوى أغنى، كانت الأسئلة أفضل وأكثر دقة.
+            <div className="flex-1">
+              <h4 className="font-bold mb-1">🧠 قاعدة المعرفة - عقل النظام الذكي</h4>
+              <p className="text-sm text-muted-foreground mb-2">
+                هذه هي المعلومات التي يقرأها الذكاء الاصطناعي عند توليد الأسئلة في <code className="bg-muted px-1 rounded">generate-quiz</code>
               </p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>✅ مُصنفة حسب الاختبار والمسار</span>
+                <span>•</span>
+                <span>✅ تُستخدم لإثراء السياق</span>
+                <span>•</span>
+                <span>✅ كلما زادت، تحسنت الأسئلة</span>
+              </div>
             </div>
           </div>
         </CardContent>
