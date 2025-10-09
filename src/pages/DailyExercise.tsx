@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle, Brain, Clock } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
 import Navbar from "@/components/Navbar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Question {
@@ -39,23 +40,41 @@ const DailyExercise = () => {
   const [exerciseStarted, setExerciseStarted] = useState(false);
   const [startTime] = useState(Date.now());
   const [showEarlyEndDialog, setShowEarlyEndDialog] = useState(false);
+  const [selectedQuestionCount, setSelectedQuestionCount] = useState(10);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<"easy" | "medium" | "hard">("medium");
 
   const generateExercise = async () => {
     try {
       setLoading(true);
       
-    const { data, error } = await supabase.functions.invoke("generate-quiz", {
-      body: {
-        mode: "practice",
-        testType,
-        track: profile?.track_preference || "عام",
-        difficulty: "medium",
-        sectionFilter: sectionType,
-        questionCount: 10,
-      },
-    });
+      const { data, error } = await supabase.functions.invoke("generate-quiz", {
+        body: {
+          mode: "practice",
+          testType,
+          track: profile?.track_preference || "عام",
+          difficulty: selectedDifficulty,
+          sectionFilter: sectionType,
+          questionCount: selectedQuestionCount,
+        },
+      });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("429")) {
+          throw new Error("تم تجاوز الحد المسموح من الطلبات. يرجى المحاولة بعد قليل.");
+        }
+        if (error.message?.includes("402")) {
+          throw new Error("يرجى إضافة رصيد إلى حساب Lovable AI.");
+        }
+        throw error;
+      }
+
+      if (data?.warning) {
+        toast({
+          title: "تحذير",
+          description: data.warning,
+          variant: "default",
+        });
+      }
 
       setQuestions(data.questions);
       setSelectedAnswers(new Array(data.questions.length).fill(""));
@@ -175,12 +194,44 @@ const DailyExercise = () => {
               <CardContent className="space-y-6">
                 <div className="text-center space-y-4">
                   <p className="text-lg text-muted-foreground">
-                    استعد لحل 10 أسئلة في قسم {sectionType}
+                    استعد لحل أسئلة في قسم {sectionType}
                   </p>
-                  <div className="flex items-center justify-center gap-4 text-sm">
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="question-count" className="text-base">عدد الأسئلة</Label>
+                      <Select value={selectedQuestionCount.toString()} onValueChange={(v) => setSelectedQuestionCount(parseInt(v))}>
+                        <SelectTrigger id="question-count" className="mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 أسئلة</SelectItem>
+                          <SelectItem value="10">10 أسئلة</SelectItem>
+                          <SelectItem value="15">15 سؤالاً</SelectItem>
+                          <SelectItem value="20">20 سؤالاً</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="difficulty" className="text-base">مستوى الصعوبة</Label>
+                      <Select value={selectedDifficulty} onValueChange={(v: any) => setSelectedDifficulty(v)}>
+                        <SelectTrigger id="difficulty" className="mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="easy">سهل</SelectItem>
+                          <SelectItem value="medium">متوسط</SelectItem>
+                          <SelectItem value="hard">صعب</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-4 text-sm pt-2">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-primary" />
-                      <span>مدة متوقعة: 15-20 دقيقة</span>
+                      <span>مدة متوقعة: {Math.ceil(selectedQuestionCount * 1.5)}-{selectedQuestionCount * 2} دقيقة</span>
                     </div>
                   </div>
                 </div>

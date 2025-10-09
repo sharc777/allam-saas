@@ -94,7 +94,39 @@ serve(async (req) => {
       throw new Error("المحتوى غير موجود");
     }
 
-    // Fetch knowledge base content
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    console.log("Generating quiz - Day:", dayNumber, "Difficulty:", difficulty, "Test Type:", testType, "Track:", track);
+
+    // Load AI settings from database FIRST
+    const { data: aiSettingsData } = await supabase
+      .from("ai_settings")
+      .select("*");
+    
+    const aiSettings: Record<string, any> = {};
+    aiSettingsData?.forEach(setting => {
+      aiSettings[setting.setting_key] = setting.setting_value;
+    });
+
+    // Extract configuration with defaults
+    const quizLimits = aiSettings.quiz_limits || { 
+      min_questions: 5, 
+      max_questions: 50, 
+      default_questions: 10,
+      min_ratio: 0.6 
+    };
+    const quizModel = aiSettings.quiz_model?.model || "google/gemini-2.5-flash";
+    const quizTemp = aiSettings.quiz_generation_temperature?.temperature || 0.7;
+    const sectionsConfig = aiSettings.quiz_sections_config || {};
+    const kbLimits = aiSettings.kb_limits || { practice_fetch_limit: 20, lesson_fetch_limit: 5 };
+    const systemPromptOverride = aiSettings.system_prompt?.ar || "";
+
+    console.log("AI Settings loaded:", { quizModel, quizTemp, minRatio: quizLimits.min_ratio });
+
+    // Fetch knowledge base content (NOW AFTER kbLimits is defined)
     let additionalKnowledge = "";
     
     if (isPracticeMode) {
@@ -105,7 +137,7 @@ serve(async (req) => {
         .eq("test_type", testType)
         .eq("track", track)
         .eq("is_active", true)
-        .limit(20); // More content for practice mode
+        .limit(kbLimits.practice_fetch_limit || 20);
       
       if (knowledgeData && knowledgeData.length > 0) {
         additionalKnowledge = "\n\n📚 **المحتوى المعرفي للاختبار:**\n" + 
@@ -124,7 +156,7 @@ serve(async (req) => {
           .eq("test_type", testType)
           .eq("track", track)
           .eq("is_active", true)
-          .limit(5);
+          .limit(kbLimits.lesson_fetch_limit || 5);
         
         if (knowledgeData && knowledgeData.length > 0) {
           additionalKnowledge = "\n\n📚 **محتوى معرفي إضافي:**\n" + 
@@ -133,20 +165,24 @@ serve(async (req) => {
       }
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    console.log("Generating quiz - Day:", dayNumber, "Difficulty:", difficulty, "Test Type:", testType, "Track:", track);
-
     // Calculate question counts
     const actualDifficulty = isPracticeMode && !difficulty ? 'easy' : difficulty;
-    // Request more questions when filtering by section to account for validation
-    const baseQuestions = questionCount || (isInitialAssessment ? 25 : 10);
-    const numQuestions = sectionFilter ? baseQuestions + 5 : baseQuestions; // Request 15 instead of 10 when filtering
+    
+    // Get section-specific config
+    const sectionConfig = sectionFilter && sectionsConfig[testType]?.[sectionFilter];
+    const defaultCount = sectionConfig?.default_count || quizLimits.default_questions;
+    
+    // Use questionCount if provided, else use config default, clamped to limits
+    const baseQuestions = questionCount || (isInitialAssessment ? 25 : defaultCount);
+    const targetQuestions = Math.max(quizLimits.min_questions, Math.min(quizLimits.max_questions, baseQuestions));
+    
+    // Request extra questions when filtering to account for validation rejections
+    const numQuestions = sectionFilter ? targetQuestions + 5 : targetQuestions;
+    
     const verbalQuestions = isInitialAssessment ? 13 : (questionCount ? Math.ceil(questionCount / 2) : 5);
     const quantQuestions = isInitialAssessment ? 12 : (questionCount ? Math.floor(questionCount / 2) : 5);
+    
+    console.log("Question counts:", { targetQuestions, numQuestions, baseQuestions });
     
     // Fetch previous questions to avoid duplication (Phase 2)
     const { data: previousQuestions } = await supabase
@@ -205,22 +241,21 @@ ${filterPrompt}
     }
 
     // تحديد نوع الاختبار والمحتوى المطلوب
-    let systemPrompt = "";
+    let systemPrompt = systemPromptOverride ? `${systemPromptOverride}\n\n` : "";
 
     if (testType === "قدرات") {
-      // Phase 1: Section-specific prompts
+      // Phase 1: Section-specific prompts with dynamic override
       if (sectionFilter === "كمي") {
-        systemPrompt = `أنت خبير في تصميم القسم الكمي من اختبار القدرات العامة (GAT) السعودي.
+        const customPrompt = sectionConfig?.prompt_override || "";
+        const subjects = sectionConfig?.subjects || ["الحساب","الجبر","الهندسة","الإحصاء والاحتمالات","مسائل منطقية"];
+        
+        systemPrompt += customPrompt || `أنت خبير في تصميم القسم الكمي من اختبار القدرات العامة (GAT) السعودي.
 
 🔢 **القسم الكمي - رياضيات فقط:**
-${isInitialAssessment ? `الاختبار يتكون من 12 سؤال كمي:` : `الاختبار يتكون من 10 أسئلة كمي:`}
+${isInitialAssessment ? `الاختبار يتكون من 12 سؤال كمي:` : `الاختبار يتكون من ${targetQuestions} أسئلة كمي:`}
 
 **أنواع الأسئلة المطلوبة (رياضيات فقط):**
-1. الحساب: عمليات حسابية، نسب مئوية، تناسب، متوسطات
-2. الجبر: معادلات، متراجحات، أنماط، متتابعات
-3. الهندسة: زوايا، مثلثات، مساحات، محيطات، حجوم
-4. الإحصاء والاحتمالات: تحليل بيانات، رسوم بيانية، جداول
-5. مسائل منطقية: استنتاج وحل مسائل تطبيقية
+${subjects.map((s: string, i: number) => `${i+1}. ${s}`).join('\n')}
 
 ⚠️ **مهم جداً:** 
 - جميع الأسئلة يجب أن تكون رياضية فقط
@@ -233,17 +268,16 @@ ${isInitialAssessment ? `الاختبار يتكون من 12 سؤال كمي:` :
 - مستوى: ${isPracticeMode ? "easy" : difficulty}
 ${isPracticeMode ? "- تفسير رياضي مفصل لكل إجابة" : ""}`;
       } else if (sectionFilter === "لفظي") {
-        systemPrompt = `أنت خبير في تصميم القسم اللفظي من اختبار القدرات العامة (GAT) السعودي.
+        const customPrompt = sectionConfig?.prompt_override || "";
+        const subjects = sectionConfig?.subjects || ["استيعاب المقروء","إكمال الجمل","التناظر اللفظي","الخطأ السياقي","الارتباط والاختلاف"];
+        
+        systemPrompt += customPrompt || `أنت خبير في تصميم القسم اللفظي من اختبار القدرات العامة (GAT) السعودي.
 
 📝 **القسم اللفظي - لغة عربية فقط:**
-${isInitialAssessment ? `الاختبار يتكون من 13 سؤال لفظي:` : `الاختبار يتكون من 10 أسئلة لفظي:`}
+${isInitialAssessment ? `الاختبار يتكون من 13 سؤال لفظي:` : `الاختبار يتكون من ${targetQuestions} أسئلة لفظي:`}
 
 **أنواع الأسئلة المطلوبة (لغة عربية فقط):**
-1. استيعاب المقروء: نص قصير بالعربية + سؤال فهم
-2. إكمال الجمل: جملة عربية ناقصة + اختيار الكلمة المناسبة
-3. التناظر اللفظي: علاقة بين كلمتين عربيتين (ترادف، تضاد، جزء-كل، سبب-نتيجة)
-4. الخطأ السياقي: جملة عربية بها كلمة غير مناسبة للسياق
-5. الارتباط والاختلاف: تحديد الكلمة العربية المختلفة في المجموعة
+${subjects.map((s: string, i: number) => `${i+1}. ${s}`).join('\n')}
 
 ⚠️ **مهم جداً:**
 - جميع الأسئلة يجب أن تكون لغوية فقط
@@ -380,7 +414,8 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: quizModel,
+        temperature: quizTemp,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -591,33 +626,52 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       return true;
     });
 
-    const targetQuestions = sectionFilter ? (questionCount || 10) : numQuestions;
-    const minAcceptableQuestions = Math.floor(targetQuestions * 0.8);
+    const minAcceptableQuestions = Math.floor(targetQuestions * (quizLimits.min_ratio || 0.6));
     const minQuestions = isInitialAssessment ? 20 : minAcceptableQuestions;
     const expectedQuestions = isInitialAssessment ? 25 : targetQuestions;
     
     console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions (expected: ${expectedQuestions}, min: ${minQuestions})`);
     
-    // Handle insufficient questions
+    // Handle insufficient questions - Fill from database if needed
     if (validatedQuestions.length < minQuestions) {
-      if (validatedQuestions.length >= 10) {
-        // Partial success: return with warning
-        console.warn(`Returning ${validatedQuestions.length} questions (below target but acceptable)`);
-        return new Response(
-          JSON.stringify({
-            questions: validatedQuestions.slice(0, validatedQuestions.length),
-            warning: `تم توليد ${validatedQuestions.length} سؤالاً من أصل ${expectedQuestions} المطلوبة`,
-            dayNumber,
-            contentTitle: content.title,
-            testType,
-            track
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      console.log(`Only ${validatedQuestions.length} validated, attempting to fill from questions_bank...`);
+      
+      // Try to fill from questions_bank
+      const needed = targetQuestions - validatedQuestions.length;
+      const { data: bankQuestions } = await supabase
+        .from("questions_bank")
+        .select("*")
+        .eq("subject", testType === "قدرات" ? (sectionFilter || "قدرات") : track)
+        .eq("difficulty", actualDifficulty)
+        .limit(needed * 2); // Get extra in case some are duplicates
+      
+      if (bankQuestions && bankQuestions.length > 0) {
+        const bankQuestionsFormatted = bankQuestions
+          .filter(q => {
+            // Check it's not a duplicate
+            const text = q.question_text?.trim().toLowerCase();
+            return !validatedQuestions.some(vq => vq.question_text?.trim().toLowerCase() === text);
+          })
+          .slice(0, needed)
+          .map(q => ({
+            question_text: q.question_text,
+            options: q.options || [],
+            correct_answer: q.correct_answer,
+            explanation: q.explanation || "لا يوجد تفسير متاح",
+            section: sectionFilter || (testType === "قدرات" ? "عام" : track),
+            subject: q.subject || "",
+            question_type: q.question_type || "multiple_choice",
+            difficulty: q.difficulty || actualDifficulty,
+            topic: q.topic || ""
+          }));
+        
+        validatedQuestions.push(...bankQuestionsFormatted);
+        console.log(`Added ${bankQuestionsFormatted.length} questions from questions_bank`);
       }
       
-      // Too few questions - try fallback with simpler model
-      console.log("Attempting fallback generation with simpler model...");
+      // If still not enough, try fallback with simpler model
+      if (validatedQuestions.length < Math.max(5, minQuestions * 0.6)) {
+        console.log("Still insufficient, attempting fallback generation with simpler model...");
       const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -657,6 +711,7 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       }
       
       throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/${expectedQuestions}). الرجاء المحاولة مرة أخرى.`);
+      }
     }
 
     // Phase 2: Save generated questions to log
