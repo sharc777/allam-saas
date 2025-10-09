@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { AIContentManager } from "@/components/admin/AIContentManager";
 import { ContentParser } from "@/components/admin/ContentParser";
+import { FileUploadManager } from "@/components/admin/FileUploadManager";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -200,11 +201,12 @@ const Admin = () => {
 
           {/* Main Content Tabs */}
           <Tabs defaultValue="content" className="space-y-6" dir="rtl">
-            <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-6 lg:w-auto">
               <TabsTrigger value="content">المحتوى</TabsTrigger>
-              <TabsTrigger value="parser">رفع محتوى</TabsTrigger>
+              <TabsTrigger value="parser">رفع PDF</TabsTrigger>
+              <TabsTrigger value="upload">📁 رفع ملفات</TabsTrigger>
               <TabsTrigger value="ai">إدارة AI</TabsTrigger>
-              <TabsTrigger value="questions">بنك الأسئلة</TabsTrigger>
+              <TabsTrigger value="questions">الأسئلة</TabsTrigger>
               <TabsTrigger value="users">المستخدمين</TabsTrigger>
             </TabsList>
 
@@ -216,6 +218,11 @@ const Admin = () => {
             {/* Content Parser */}
             <TabsContent value="parser" className="space-y-6">
               <ContentParser />
+            </TabsContent>
+
+            {/* File Upload Manager */}
+            <TabsContent value="upload" className="space-y-6">
+              <FileUploadManager />
             </TabsContent>
 
             {/* AI Settings */}
