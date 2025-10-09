@@ -44,14 +44,16 @@ const DailyExercise = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.functions.invoke("generate-quiz", {
-        body: {
-          mode: "daily",
-          testType,
-          track: profile?.track_preference || "عام",
-          difficulty: "medium",
-        },
-      });
+    const { data, error } = await supabase.functions.invoke("generate-quiz", {
+      body: {
+        mode: "practice",
+        testType,
+        track: profile?.track_preference || "عام",
+        difficulty: "medium",
+        sectionFilter: sectionType,
+        questionCount: 10,
+      },
+    });
 
       if (error) throw error;
 
