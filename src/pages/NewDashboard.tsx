@@ -1,0 +1,203 @@
+import Navbar from "@/components/Navbar";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Brain } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import AITutor from "@/components/AITutor";
+import { useProfile } from "@/hooks/useProfile";
+import { SectionCard } from "@/components/SectionCard";
+import { DayGrid } from "@/components/DayGrid";
+import { PerformanceStats } from "@/components/PerformanceStats";
+import { DashboardSkeleton } from "@/components/LoadingSkeleton";
+
+const NewDashboard = () => {
+  const { loading: authLoading } = useAuth(true);
+  const [showAIChat, setShowAIChat] = useState(false);
+  const navigate = useNavigate();
+
+  const { data: profile, isLoading: profileLoading } = useProfile();
+
+  // Redirect to test selection if no preferences set
+  useEffect(() => {
+    if (profile && !profile.test_type_preference) {
+      navigate("/test-selection");
+    }
+  }, [profile, navigate]);
+
+  const testType = profile?.test_type_preference || "قدرات";
+  const track = profile?.track_preference || "عام";
+
+  // Fetch daily exercises
+  const { data: exercises, isLoading: exercisesLoading } = useQuery({
+    queryKey: ["daily-exercises", profile?.id, testType],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      const { data, error } = await supabase
+        .from("daily_exercises")
+        .select("*")
+        .eq("user_id", profile.id)
+        .eq("test_type", testType)
+        .order("day_number", { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile?.id,
+  });
+
+  // Fetch performance data
+  const { data: performance, isLoading: performanceLoading } = useQuery({
+    queryKey: ["student-performance", profile?.id, testType],
+    queryFn: async () => {
+      if (!profile?.id) return null;
+      const { data, error } = await supabase
+        .from("student_performance")
+        .select("*")
+        .eq("user_id", profile.id)
+        .eq("test_type", testType)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!profile?.id,
+  });
+
+  const isLoading = authLoading || profileLoading || exercisesLoading || performanceLoading;
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  // Determine sections based on test type
+  const sections = testType === "قدرات" 
+    ? [
+        { type: "كمي", nameAr: "الكمي", icon: "🔢" },
+        { type: "لفظي", nameAr: "اللفظي", icon: "📝" }
+      ]
+    : [
+        { type: "رياضيات", nameAr: "الرياضيات", icon: "➗" },
+        { type: "فيزياء", nameAr: "الفيزياء", icon: "⚡" },
+        { type: "كيمياء", nameAr: "الكيمياء", icon: "🧪" },
+        { type: "أحياء", nameAr: "الأحياء", icon: "🧬" }
+      ];
+
+  // Calculate stats for each section
+  const sectionStats = sections.map(section => {
+    const sectionExercises = exercises?.filter(ex => ex.section_type === section.type) || [];
+    const completedDays = sectionExercises.length;
+    const averageScore = completedDays > 0
+      ? sectionExercises.reduce((sum, ex) => sum + (ex.score || 0), 0) / completedDays
+      : 0;
+
+    return {
+      ...section,
+      completedDays,
+      averageScore,
+    };
+  });
+
+  // Generate 30-day grid for first section (simplified view)
+  const firstSection = sections[0];
+  const sectionExercises = exercises?.filter(ex => ex.section_type === firstSection.type) || [];
+  
+  const dayStatuses = Array.from({ length: 30 }, (_, i) => {
+    const dayNum = i + 1;
+    const exercise = sectionExercises.find(ex => ex.day_number === dayNum);
+    return {
+      day: dayNum,
+      completed: !!exercise,
+      score: exercise?.score,
+      locked: dayNum > 1 && !sectionExercises.find(ex => ex.day_number === dayNum - 1),
+    };
+  });
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      
+      <div className="pt-24 pb-12 px-4">
+        <div className="container mx-auto max-w-7xl">
+          {/* Welcome Header */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2">
+              مرحباً بك، <span className="text-primary">{profile?.full_name}</span>
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              استمر في التدريب اليومي وطور مهاراتك
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Section Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {sectionStats.map((section) => (
+                  <SectionCard
+                    key={section.type}
+                    sectionType={section.type}
+                    sectionNameAr={section.nameAr}
+                    testType={testType}
+                    completedDays={section.completedDays}
+                    averageScore={section.averageScore}
+                    icon={section.icon}
+                  />
+                ))}
+              </div>
+
+              {/* 30-Day Grid */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl">
+                    جدول 30 يوم - {firstSection.nameAr}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <DayGrid
+                    days={dayStatuses}
+                    sectionType={firstSection.type}
+                    testType={testType}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Performance Stats */}
+              {performance && (
+                <PerformanceStats
+                  currentLevel={performance.current_level}
+                  averageScore={performance.average_score}
+                  improvementRate={performance.improvement_rate}
+                  strengths={performance.strengths as string[]}
+                  weaknesses={performance.weaknesses as string[]}
+                  badges={performance.badges as string[]}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* AI Tutor Button */}
+          <Button
+            onClick={() => setShowAIChat(true)}
+            size="lg"
+            className="fixed bottom-8 left-8 gradient-primary text-primary-foreground shadow-elegant z-40 h-14 px-6"
+          >
+            <Brain className="w-6 h-6 ml-2" />
+            <span className="text-lg font-semibold">المدرس الذكي</span>
+          </Button>
+        </div>
+      </div>
+
+      {showAIChat && <AITutor onClose={() => setShowAIChat(false)} />}
+    </div>
+  );
+};
+
+export default NewDashboard;

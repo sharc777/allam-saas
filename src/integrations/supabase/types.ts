@@ -205,6 +205,51 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_exercises: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          day_number: number
+          id: string
+          questions: Json
+          score: number
+          section_type: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          time_taken_minutes: number | null
+          total_questions: number
+          track: Database["public"]["Enums"]["academic_track"] | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          day_number: number
+          id?: string
+          questions?: Json
+          score?: number
+          section_type: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          time_taken_minutes?: number | null
+          total_questions?: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          day_number?: number
+          id?: string
+          questions?: Json
+          score?: number
+          section_type?: string
+          test_type?: Database["public"]["Enums"]["test_type"]
+          time_taken_minutes?: number | null
+          total_questions?: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       generated_questions_log: {
         Row: {
           created_at: string | null
@@ -340,6 +385,7 @@ export type Database = {
           id: string
           initial_assessment_completed: boolean | null
           last_quiz_date: string | null
+          preferred_sections: Json | null
           role: Database["public"]["Enums"]["user_role"]
           streak_days: number | null
           subscription_active: boolean | null
@@ -360,6 +406,7 @@ export type Database = {
           id: string
           initial_assessment_completed?: boolean | null
           last_quiz_date?: string | null
+          preferred_sections?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
           subscription_active?: boolean | null
@@ -382,6 +429,7 @@ export type Database = {
           id?: string
           initial_assessment_completed?: boolean | null
           last_quiz_date?: string | null
+          preferred_sections?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
           subscription_active?: boolean | null
@@ -558,6 +606,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      student_performance: {
+        Row: {
+          average_score: number
+          badges: Json | null
+          created_at: string
+          current_level: string
+          id: string
+          improvement_rate: number | null
+          last_updated: string | null
+          strengths: Json | null
+          test_type: Database["public"]["Enums"]["test_type"]
+          total_exercises: number
+          total_score: number
+          track: Database["public"]["Enums"]["academic_track"] | null
+          user_id: string
+          weaknesses: Json | null
+        }
+        Insert: {
+          average_score?: number
+          badges?: Json | null
+          created_at?: string
+          current_level?: string
+          id?: string
+          improvement_rate?: number | null
+          last_updated?: string | null
+          strengths?: Json | null
+          test_type: Database["public"]["Enums"]["test_type"]
+          total_exercises?: number
+          total_score?: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          user_id: string
+          weaknesses?: Json | null
+        }
+        Update: {
+          average_score?: number
+          badges?: Json | null
+          created_at?: string
+          current_level?: string
+          id?: string
+          improvement_rate?: number | null
+          last_updated?: string | null
+          strengths?: Json | null
+          test_type?: Database["public"]["Enums"]["test_type"]
+          total_exercises?: number
+          total_score?: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          user_id?: string
+          weaknesses?: Json | null
+        }
+        Relationships: []
       }
       student_progress: {
         Row: {
