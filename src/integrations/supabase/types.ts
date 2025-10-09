@@ -137,9 +137,12 @@ export type Database = {
           day_number: number
           description: string | null
           duration_minutes: number
+          examples: Json | null
           id: string
           is_published: boolean | null
+          key_points: string[] | null
           learning_objectives: string[] | null
+          quick_tips: string[] | null
           test_type: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics: Json | null
@@ -153,9 +156,12 @@ export type Database = {
           day_number: number
           description?: string | null
           duration_minutes: number
+          examples?: Json | null
           id?: string
           is_published?: boolean | null
+          key_points?: string[] | null
           learning_objectives?: string[] | null
+          quick_tips?: string[] | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics?: Json | null
@@ -169,9 +175,12 @@ export type Database = {
           day_number?: number
           description?: string | null
           duration_minutes?: number
+          examples?: Json | null
           id?: string
           is_published?: boolean | null
+          key_points?: string[] | null
           learning_objectives?: string[] | null
+          quick_tips?: string[] | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title?: string
           topics?: Json | null

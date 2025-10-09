@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", contentId, mode } = await req.json();
+    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", contentId, mode, questionCount } = await req.json();
     
     const authHeader = req.headers.get("authorization");
     console.log("Auth header received:", authHeader ? "Present" : "Missing");
@@ -141,9 +141,9 @@ serve(async (req) => {
 
     // Determine number of questions based on mode
     const isInitialAssessment = mode === "initial_assessment";
-    const numQuestions = isInitialAssessment ? 25 : 10;
-    const verbalQuestions = isInitialAssessment ? 13 : 5;
-    const quantQuestions = isInitialAssessment ? 12 : 5;
+    const numQuestions = questionCount || (isInitialAssessment ? 25 : 10);
+    const verbalQuestions = isInitialAssessment ? 13 : (questionCount ? Math.ceil(questionCount / 2) : 5);
+    const quantQuestions = isInitialAssessment ? 12 : (questionCount ? Math.floor(questionCount / 2) : 5);
 
     // تحديد نوع الاختبار والمحتوى المطلوب
     let systemPrompt = "";
@@ -171,8 +171,9 @@ ${isInitialAssessment ? `الاختبار يتكون من 25 سؤالاً (13 ل
 **معايير الجودة:**
 - أسئلة واضحة ومباشرة بدون غموض
 - خيارات معقولة ومتجانسة في الطول
-- مستوى: ${difficulty}
-- لغة عربية فصحى صحيحة`;
+- مستوى: ${isPracticeMode ? "easy" : difficulty}
+- لغة عربية فصحى صحيحة
+${isPracticeMode ? "- تفسير تعليمي مفصل لكل إجابة (للتدريب)" : ""}`;
     } else if (testType === "تحصيلي" && track === "علمي") {
       systemPrompt = `أنت خبير في تصميم الاختبار التحصيلي العلمي (SAAT).
 
