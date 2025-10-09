@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ContentManagement } from "@/components/admin/ContentManagement";
-import { SimplifiedAISettings } from "@/components/admin/SimplifiedAISettings";
+import { AIContentManager } from "@/components/admin/AIContentManager";
 import { ContentParser } from "@/components/admin/ContentParser";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -212,7 +212,7 @@ const Admin = () => {
 
             {/* AI Settings */}
             <TabsContent value="ai" className="space-y-6">
-              <SimplifiedAISettings />
+              <AIContentManager />
             </TabsContent>
 
             {/* Questions Database */}
