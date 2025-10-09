@@ -19,6 +19,8 @@ interface PracticeZoneProps {
   dayNumber?: string;
   testType: TestType;
   track: AcademicTrack;
+  focusSection?: string;
+  focusTopics?: string[];
 }
 
 interface Question {
@@ -31,13 +33,20 @@ interface Question {
   difficulty?: string;
 }
 
-export const PracticeZone = ({ contentId, dayNumber, testType, track }: PracticeZoneProps) => {
+export const PracticeZone = ({ 
+  contentId, 
+  dayNumber, 
+  testType, 
+  track,
+  focusSection,
+  focusTopics = []
+}: PracticeZoneProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [difficulty, setDifficulty] = useState<string>("easy");
-  const [sectionFilter, setSectionFilter] = useState<string>("");
+  const [sectionFilter, setSectionFilter] = useState<string>(focusSection || "");
   const [started, setStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");

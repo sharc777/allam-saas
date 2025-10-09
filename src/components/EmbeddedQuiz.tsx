@@ -20,6 +20,7 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [showEarlyFinish, setShowEarlyFinish] = useState(false);
+  const [wrongQuestions, setWrongQuestions] = useState<any[]>([]);
   const queryClient = useQueryClient();
 
   const { data: questions, isLoading } = useQuery({

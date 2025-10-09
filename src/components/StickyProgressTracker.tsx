@@ -6,7 +6,7 @@ interface StickyProgressTrackerProps {
   contentCompleted: boolean;
   examplesCompleted: boolean;
   practiceCompleted: boolean;
-  quizPassed: boolean;
+  quizCompleted: boolean;
   onMarkComplete: (section: string) => void;
 }
 
@@ -14,14 +14,14 @@ export const StickyProgressTracker = ({
   contentCompleted,
   examplesCompleted,
   practiceCompleted,
-  quizPassed,
+  quizCompleted,
   onMarkComplete,
 }: StickyProgressTrackerProps) => {
   const items = [
     { key: "content", label: "قراءة المحتوى", completed: contentCompleted },
     { key: "examples", label: "مراجعة الأمثلة", completed: examplesCompleted },
     { key: "practice", label: "إكمال التدريب", completed: practiceCompleted },
-    { key: "quiz", label: "اجتياز الاختبار (70%+)", completed: quizPassed },
+    { key: "quiz", label: "اجتياز الاختبار (70%+)", completed: quizCompleted },
   ];
 
   const completedCount = items.filter(item => item.completed).length;
