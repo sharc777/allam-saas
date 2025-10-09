@@ -143,6 +143,8 @@ export type Database = {
           key_points: string[] | null
           learning_objectives: string[] | null
           quick_tips: string[] | null
+          requires_previous_completion: boolean | null
+          sections: Json | null
           test_type: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics: Json | null
@@ -162,6 +164,8 @@ export type Database = {
           key_points?: string[] | null
           learning_objectives?: string[] | null
           quick_tips?: string[] | null
+          requires_previous_completion?: boolean | null
+          sections?: Json | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics?: Json | null
@@ -181,6 +185,8 @@ export type Database = {
           key_points?: string[] | null
           learning_objectives?: string[] | null
           quick_tips?: string[] | null
+          requires_previous_completion?: boolean | null
+          sections?: Json | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title?: string
           topics?: Json | null
@@ -546,40 +552,49 @@ export type Database = {
       }
       student_progress: {
         Row: {
+          can_proceed_to_next: boolean | null
           completed_at: string | null
           content_completed: boolean | null
           created_at: string
           day_number: number
           exercises_completed: boolean | null
           id: string
+          last_section_completed: string | null
           notes: string | null
           quiz_completed: boolean | null
+          section_progress: Json | null
           time_spent_minutes: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          can_proceed_to_next?: boolean | null
           completed_at?: string | null
           content_completed?: boolean | null
           created_at?: string
           day_number: number
           exercises_completed?: boolean | null
           id?: string
+          last_section_completed?: string | null
           notes?: string | null
           quiz_completed?: boolean | null
+          section_progress?: Json | null
           time_spent_minutes?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          can_proceed_to_next?: boolean | null
           completed_at?: string | null
           content_completed?: boolean | null
           created_at?: string
           day_number?: number
           exercises_completed?: boolean | null
           id?: string
+          last_section_completed?: string | null
           notes?: string | null
           quiz_completed?: boolean | null
+          section_progress?: Json | null
           time_spent_minutes?: number | null
           updated_at?: string
           user_id?: string

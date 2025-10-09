@@ -15,6 +15,8 @@ import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { EmbeddedQuiz } from "@/components/EmbeddedQuiz";
 import { PracticeZone } from "@/components/PracticeZone";
+import { StickyProgressTracker } from "@/components/StickyProgressTracker";
+import { LessonContent } from "@/components/LessonContent";
 export default function Lesson() {
   const {
     dayNumber,
@@ -34,6 +36,9 @@ export default function Lesson() {
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
+  const [contentCompleted, setContentCompleted] = useState(false);
+  const [examplesCompleted, setExamplesCompleted] = useState(false);
+  const [practiceCompleted, setPracticeCompleted] = useState(false);
 
   // Get profile to use preferences
   const {
@@ -189,6 +194,26 @@ export default function Lesson() {
       completed: true
     });
   };
+
+  const handleMarkSectionComplete = (section: string) => {
+    const updates: any = {};
+    
+    if (section === "content") {
+      setContentCompleted(true);
+      updates.content_completed = true;
+    }
+    if (section === "examples") {
+      setExamplesCompleted(true);
+      updates.exercises_completed = true;
+    }
+    if (section === "practice") {
+      setPracticeCompleted(true);
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      updateProgressMutation.mutate(updates);
+    }
+  };
   if (authLoading || contentLoading || progressLoading || subscriptionLoading) {
     return <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -280,53 +305,14 @@ export default function Lesson() {
               </TabsList>
 
               <TabsContent value="content" className="space-y-6">
-                {content.video_url && <Card className="p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Video className="h-5 w-5 text-primary" />
-                      <h3 className="text-xl font-bold">الفيديو التعليمي</h3>
-                    </div>
-                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                      <iframe src={content.video_url} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-                    </div>
-                  </Card>}
-
-                {keyPoints.length > 0 && <Card>
-                    <CardHeader>
-                      <CardTitle>النقاط الرئيسية</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {keyPoints.map((point, idx) => <div key={idx} className="flex gap-3">
-                          <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                            {idx + 1}
-                          </span>
-                          <p className="flex-1 pt-1">{point}</p>
-                        </div>)}
-                    </CardContent>
-                  </Card>}
-
-                {content.content_text && <Card className="p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <h3 className="text-xl font-bold">الشرح التفصيلي</h3>
-                    </div>
-                    <div className="prose prose-lg max-w-none" dir="rtl">
-                      <p className="whitespace-pre-wrap leading-relaxed">{content.content_text}</p>
-                    </div>
-                  </Card>}
-
-                {quickTips.length > 0 && <Card className="border-l-4 border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Zap className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-1" />
-                        <div className="space-y-2">
-                          <p className="font-bold">💡 نصائح سريعة</p>
-                          <ul className="space-y-1 text-sm">
-                            {quickTips.map((tip, idx) => <li key={idx} className="list-disc list-inside">{tip}</li>)}
-                          </ul>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>}
+                <LessonContent
+                  title={content.title}
+                  description={content.description}
+                  videoUrl={content.video_url}
+                  keyPoints={keyPoints}
+                  contentText={content.content_text}
+                  quickTips={quickTips}
+                />
 
                 {sections.length > 0 && <Card className="p-6">
                     <div className="flex items-center gap-2 mb-4">
@@ -426,30 +412,13 @@ export default function Lesson() {
           </div>
 
           <div className="space-y-6">
-            <Card className="p-4 sticky top-24">
-              <h4 className="font-bold mb-3">تقدمك في الدرس</h4>
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${activeTab === "content" || progress?.content_completed ? "bg-success text-white" : "bg-muted"}`}>
-                    <BookOpen className="w-3 h-3" />
-                  </div>
-                  <span className="text-sm">قراءة المحتوى</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${activeTab === "examples" ? "bg-success text-white" : "bg-muted"}`}>
-                    <Lightbulb className="w-3 h-3" />
-                  </div>
-                  <span className="text-sm">مراجعة الأمثلة</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${hasPassedQuiz ? "bg-success text-white" : "bg-muted"}`}>
-                    <Award className="w-3 h-3" />
-                  </div>
-                  <span className="text-sm">اجتياز الاختبار</span>
-                </div>
-              </div>
-              <Progress value={hasPassedQuiz ? 100 : activeTab === "quiz" ? 75 : activeTab === "examples" ? 50 : 25} className="mb-2" />
-            </Card>
+            <StickyProgressTracker
+              contentCompleted={contentCompleted || progress?.content_completed || false}
+              examplesCompleted={examplesCompleted || progress?.exercises_completed || false}
+              practiceCompleted={practiceCompleted}
+              quizPassed={hasPassedQuiz || false}
+              onMarkComplete={handleMarkSectionComplete}
+            />
 
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
