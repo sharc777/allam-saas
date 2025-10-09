@@ -44,6 +44,10 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
+    // Determine mode early for use throughout the function
+    const isPracticeMode = mode === 'practice';
+    const isInitialAssessment = mode === 'initial_assessment';
+
     // Get daily content (by contentId or dayNumber) or use practice mode
     let content: any;
     let contentError: any;
