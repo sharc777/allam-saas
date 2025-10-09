@@ -53,6 +53,12 @@ const Dashboard = () => {
     navigate("/test-selection");
     return null;
   }
+
+  // Redirect to initial assessment if not completed
+  if (profile && !profile.initial_assessment_completed) {
+    navigate("/initial-assessment");
+    return null;
+  }
   
   const currentDay = profile?.current_day || 1;
   const testType = profile?.test_type_preference || "قدرات";
@@ -173,6 +179,49 @@ const Dashboard = () => {
                 </div>
               </Card>
             </div>
+
+            {/* Trial Period Banner */}
+            {!profile?.subscription_active && (profile?.trial_days || 0) > 0 && (
+              <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-full bg-primary/20">
+                        <Sparkles className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg">الفترة التجريبية المجانية</h3>
+                        <p className="text-muted-foreground">
+                          لديك <span className="font-bold text-primary">{profile?.trial_days || 0} أيام</span> متبقية من الفترة التجريبية
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="outline" onClick={() => navigate("/subscription")}>
+                      الاشتراك الآن
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Subscription Active Banner */}
+            {profile?.subscription_active && (
+              <Card className="bg-gradient-to-r from-green-500/10 via-green-500/5 to-background border-green-500/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-green-500/20">
+                      <CheckCircle2 className="w-6 h-6 text-green-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">اشتراك نشط 🎉</h3>
+                      <p className="text-muted-foreground">
+                        لديك وصول كامل لجميع ميزات المنصة
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">

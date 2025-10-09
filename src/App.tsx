@@ -13,6 +13,8 @@ import NotFound from "./pages/NotFound";
 import TestTypeSelection from "./pages/TestTypeSelection";
 import Lesson from "./pages/Lesson";
 import PracticeQuiz from "./pages/PracticeQuiz";
+import InitialAssessment from "./pages/InitialAssessment";
+import Subscription from "./pages/Subscription";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +28,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/test-selection" element={<TestTypeSelection />} />
+          <Route path="/initial-assessment" element={<InitialAssessment />} />
+          <Route path="/subscription" element={<Subscription />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/practice-quiz" element={<PracticeQuiz />} />

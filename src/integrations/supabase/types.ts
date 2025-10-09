@@ -208,6 +208,59 @@ export type Database = {
         }
         Relationships: []
       }
+      initial_assessments: {
+        Row: {
+          created_at: string | null
+          id: string
+          level: string
+          percentage: number
+          questions: Json
+          recommended_topics: string[] | null
+          strengths: string[] | null
+          test_type: Database["public"]["Enums"]["test_type"]
+          total_score: number
+          track: Database["public"]["Enums"]["academic_track"] | null
+          user_id: string
+          weaknesses: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          level: string
+          percentage: number
+          questions?: Json
+          recommended_topics?: string[] | null
+          strengths?: string[] | null
+          test_type: Database["public"]["Enums"]["test_type"]
+          total_score: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          user_id: string
+          weaknesses?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          level?: string
+          percentage?: number
+          questions?: Json
+          recommended_topics?: string[] | null
+          strengths?: string[] | null
+          test_type?: Database["public"]["Enums"]["test_type"]
+          total_score?: number
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          user_id?: string
+          weaknesses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "initial_assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_base: {
         Row: {
           content: string | null
@@ -258,44 +311,65 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           current_day: number | null
+          daily_quiz_count: number | null
           full_name: string
           id: string
+          initial_assessment_completed: boolean | null
+          last_quiz_date: string | null
           role: Database["public"]["Enums"]["user_role"]
           streak_days: number | null
+          subscription_active: boolean | null
+          subscription_end_date: string | null
           test_type_preference: Database["public"]["Enums"]["test_type"] | null
           total_points: number | null
           track_preference: Database["public"]["Enums"]["academic_track"] | null
+          trial_days: number | null
           updated_at: string
+          user_level: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           current_day?: number | null
+          daily_quiz_count?: number | null
           full_name: string
           id: string
+          initial_assessment_completed?: boolean | null
+          last_quiz_date?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
+          subscription_active?: boolean | null
+          subscription_end_date?: string | null
           test_type_preference?: Database["public"]["Enums"]["test_type"] | null
           total_points?: number | null
           track_preference?:
             | Database["public"]["Enums"]["academic_track"]
             | null
+          trial_days?: number | null
           updated_at?: string
+          user_level?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           current_day?: number | null
+          daily_quiz_count?: number | null
           full_name?: string
           id?: string
+          initial_assessment_completed?: boolean | null
+          last_quiz_date?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
+          subscription_active?: boolean | null
+          subscription_end_date?: string | null
           test_type_preference?: Database["public"]["Enums"]["test_type"] | null
           total_points?: number | null
           track_preference?:
             | Database["public"]["Enums"]["academic_track"]
             | null
+          trial_days?: number | null
           updated_at?: string
+          user_level?: string | null
         }
         Relationships: []
       }
