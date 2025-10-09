@@ -142,7 +142,9 @@ serve(async (req) => {
 
     // Calculate question counts
     const actualDifficulty = isPracticeMode && !difficulty ? 'easy' : difficulty;
-    const numQuestions = questionCount || (isInitialAssessment ? 25 : 10);
+    // Request more questions when filtering by section to account for validation
+    const baseQuestions = questionCount || (isInitialAssessment ? 25 : 10);
+    const numQuestions = sectionFilter ? baseQuestions + 5 : baseQuestions; // Request 15 instead of 10 when filtering
     const verbalQuestions = isInitialAssessment ? 13 : (questionCount ? Math.ceil(questionCount / 2) : 5);
     const quantQuestions = isInitialAssessment ? 12 : (questionCount ? Math.floor(questionCount / 2) : 5);
     
@@ -344,9 +346,9 @@ ${isInitialAssessment ? "- التنوع في مستويات الصعوبة لت�
       : `قم بتوليد ${
         testType === "قدرات" 
           ? sectionFilter 
-            ? `اختبار قدرات - قسم ${sectionFilter} (10 أسئلة ${sectionFilter} فقط - لا تضع أي أسئلة من القسم الآخر)` 
+            ? `${numQuestions} سؤال من قسم ${sectionFilter} فقط في اختبار قدرات${sectionFilter === "كمي" ? " (رياضيات بحتة - أرقام ومعادلات فقط)" : " (لغة عربية بحتة - نصوص وكلمات فقط)"}` 
             : "اختبار قدرات (5 لفظي + 5 كمي)"
-          : `اختبار تحصيلي ${track} (10 أسئلة)`
+          : `اختبار تحصيلي ${track} (${numQuestions} أسئلة)`
       } بناءً على المحتوى التالي:
 
 📚 **المحتوى:**
@@ -361,9 +363,10 @@ ${additionalKnowledge}
 
 ⚠️ **متطلبات مهمة جداً:**
 ${sectionFilter ? `
-- ⚠️ **مهم جداً:** يجب توليد 10 أسئلة ${sectionFilter} فقط
-- ❌ **ممنوع منعاً باتاً:** إضافة أي أسئلة من القسم ${sectionFilter === "كمي" ? "اللفظي" : "الكمي"}
-- ✅ ${sectionFilter === "كمي" ? "فقط أسئلة رياضية (جبر، هندسة، حساب، إحصاء)" : "فقط أسئلة لغة عربية (استيعاب، تناظر، إكمال جمل، خطأ سياقي)"}
+- 🔴 **حرج جداً:** يجب توليد ${numQuestions} سؤال ${sectionFilter} فقط
+- ❌ **ممنوع تماماً:** لا تضع حتى سؤال واحد من القسم ${sectionFilter === "كمي" ? "اللفظي (لغة عربية)" : "الكمي (رياضيات)"}
+- ✅ ${sectionFilter === "كمي" ? "كل سؤال يجب أن يحتوي على أرقام أو معادلات رياضية (مثال: إذا كان 5 + x = 12، فما قيمة x؟)" : "كل سؤال يجب أن يكون عن اللغة العربية (مثال: ما معنى كلمة 'الفصاحة'؟)"}
+- ✅ ${sectionFilter === "كمي" ? "فقط رياضيات: جبر، هندسة، حساب، إحصاء" : "فقط لغة: استيعاب نصوص، تناظر لفظي، إكمال جمل، خطأ سياقي"}
 ` : `- ${testType === "قدرات" ? "تنوع بين الأسئلة اللفظية والكمية (5 لفظي + 5 كمي بالضبط)" : "تغطية شاملة للمواد الدراسية"}`}
 - كل سؤال يختبر فهماً حقيقياً وليس حفظاً
 - الخيارات الخاطئة معقولة ومقنعة
@@ -588,8 +591,10 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       return true;
     });
 
-    const minQuestions = isInitialAssessment ? 20 : 8;
-    const expectedQuestions = isInitialAssessment ? 25 : 10;
+    const targetQuestions = sectionFilter ? (questionCount || 10) : numQuestions;
+    const minAcceptableQuestions = Math.floor(targetQuestions * 0.8);
+    const minQuestions = isInitialAssessment ? 20 : minAcceptableQuestions;
+    const expectedQuestions = isInitialAssessment ? 25 : targetQuestions;
     
     console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions (expected: ${expectedQuestions}, min: ${minQuestions})`);
     
