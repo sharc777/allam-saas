@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", contentId, mode, questionCount } = await req.json();
+    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", contentId, mode, questionCount, sectionFilter, subjectsFilter, topics } = await req.json();
     
     const authHeader = req.headers.get("authorization");
     console.log("Auth header received:", authHeader ? "Present" : "Missing");
@@ -47,7 +47,6 @@ serve(async (req) => {
     // Get daily content (by contentId or dayNumber) or use practice mode
     let content: any;
     let contentError: any;
-    let isPracticeMode = false;
     
     if (contentId) {
       // Fetch by contentId for lesson-specific quizzes
@@ -69,7 +68,6 @@ serve(async (req) => {
       contentError = result.error;
     } else if (mode === "practice") {
       // Practice mode: no specific content, use knowledge base only
-      isPracticeMode = true;
       content = {
         title: "اختبار تدريبي شامل",
         description: "اختبار تدريبي يغطي جميع المواضيع",
@@ -78,7 +76,6 @@ serve(async (req) => {
       };
     } else if (mode === "initial_assessment") {
       // Initial Assessment mode: comprehensive evaluation quiz
-      isPracticeMode = true;
       content = {
         title: "التقييم الأولي",
         description: "اختبار شامل لتحديد مستواك الحالي",
@@ -89,7 +86,7 @@ serve(async (req) => {
       throw new Error("يجب تحديد contentId أو dayNumber أو mode: practice أو mode: initial_assessment");
     }
 
-    if (!isPracticeMode && (contentError || !content)) {
+    if (mode !== "practice" && mode !== "initial_assessment" && (contentError || !content)) {
       throw new Error("المحتوى غير موجود");
     }
 
@@ -139,11 +136,56 @@ serve(async (req) => {
 
     console.log("Generating quiz - Day:", dayNumber, "Difficulty:", difficulty, "Test Type:", testType, "Track:", track);
 
-    // Determine number of questions based on mode
-    const isInitialAssessment = mode === "initial_assessment";
+    // Calculate question counts
+    const actualDifficulty = isPracticeMode && !difficulty ? 'easy' : difficulty;
     const numQuestions = questionCount || (isInitialAssessment ? 25 : 10);
     const verbalQuestions = isInitialAssessment ? 13 : (questionCount ? Math.ceil(questionCount / 2) : 5);
     const quantQuestions = isInitialAssessment ? 12 : (questionCount ? Math.floor(questionCount / 2) : 5);
+    
+    // Build context for the AI based on available content
+    let contextPrompt = '';
+    let filterPrompt = '';
+    
+    if (sectionFilter) {
+      filterPrompt += `\nالقسم المطلوب: ${sectionFilter}`;
+    }
+    if (subjectsFilter && subjectsFilter.length > 0) {
+      filterPrompt += `\nالمواد المطلوبة: ${subjectsFilter.join('، ')}`;
+    }
+    if (topics && topics.length > 0) {
+      filterPrompt += `\nالمواضيع المحددة: ${topics.join('، ')}`;
+    }
+    
+    if (content) {
+      contextPrompt = `
+المحتوى التعليمي:
+العنوان: ${content.title}
+الوصف: ${content.description || 'غير متوفر'}
+
+النقاط الأساسية:
+${content.key_points?.join('\n') || 'غير متوفرة'}
+
+محتوى الدرس:
+${content.content_text || 'غير متوفر'}
+
+نصائح سريعة:
+${content.quick_tips?.join('\n') || 'غير متوفرة'}
+${filterPrompt}
+
+${isPracticeMode ? 'هذا تدريب عملي على مهارات الدرس. اجعل الأسئلة تطبيقية ومباشرة. يجب تضمين تفسير تعليمي مفصل وواضح لكل إجابة.' : ''}
+`;
+    } else if (isPracticeMode) {
+      contextPrompt = `
+هذا اختبار تدريبي عام لتحسين المهارات.
+${filterPrompt}
+`;
+    } else {
+      contextPrompt = `
+هذا اختبار لليوم ${dayNumber} من البرنامج التدريبي.
+قم بإنشاء أسئلة متنوعة ومناسبة للمستوى المطلوب.
+${filterPrompt}
+`;
+    }
 
     // تحديد نوع الاختبار والمحتوى المطلوب
     let systemPrompt = "";

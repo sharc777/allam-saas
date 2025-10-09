@@ -14,6 +14,7 @@ import { Loader2, CheckCircle2, BookOpen, Video, FileText, Lock, XCircle, Lightb
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { EmbeddedQuiz } from "@/components/EmbeddedQuiz";
+import { PracticeZone } from "@/components/PracticeZone";
 
 export default function Lesson() {
   const { dayNumber, topicId } = useParams();
@@ -22,6 +23,7 @@ export default function Lesson() {
   const { subscribed, isLoading: subscriptionLoading } = useSubscription();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
 
@@ -182,9 +184,6 @@ export default function Lesson() {
     updateProgressMutation.mutate({ completed: true });
   };
 
-  const handleSaveNotes = () => {
-    updateProgressMutation.mutate({ notes });
-  };
 
   if (authLoading || contentLoading || progressLoading || subscriptionLoading) {
     return (
@@ -522,24 +521,22 @@ export default function Lesson() {
             </Card>
 
             <Card className="p-6">
-              <h3 className="text-xl font-bold mb-4">ملاحظاتي</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">ملاحظاتي</h3>
+                {isSavingNotes && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    جاري الحفظ...
+                  </span>
+                )}
+              </div>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="اكتب ملاحظاتك هنا..."
-                className="min-h-[200px] mb-4"
+                placeholder="اكتب ملاحظاتك هنا... (يتم الحفظ تلقائياً بعد 1.5 ثانية)"
+                className="min-h-[200px]"
                 dir="rtl"
               />
-              <Button 
-                onClick={handleSaveNotes} 
-                className="w-full"
-                disabled={updateProgressMutation.isPending}
-              >
-                {updateProgressMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                ) : null}
-                حفظ الملاحظات
-              </Button>
             </Card>
 
             <Card className="p-6">
