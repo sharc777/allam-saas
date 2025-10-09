@@ -12,6 +12,12 @@ verify_jwt = true
 [functions.upload-pdf-content]
 verify_jwt = true
 
+[functions.upload-knowledge-content]
+verify_jwt = true
+
+[functions.ocr-content]
+verify_jwt = true
+
 [functions.import-questions-excel]
 verify_jwt = true
 
