@@ -126,12 +126,15 @@ serve(async (req) => {
 
     console.log("AI Settings loaded:", { quizModel, quizTemp, minRatio: quizLimits.min_ratio });
 
-    // Fetch knowledge base content (NOW AFTER kbLimits is defined)
+    // Phase 3: Fetch knowledge base content and extract available topics
     let additionalKnowledge = "";
+    let availableTopics: string[] = [];
+    let allRelatedTopics: string[] = [];
+    let knowledgeData: any[] = [];
     
     if (isPracticeMode) {
       // In practice mode, fetch ALL relevant knowledge base content
-      const { data: knowledgeData } = await supabase
+      const { data: kbData } = await supabase
         .from("knowledge_base")
         .select("*")
         .eq("test_type", testType)
@@ -139,9 +142,19 @@ serve(async (req) => {
         .eq("is_active", true)
         .limit(kbLimits.practice_fetch_limit || 20);
       
-      if (knowledgeData && knowledgeData.length > 0) {
-        additionalKnowledge = "\n\n📚 **المحتوى المعرفي للاختبار:**\n" + 
-          knowledgeData.map(kb => `- ${kb.title}: ${kb.content || ""}`).join("\n");
+      knowledgeData = kbData || [];
+      
+      if (knowledgeData.length > 0) {
+        // Extract topics from knowledge base
+        availableTopics = knowledgeData.map(kb => kb.title);
+        allRelatedTopics = knowledgeData.flatMap(kb => kb.related_topics || []);
+        
+        additionalKnowledge = "\n\n📚 **المحتوى المعرفي المتاح:**\n" + 
+          knowledgeData.map(kb => 
+            `**${kb.title}:**\n${kb.content?.substring(0, 500) || 'لا يوجد محتوى'}...\n`
+          ).join("\n");
+        
+        console.log(`Knowledge base topics: ${availableTopics.join(', ')}`);
       }
     } else if (content.topics) {
       // For lesson-specific quizzes, fetch related knowledge
@@ -150,7 +163,7 @@ serve(async (req) => {
       const allTopics = sections.flatMap((section: any) => section.subtopics || []);
       
       if (allTopics.length > 0) {
-        const { data: knowledgeData } = await supabase
+        const { data: kbData } = await supabase
           .from("knowledge_base")
           .select("*")
           .eq("test_type", testType)
@@ -158,9 +171,16 @@ serve(async (req) => {
           .eq("is_active", true)
           .limit(kbLimits.lesson_fetch_limit || 5);
         
-        if (knowledgeData && knowledgeData.length > 0) {
+        knowledgeData = kbData || [];
+        
+        if (knowledgeData.length > 0) {
+          availableTopics = knowledgeData.map(kb => kb.title);
+          allRelatedTopics = knowledgeData.flatMap(kb => kb.related_topics || []);
+          
           additionalKnowledge = "\n\n📚 **محتوى معرفي إضافي:**\n" + 
-            knowledgeData.map(kb => `- ${kb.title}: ${kb.content || ""}`).join("\n");
+            knowledgeData.map(kb => 
+              `**${kb.title}:**\n${kb.content?.substring(0, 300) || 'لا يوجد محتوى'}...\n`
+            ).join("\n");
         }
       }
     }
@@ -176,7 +196,7 @@ serve(async (req) => {
     const usedHashes = new Set(prevHashesData?.map(p => p.question_hash) || []);
     console.log(`Found ${usedHashes.size} previous question hashes to avoid`);
 
-    // Calculate question counts
+    // Phase 2: Calculate question counts with buffer
     const actualDifficulty = isPracticeMode && !difficulty ? 'easy' : difficulty;
     
     // Get section-specific config
@@ -187,8 +207,9 @@ serve(async (req) => {
     const baseQuestions = questionCount || (isInitialAssessment ? 25 : defaultCount);
     const targetQuestions = Math.max(quizLimits.min_questions, Math.min(quizLimits.max_questions, baseQuestions));
     
-    // Request extra questions when filtering to account for validation rejections
-    const numQuestions = sectionFilter ? targetQuestions + 5 : targetQuestions;
+    // Phase 2: Add buffer to account for validation rejections (request 50% more)
+    const bufferMultiplier = 1.5;
+    const numQuestions = Math.ceil(targetQuestions * bufferMultiplier);
     
     const verbalQuestions = isInitialAssessment ? 13 : (questionCount ? Math.ceil(questionCount / 2) : 5);
     const quantQuestions = isInitialAssessment ? 12 : (questionCount ? Math.floor(questionCount / 2) : 5);
@@ -251,8 +272,23 @@ ${filterPrompt}
 `;
     }
 
-    // تحديد نوع الاختبار والمحتوى المطلوب
+    // Phase 3: Build system prompt with knowledge base topics as primary source
     let systemPrompt = systemPromptOverride ? `${systemPromptOverride}\n\n` : "";
+    
+    // Add knowledge base topics instruction if available
+    if (isPracticeMode && availableTopics.length > 0) {
+      systemPrompt += `
+📚 **المواضيع المتاحة في قاعدة المعرفة:**
+${availableTopics.map((topic, i) => `${i+1}. ${topic}`).join('\n')}
+
+⚠️ **مهم جداً - قاعدة المعرفة هي المصدر الأساسي:**
+- جميع الأسئلة يجب أن تكون من المواضيع المذكورة أعلاه فقط
+- لا تولّد أسئلة خارج هذه المواضيع
+- استخدم المحتوى المعرفي المتوفر كمرجع أساسي
+- يمكنك استخدام المواضيع المرتبطة: ${allRelatedTopics.join('، ')}
+
+`;
+    }
 
     if (testType === "قدرات") {
       // Phase 1: Section-specific prompts with dynamic override
@@ -614,7 +650,7 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
     }
     
     // Validate questions quality
-    const validatedQuestions = sectionFilteredQuestions.filter((q: any) => {
+    let validatedQuestions = sectionFilteredQuestions.filter((q: any) => {
       // التحقق من أن كل سؤال لديه 4 خيارات مختلفة
       const uniqueOptions = new Set(q.options);
       if (uniqueOptions.size !== 4) {
@@ -636,6 +672,33 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       
       return true;
     });
+    
+    // Phase 3: Filter questions by knowledge base topics if available
+    if (availableTopics.length > 0 && isPracticeMode) {
+      const topicFilteredQuestions = validatedQuestions.filter((q: any) => {
+        const topic = q.topic?.toLowerCase() || q.subject?.toLowerCase() || "";
+        const questionText = q.question_text?.toLowerCase() || "";
+        
+        const matchesTopic = availableTopics.some(t => 
+          topic.includes(t.toLowerCase()) || 
+          t.toLowerCase().includes(topic) ||
+          questionText.includes(t.toLowerCase()) ||
+          allRelatedTopics.some(rt => 
+            topic.includes(rt.toLowerCase()) || 
+            questionText.includes(rt.toLowerCase())
+          )
+        );
+        
+        if (!matchesTopic) {
+          console.warn(`Question rejected - not in KB topics: ${q.question_text.substring(0, 50)}...`);
+        }
+        
+        return matchesTopic;
+      });
+      
+      console.log(`Topic filter: ${topicFilteredQuestions.length}/${validatedQuestions.length} questions match KB topics`);
+      validatedQuestions = topicFilteredQuestions;
+    }
 
     const minAcceptableQuestions = Math.floor(targetQuestions * (quizLimits.min_ratio || 0.6));
     const minQuestions = isInitialAssessment ? 20 : minAcceptableQuestions;
@@ -643,25 +706,45 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
     
     console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions (expected: ${expectedQuestions}, min: ${minQuestions})`);
     
-    // Handle insufficient questions - Fill from database if needed
+    // Phase 2: Handle insufficient questions - Fill from database if needed
     if (validatedQuestions.length < minQuestions) {
       console.log(`Only ${validatedQuestions.length} validated, attempting to fill from questions_bank...`);
       
-      // Try to fill from questions_bank
+      // Try to fill from questions_bank with better matching
       const needed = targetQuestions - validatedQuestions.length;
-      const { data: bankQuestions } = await supabase
+      
+      let bankQuery = supabase
         .from("questions_bank")
         .select("*")
-        .eq("subject", testType === "قدرات" ? (sectionFilter || "قدرات") : track)
-        .eq("difficulty", actualDifficulty)
-        .limit(needed * 2); // Get extra in case some are duplicates
+        .eq("difficulty", actualDifficulty);
+      
+      // Apply section filter if specified
+      if (sectionFilter) {
+        bankQuery = bankQuery.eq("subject", sectionFilter);
+      } else {
+        bankQuery = bankQuery.eq("subject", testType === "قدرات" ? "قدرات" : track);
+      }
+      
+      const { data: bankQuestions } = await bankQuery.limit(needed * 3); // Request 3x to account for duplicates
       
       if (bankQuestions && bankQuestions.length > 0) {
         const bankQuestionsFormatted = bankQuestions
           .filter(q => {
             // Check it's not a duplicate
             const text = q.question_text?.trim().toLowerCase();
-            return !validatedQuestions.some(vq => vq.question_text?.trim().toLowerCase() === text);
+            const isDuplicate = validatedQuestions.some(vq => vq.question_text?.trim().toLowerCase() === text);
+            
+            // Check topic matches if knowledge base filtering is active
+            if (!isDuplicate && availableTopics.length > 0 && isPracticeMode) {
+              const topic = q.topic?.toLowerCase() || "";
+              const matchesTopic = availableTopics.some(t => 
+                topic.includes(t.toLowerCase()) || 
+                allRelatedTopics.some(rt => topic.includes(rt.toLowerCase()))
+              );
+              return matchesTopic;
+            }
+            
+            return !isDuplicate;
           })
           .slice(0, needed)
           .map(q => ({
@@ -673,7 +756,8 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
             subject: q.subject || "",
             question_type: q.question_type || "multiple_choice",
             difficulty: q.difficulty || actualDifficulty,
-            topic: q.topic || ""
+            topic: q.topic || "",
+            question_hash: "" // Will be calculated later if needed
           }));
         
         validatedQuestions.push(...bankQuestionsFormatted);
@@ -746,15 +830,23 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       console.log(`Logged ${questionsToLog.length} questions to database`);
     }
 
-    // Success: return requested number of questions
+    // Phase 2: Return with warning if insufficient questions
+    const responseData: any = {
+      questions: finalQuestions,
+      dayNumber,
+      contentTitle: content.title,
+      testType,
+      track
+    };
+    
+    // Add warning if we couldn't get the requested number
+    if (finalQuestions.length < targetQuestions) {
+      responseData.warning = `تم توليد ${finalQuestions.length} سؤال فقط من أصل ${targetQuestions} المطلوبة`;
+      console.warn(`Warning: Only ${finalQuestions.length}/${targetQuestions} questions generated`);
+    }
+    
     return new Response(
-      JSON.stringify({
-        questions: finalQuestions,
-        dayNumber,
-        contentTitle: content.title,
-        testType,
-        track
-      }),
+      JSON.stringify(responseData),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

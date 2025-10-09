@@ -16,8 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ContentManagement } from "@/components/admin/ContentManagement";
-import { AISettings } from "@/components/admin/AISettings";
-import { KnowledgeBase } from "@/components/admin/KnowledgeBase";
+import { SimplifiedAISettings } from "@/components/admin/SimplifiedAISettings";
 import { ContentParser } from "@/components/admin/ContentParser";
 
 const Admin = () => {
@@ -107,12 +106,11 @@ const Admin = () => {
 
           {/* Main Content Tabs */}
           <Tabs defaultValue="content" className="space-y-6" dir="rtl">
-            <TabsList className="grid w-full grid-cols-6 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto">
               <TabsTrigger value="content">المحتوى</TabsTrigger>
-              <TabsTrigger value="parser">معالج AI</TabsTrigger>
-              <TabsTrigger value="knowledge">قاعدة المعرفة</TabsTrigger>
-              <TabsTrigger value="questions">الأسئلة</TabsTrigger>
-              <TabsTrigger value="ai">AI</TabsTrigger>
+              <TabsTrigger value="parser">رفع محتوى</TabsTrigger>
+              <TabsTrigger value="ai">إدارة AI</TabsTrigger>
+              <TabsTrigger value="questions">بنك الأسئلة</TabsTrigger>
               <TabsTrigger value="users">المستخدمين</TabsTrigger>
             </TabsList>
 
@@ -126,9 +124,9 @@ const Admin = () => {
               <ContentParser />
             </TabsContent>
 
-            {/* Knowledge Base */}
-            <TabsContent value="knowledge" className="space-y-6">
-              <KnowledgeBase />
+            {/* AI Settings */}
+            <TabsContent value="ai" className="space-y-6">
+              <SimplifiedAISettings />
             </TabsContent>
 
             {/* Questions Database */}
@@ -206,13 +204,8 @@ const Admin = () => {
               </Card>
             </TabsContent>
 
-            {/* AI Settings */}
-            <TabsContent value="ai" className="space-y-6">
-              <AISettings />
-            </TabsContent>
-
-            {/* Users Management */}
-            <TabsContent value="users" className="space-y-6">
+            {/* Questions Database */}
+            <TabsContent value="questions" className="space-y-6">
               <Card className="border-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
