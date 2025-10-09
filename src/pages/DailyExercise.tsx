@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle, Brain, Clock } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
+import { useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -31,6 +32,7 @@ const DailyExercise = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -144,20 +146,21 @@ const DailyExercise = () => {
   };
 
   const submitExercise = async () => {
-    // Increment daily count first
-    if (profile) {
-      try {
-        await supabase.rpc('increment_daily_count', {
-          p_user_id: profile.id,
-          p_section: sectionType
-        });
-      } catch (countError) {
-        console.error('Failed to increment daily count:', countError);
-      }
-    }
-
     try {
       setLoading(true);
+
+      // Validate required data before saving
+      if (!profile?.id) {
+        throw new Error("معرف المستخدم غير موجود");
+      }
+
+      if (!questions || questions.length === 0) {
+        throw new Error("لا توجد أسئلة للحفظ");
+      }
+
+      if (!sectionType || !testType) {
+        throw new Error("نوع القسم أو الاختبار غير محدد");
+      }
 
       const timeTaken = Math.floor((Date.now() - startTime) / 60000);
       let correctAnswers = 0;
@@ -176,19 +179,54 @@ const DailyExercise = () => {
         is_correct: selectedAnswers[index] === q.correct_answer,
       }));
 
-      // Save exercise to daily_exercises table
-      await supabase.from("daily_exercises").insert([{
-        user_id: profile?.id,
-        day_number: dayNumber,
-        section_type: sectionType,
-        test_type: testType as "قدرات" | "تحصيلي",
-        track: profile?.track_preference || "عام",
-        questions: questionsWithAnswers,
-        score: score,
-        total_questions: questions.length,
-        time_taken_minutes: timeTaken,
-        completed_at: new Date().toISOString(),
-      }]);
+      // Save exercise to daily_exercises table with error checking
+      const { data: savedExercise, error: saveError } = await supabase
+        .from("daily_exercises")
+        .insert([{
+          user_id: profile.id,
+          day_number: dayNumber,
+          section_type: sectionType,
+          test_type: testType as "قدرات" | "تحصيلي",
+          track: profile?.track_preference || "عام",
+          questions: questionsWithAnswers,
+          score: score,
+          total_questions: questions.length,
+          time_taken_minutes: timeTaken,
+          completed_at: new Date().toISOString(),
+        }])
+        .select()
+        .single();
+
+      if (saveError) {
+        console.error("❌ Error saving exercise:", {
+          error: saveError.message,
+          userId: profile.id,
+          sectionType,
+          dayNumber,
+          questionsCount: questions.length
+        });
+        throw new Error(`فشل حفظ التمرين: ${saveError.message}`);
+      }
+
+      console.log("✅ Exercise saved successfully:", savedExercise.id);
+
+      // Increment daily count only after successful save
+      try {
+        const { error: countError } = await supabase.rpc('increment_daily_count', {
+          p_user_id: profile.id,
+          p_section: sectionType
+        });
+        
+        if (countError) {
+          console.error("Error updating daily count:", countError);
+        }
+      } catch (countErr) {
+        console.error('Failed to increment daily count:', countErr);
+      }
+
+      // Invalidate exercise history to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["exercise-history", profile.id] });
+      console.log("✅ Exercise history cache updated");
 
       // Calculate performance
       await supabase.functions.invoke("calculate-performance", {
@@ -200,10 +238,17 @@ const DailyExercise = () => {
 
       setShowResults(true);
     } catch (error: any) {
-      console.error("Error submitting exercise:", error);
+      console.error("❌ Error in submitExercise:", {
+        error: error.message,
+        userId: profile?.id,
+        sectionType,
+        dayNumber,
+        questionsCount: questions.length
+      });
+      
       toast({
-        title: "خطأ",
-        description: "فشل حفظ النتائج",
+        title: "خطأ في حفظ التمرين",
+        description: error.message || "فشل حفظ النتائج. يرجى المحاولة مرة أخرى.",
         variant: "destructive",
       });
     } finally {
