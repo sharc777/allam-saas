@@ -46,7 +46,7 @@ export const PracticeZone = ({
   
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [difficulty, setDifficulty] = useState<string>("easy");
-  const [sectionFilter, setSectionFilter] = useState<string>(focusSection || "");
+  const [sectionFilter, setSectionFilter] = useState<string>(focusSection || "all");
   const [started, setStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
@@ -69,7 +69,7 @@ export const PracticeZone = ({
 
       if (contentId) body.contentId = contentId;
       if (dayNumber) body.dayNumber = parseInt(dayNumber);
-      if (sectionFilter) body.sectionFilter = sectionFilter;
+      if (sectionFilter && sectionFilter !== "all") body.sectionFilter = sectionFilter;
 
       const { data, error } = await supabase.functions.invoke("generate-quiz", { body });
 
@@ -206,7 +206,7 @@ export const PracticeZone = ({
                   <SelectValue placeholder="الكل" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">الكل</SelectItem>
+                  <SelectItem value="all">الكل</SelectItem>
                   <SelectItem value="لفظي">لفظي</SelectItem>
                   <SelectItem value="كمي">كمي</SelectItem>
                 </SelectContent>
