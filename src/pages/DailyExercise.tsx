@@ -171,7 +171,7 @@ const DailyExercise = () => {
         }
       });
 
-      const score = (correctAnswers / questions.length) * 100;
+      const score = Math.round((correctAnswers / questions.length) * 100);
 
       const questionsWithAnswers = questions.map((q, index) => ({
         ...q,
