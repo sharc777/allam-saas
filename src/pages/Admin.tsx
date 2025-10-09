@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { AISettings } from "@/components/admin/AISettings";
 import { KnowledgeBase } from "@/components/admin/KnowledgeBase";
+import { ContentParser } from "@/components/admin/ContentParser";
 
 const Admin = () => {
   const { loading } = useAuth(true);
@@ -106,8 +107,9 @@ const Admin = () => {
 
           {/* Main Content Tabs */}
           <Tabs defaultValue="content" className="space-y-6" dir="rtl">
-            <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-6 lg:w-auto">
               <TabsTrigger value="content">المحتوى</TabsTrigger>
+              <TabsTrigger value="parser">معالج AI</TabsTrigger>
               <TabsTrigger value="knowledge">قاعدة المعرفة</TabsTrigger>
               <TabsTrigger value="questions">الأسئلة</TabsTrigger>
               <TabsTrigger value="ai">AI</TabsTrigger>
@@ -117,6 +119,11 @@ const Admin = () => {
             {/* Content Management */}
             <TabsContent value="content" className="space-y-6">
               <ContentManagement />
+            </TabsContent>
+
+            {/* Content Parser */}
+            <TabsContent value="parser" className="space-y-6">
+              <ContentParser />
             </TabsContent>
 
             {/* Knowledge Base */}

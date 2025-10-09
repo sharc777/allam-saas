@@ -68,46 +68,88 @@ export default function Lesson() {
     enabled: !!dayNumber,
   });
 
-  // Auto-parse content if sections is empty
+  // Auto-parse content if sections is empty or null
   useEffect(() => {
     const parseContent = async () => {
-      if (content && content.content_text && (!content.sections || (content.sections as any)?.length === 0)) {
-        setIsParsing(true);
-        try {
-          const { data, error } = await supabase.functions.invoke('parse-lesson-content', {
-            body: {
-              contentText: content.content_text,
-              title: content.title
-            }
-          });
+      if (!content || !content.content_text) return;
+      
+      // Check if sections need parsing
+      const sections = content.sections as any;
+      const needsParsing = !sections || 
+                          sections === null || 
+                          (Array.isArray(sections) && sections.length === 0);
+      
+      if (!needsParsing) return;
 
-          if (error) throw error;
+      console.log('[Lesson] Auto-parsing content for:', content.title);
+      setIsParsing(true);
+      
+      try {
+        // Update status to parsing
+        await supabase
+          .from('daily_content')
+          .update({ 
+            parse_status: 'parsing',
+            last_parse_attempt: new Date().toISOString()
+          })
+          .eq('id', content.id);
 
-          // Update the content with parsed sections
-          const { error: updateError } = await supabase
-            .from('daily_content')
-            .update({ sections: data.sections })
-            .eq('id', content.id);
+        const { data, error } = await supabase.functions.invoke('parse-lesson-content', {
+          body: {
+            contentText: content.content_text,
+            title: content.title
+          }
+        });
 
-          if (updateError) throw updateError;
+        if (error) throw error;
 
-          // Refetch content
-          await refetchContent();
-          
-          toast({
-            title: "تم تحليل المحتوى بنجاح",
-            description: `تم تقسيم الدرس إلى ${data.sections.length} أقسام`
-          });
-        } catch (error) {
-          console.error('Error parsing content:', error);
-        } finally {
-          setIsParsing(false);
+        if (!data?.sections || data.sections.length === 0) {
+          throw new Error('No sections returned from parser');
         }
+
+        // Update the content with parsed sections
+        const { error: updateError } = await supabase
+          .from('daily_content')
+          .update({ 
+            sections: data.sections,
+            parse_status: 'completed',
+            parse_error: null
+          })
+          .eq('id', content.id);
+
+        if (updateError) throw updateError;
+
+        // Refetch content
+        await refetchContent();
+        
+        toast({
+          title: "✅ تم تحليل المحتوى بنجاح",
+          description: `تم تقسيم الدرس إلى ${data.sections.length} أقسام تفاعلية`
+        });
+      } catch (error: any) {
+        console.error('[Lesson] Error parsing content:', error);
+        
+        // Update error status
+        await supabase
+          .from('daily_content')
+          .update({ 
+            parse_status: 'failed',
+            parse_error: error.message
+          })
+          .eq('id', content.id);
+
+        toast({
+          title: "فشل تحليل المحتوى",
+          description: "سيتم المحاولة مرة أخرى لاحقاً",
+          variant: "destructive"
+        });
+      } finally {
+        setIsParsing(false);
       }
     };
 
     parseContent();
-  }, [content]);
+  }, [content?.id, content?.content_text, content?.sections]);
 
   // Fetch progress
   const { data: progress } = useQuery({

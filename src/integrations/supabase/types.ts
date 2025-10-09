@@ -141,7 +141,10 @@ export type Database = {
           id: string
           is_published: boolean | null
           key_points: string[] | null
+          last_parse_attempt: string | null
           learning_objectives: string[] | null
+          parse_error: string | null
+          parse_status: string | null
           quick_tips: string[] | null
           requires_previous_completion: boolean | null
           sections: Json | null
@@ -162,7 +165,10 @@ export type Database = {
           id?: string
           is_published?: boolean | null
           key_points?: string[] | null
+          last_parse_attempt?: string | null
           learning_objectives?: string[] | null
+          parse_error?: string | null
+          parse_status?: string | null
           quick_tips?: string[] | null
           requires_previous_completion?: boolean | null
           sections?: Json | null
@@ -183,7 +189,10 @@ export type Database = {
           id?: string
           is_published?: boolean | null
           key_points?: string[] | null
+          last_parse_attempt?: string | null
           learning_objectives?: string[] | null
+          parse_error?: string | null
+          parse_status?: string | null
           quick_tips?: string[] | null
           requires_previous_completion?: boolean | null
           sections?: Json | null

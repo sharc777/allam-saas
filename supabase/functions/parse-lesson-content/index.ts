@@ -21,44 +21,67 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    const systemPrompt = `أنت خبير تربوي متخصص في تحليل المحتوى التعليمي للقدرات السعودية.
+    const systemPrompt = `أنت خبير تربوي متخصص في تحليل المحتوى التعليمي للقدرات والتحصيلي السعودية.
 مهمتك: تحليل النص التعليمي وتقسيمه إلى أقسام منظمة مع استخراج الأمثلة المحلولة.
 
 قواعد مهمة:
-1. كل قسم يجب أن يحتوي على موضوع واضح ومحدد
-2. استخرج الأمثلة المحلولة بدقة (المشكلة + الحل + الشرح)
-3. استخرج النقاط الرئيسية والنصائح السريعة
-4. احتفظ بجودة المحتوى وعدم حذف أي معلومات مهمة
-5. استخدم اللغة العربية الفصحى الواضحة`;
+1. قسّم المحتوى إلى 3-5 أقسام رئيسية فقط
+2. كل قسم يجب أن يحتوي على:
+   - محتوى رئيسي (150-300 كلمة): شرح واضح ومفصّل
+   - 2-4 أمثلة محلولة (مشكلة + حل + شرح خطوة بخطوة)
+   - 3-5 نقاط رئيسية (key_points): أهم الأفكار في نقاط مختصرة
+   - 2-3 نصائح سريعة (quick_tips): نصائح عملية للطالب
+3. استخدم اللغة العربية الفصحى الواضحة
+4. اجعل الأمثلة متدرجة الصعوبة (سهل → متوسط → صعب)
+5. تأكد من وضوح الشرح وسهولة الفهم للطالب`;
 
-    const userPrompt = `قم بتحليل المحتوى التعليمي التالي وتقسيمه إلى أقسام:
+    const userPrompt = `قم بتحليل المحتوى التعليمي التالي وتقسيمه إلى أقسام تعليمية منظمة:
 
 العنوان: ${title}
 
 المحتوى:
 ${contentText}
 
-يجب أن يكون الناتج JSON بالهيكل التالي (بدون أي نص إضافي):
+يجب أن يكون الناتج JSON بالهيكل التالي **بدون أي نص إضافي قبل أو بعد JSON**:
 {
   "sections": [
     {
       "id": "section-1",
-      "title": "عنوان القسم",
+      "title": "عنوان القسم (مختصر وواضح)",
       "order": 1,
-      "content": "شرح مفصل",
+      "content": "شرح مفصل للموضوع (150-300 كلمة). يجب أن يكون الشرح واضحاً ومفصلاً ومناسباً للطالب.",
       "examples": [
         {
-          "title": "عنوان المثال",
-          "problem": "نص المشكلة أو السؤال",
+          "title": "مثال 1: وصف المثال",
+          "problem": "نص المشكلة أو السؤال بشكل واضح",
+          "solution": "الحل النهائي",
+          "explanation": "شرح خطوات الحل بالتفصيل"
+        },
+        {
+          "title": "مثال 2: وصف المثال",
+          "problem": "مشكلة أصعب قليلاً",
           "solution": "الحل",
-          "explanation": "شرح الحل"
+          "explanation": "الشرح"
         }
       ],
-      "key_points": ["نقطة 1", "نقطة 2"],
-      "quick_tips": ["نصيحة 1", "نصيحة 2"]
+      "key_points": [
+        "النقطة الأولى المهمة",
+        "النقطة الثانية المهمة",
+        "النقطة الثالثة المهمة"
+      ],
+      "quick_tips": [
+        "نصيحة عملية للطالب",
+        "نصيحة ثانية مفيدة"
+      ]
     }
   ]
-}`;
+}
+
+ملاحظات:
+- قسّم إلى 3-5 أقسام رئيسية فقط
+- كل قسم يحتوي على 2-4 أمثلة محلولة
+- اجعل الأمثلة متدرجة الصعوبة
+- تأكد من JSON صحيح وبدون أخطاء`;
 
     console.log('[PARSE-LESSON] Calling Lovable AI...');
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -96,6 +119,24 @@ ${contentText}
 
     const parsedContent = JSON.parse(jsonMatch[0]);
     console.log('[PARSE-LESSON] Parsed sections count:', parsedContent.sections?.length || 0);
+
+    // Validate and fix sections
+    if (!parsedContent.sections || !Array.isArray(parsedContent.sections)) {
+      throw new Error('Invalid sections format in AI response');
+    }
+
+    // Ensure all sections have required fields with defaults
+    parsedContent.sections = parsedContent.sections.map((section: any, index: number) => ({
+      id: section.id || `section-${index + 1}`,
+      title: section.title || `القسم ${index + 1}`,
+      order: section.order || index + 1,
+      content: section.content || '',
+      examples: Array.isArray(section.examples) ? section.examples : [],
+      key_points: Array.isArray(section.key_points) ? section.key_points : [],
+      quick_tips: Array.isArray(section.quick_tips) ? section.quick_tips : []
+    }));
+
+    console.log('[PARSE-LESSON] Validation complete. Sections:', parsedContent.sections.length);
 
     return new Response(JSON.stringify(parsedContent), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
