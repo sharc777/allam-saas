@@ -259,7 +259,7 @@ const DailyExercise = () => {
                             ) : (
                               <XCircle className="w-5 h-5 text-red-600 mt-1" />
                             )}
-                            <div className="flex-1">
+                            <div className="flex-1 text-right" dir="rtl">
                               <p className="font-semibold">{q.question_text}</p>
                               {!isCorrect && wasAnswered && (
                                 <div className="mt-2 space-y-1">
@@ -328,7 +328,7 @@ const DailyExercise = () => {
 
             <CardContent className="space-y-6">
               <div>
-                <h3 className="text-2xl font-bold mb-6">
+                <h3 className="text-2xl font-bold mb-6 text-right" dir="rtl">
                   {currentQuestionData?.question_text}
                 </h3>
 
@@ -342,13 +342,14 @@ const DailyExercise = () => {
                       key={index}
                       className="flex items-center space-x-2 space-x-reverse p-4 rounded-lg border-2 hover:border-primary transition-colors cursor-pointer"
                     >
-                      <RadioGroupItem value={option} id={`option-${index}`} />
                       <Label
                         htmlFor={`option-${index}`}
-                        className="flex-1 cursor-pointer text-lg"
+                        className="flex-1 cursor-pointer text-lg text-right"
+                        dir="rtl"
                       >
                         {option}
                       </Label>
+                      <RadioGroupItem value={option} id={`option-${index}`} />
                     </div>
                   ))}
                 </RadioGroup>
