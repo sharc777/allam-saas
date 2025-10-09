@@ -3,14 +3,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { KnowledgeBaseManager } from "./KnowledgeBaseManager";
 import { AITrainingExamples } from "./AITrainingExamples";
 import { BookOpen, Brain, Database } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useAISettings } from "@/hooks/useAISettings";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
 
 export const AIContentManager = () => {
-  // Fetch statistics
+  // Fetch statistics with caching
+  const { data: aiSettings } = useAISettings();
+  
   const { data: kbCount } = useQuery({
     queryKey: ['kb-count'],
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
         .from('knowledge_base')
@@ -21,6 +26,8 @@ export const AIContentManager = () => {
 
   const { data: trainingCount } = useQuery({
     queryKey: ['training-count'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
         .from('ai_training_examples')
@@ -31,6 +38,8 @@ export const AIContentManager = () => {
 
   const { data: questionsCount } = useQuery({
     queryKey: ['questions-bank-count'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
         .from('questions_bank')

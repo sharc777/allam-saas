@@ -425,17 +425,28 @@ serve(async (req) => {
     const { user, supabase } = await authenticateUser(req);
     console.log("✅ User authenticated:", user.id);
     
-    // 2. Load content & knowledge base
-    const content = await loadContent(supabase, params);
-    const { knowledgeData, availableTopics, allRelatedTopics, additionalKnowledge } = await loadKnowledgeBase(supabase, { ...params, testType, track });
+    // 2. Load content, KB, and AI settings in parallel
+    const [content, kbResult, aiSettings, prevHashesData] = await Promise.all([
+      loadContent(supabase, params),
+      loadKnowledgeBase(supabase, { ...params, testType, track }),
+      loadAISettings(supabase),
+      supabase
+        .from("generated_questions_log")
+        .select("question_hash")
+        .eq("user_id", user.id)
+        .limit(500)
+    ]);
+    
+    const { knowledgeData, availableTopics, allRelatedTopics, additionalKnowledge } = kbResult;
     console.log(`📚 KB loaded: ${availableTopics.length} topics`);
     
-    // 3. Load AI settings
-    const { quizLimits, quizModel, quizTemp, systemPromptOverride } = await loadAISettings(supabase);
+    const { quizLimits, quizModel, quizTemp, systemPromptOverride } = aiSettings;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
     
-    // 4. Calculate question counts
+    const usedHashes = new Set(prevHashesData.data?.map(p => p.question_hash) || []);
+    
+    // 3. Calculate question counts
     const isPractice = mode === 'practice';
     const isInitialAssessment = mode === 'initial_assessment';
     const baseQuestions = questionCount || (isInitialAssessment ? 25 : quizLimits.default_questions);
@@ -444,15 +455,7 @@ serve(async (req) => {
     
     console.log(`🎯 Target: ${targetQuestions}, Buffer: ${bufferQuestions}`);
     
-    // 5. Fetch previous question hashes
-    const { data: prevHashes } = await supabase
-      .from("generated_questions_log")
-      .select("question_hash")
-      .eq("user_id", user.id)
-      .limit(500);
-    const usedHashes = new Set(prevHashes?.map(p => p.question_hash) || []);
-    
-    // 6. Build prompts
+    // 4. Build prompts
     const systemPrompt = buildSystemPrompt({ 
       testType, sectionFilter, targetQuestions, difficulty, 
       availableTopics, allRelatedTopics, systemPromptOverride, isPractice 
@@ -462,28 +465,28 @@ serve(async (req) => {
       sectionFilter, isInitialAssessment 
     });
     
-    // 7. Generate questions with AI
+    // 5. Generate questions with AI
     let allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, quizTemp);
     console.log(`🤖 AI generated: ${allQuestions.length} questions`);
     
-    // 8. Calculate hashes and filter duplicates
+    // 6. Calculate hashes and filter duplicates
     const questionsWithHash = await calculateQuestionHashes(allQuestions);
     let uniqueQuestions = questionsWithHash.filter(q => !usedHashes.has(q.question_hash));
     console.log(`✅ Unique: ${uniqueQuestions.length}/${allQuestions.length}`);
     
-    // 9. Filter by section and validate
+    // 7. Filter by section and validate
     uniqueQuestions = filterBySection(uniqueQuestions, sectionFilter, testType);
     uniqueQuestions = validateQuestions(uniqueQuestions);
     console.log(`✅ Valid: ${uniqueQuestions.length}`);
     
-    // 10. Fill missing questions
+    // 8. Fill missing questions (single attempt)
     let finalQuestions = uniqueQuestions.slice(0, targetQuestions);
     let missing = targetQuestions - finalQuestions.length;
     
     if (missing > 0) {
       console.log(`⚠️ Missing ${missing} questions, filling...`);
       
-      // Try question bank
+      // Try question bank first
       const bankQuestions = await fillFromQuestionBank(supabase, missing, {
         sectionFilter, difficulty, testType, availableTopics, allRelatedTopics, isPractice
       });
@@ -491,7 +494,7 @@ serve(async (req) => {
       missing = targetQuestions - finalQuestions.length;
       console.log(`📦 Added ${bankQuestions.length} from bank, still need: ${missing}`);
       
-      // Try AI top-up if still missing
+      // Single AI top-up if needed
       if (missing > 0) {
         const topupQuestions = await topupWithAI(LOVABLE_API_KEY, missing, systemPrompt, {
           sectionFilter, availableTopics
@@ -502,7 +505,7 @@ serve(async (req) => {
       }
     }
     
-    // 11. Final check
+    // 9. Final check
     finalQuestions = finalQuestions.slice(0, targetQuestions);
     if (finalQuestions.length < targetQuestions) {
       throw new Error(`عدد الأسئلة غير كافٍ (${finalQuestions.length}/${targetQuestions})`);
@@ -510,10 +513,10 @@ serve(async (req) => {
     
     console.log(`✅ Success: ${finalQuestions.length}/${targetQuestions} questions`);
     
-    // 12. Log questions
+    // 10. Log questions
     await logQuestions(supabase, user.id, finalQuestions, dayNumber);
     
-    // 13. Return response
+    // 11. Return response
     return new Response(
       JSON.stringify({
         questions: finalQuestions,

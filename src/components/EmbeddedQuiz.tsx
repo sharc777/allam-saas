@@ -25,6 +25,8 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ["embedded-quiz", contentId],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (garbage collection time)
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
         body: {

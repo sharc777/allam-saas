@@ -24,9 +24,11 @@ import { Badge } from "@/components/ui/badge";
 const Admin = () => {
   const { loading } = useAuth(true);
 
-  // Fetch real statistics
+  // Fetch statistics with caching
   const { data: studentsCount } = useQuery({
     queryKey: ['students-count'],
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
         .from('profiles')
@@ -37,6 +39,8 @@ const Admin = () => {
 
   const { data: lessonsCount } = useQuery({
     queryKey: ['lessons-count'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
         .from('daily_content')
@@ -47,6 +51,8 @@ const Admin = () => {
 
   const { data: questionsCount } = useQuery({
     queryKey: ['questions-count'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
         .from('questions_bank')
@@ -57,6 +63,8 @@ const Admin = () => {
 
   const { data: completionRate } = useQuery({
     queryKey: ['completion-rate'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count: completed } = await supabase
         .from('student_progress')
