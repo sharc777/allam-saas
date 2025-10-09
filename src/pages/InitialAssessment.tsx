@@ -99,19 +99,25 @@ const InitialAssessment = () => {
           return fetchUserPreferencesAndQuestions(retryCount + 1);
         }
         
-        throw new Error(error.message || "فشل في توليد الأسئلة");
+        const errorMsg = error.message || "فشل في توليد الأسئلة";
+        throw new Error(errorMsg);
       }
 
       if (!data?.questions || data.questions.length === 0) {
         throw new Error("لم يتم توليد الأسئلة بشكل صحيح");
       }
 
-      if (data.questions.length < 20) {
-        console.warn(`Warning: Expected 25 questions, got ${data.questions.length}`);
+      // Show warning if partial quiz returned
+      if (data.warning) {
         toast({
           title: "تنبيه",
-          description: `تم توليد ${data.questions.length} سؤالاً فقط من أصل 25`,
+          description: data.warning,
+          variant: "default",
         });
+      }
+
+      if (data.questions.length < 20) {
+        console.warn(`Warning: Expected 25 questions, got ${data.questions.length}`);
       }
 
       console.log(`Successfully loaded ${data.questions.length} questions`);

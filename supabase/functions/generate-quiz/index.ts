@@ -147,22 +147,21 @@ serve(async (req) => {
 
     // تحديد نوع الاختبار والمحتوى المطلوب
     let systemPrompt = "";
-    let questionStructure = {};
 
     if (testType === "قدرات") {
       systemPrompt = `أنت خبير في تصميم اختبار القدرات العامة (GAT) السعودي.
 
 📋 **هيكل الاختبار:**
-الاختبار يتكون من قسمين رئيسيين (10 أسئلة):
+${isInitialAssessment ? `الاختبار يتكون من 25 سؤالاً (13 لفظي + 12 كمي):` : `الاختبار يتكون من 10 أسئلة (5 لفظي + 5 كمي):`}
 
-📝 **القسم اللفظي** (5 أسئلة):
+📝 **القسم اللفظي**:
 1. استيعاب المقروء: نص قصير + سؤال فهم
 2. إكمال الجمل: جملة ناقصة + اختيار الكلمة المناسبة
 3. التناظر اللفظي: علاقة بين كلمتين (ترادف، تضاد، جزء-كل، سبب-نتيجة)
 4. الخطأ السياقي: جملة بها كلمة غير مناسبة للسياق
 5. الارتباط والاختلاف: تحديد الكلمة المختلفة في المجموعة
 
-🔢 **القسم الكمي** (5 أسئلة):
+🔢 **القسم الكمي**:
 1. الحساب: عمليات حسابية، نسب مئوية، تناسب، متوسطات
 2. الجبر: معادلات، متراجحات، أنماط، متتابعات
 3. الهندسة: زوايا، مثلثات، مساحات، محيطات، حجوم
@@ -174,54 +173,11 @@ serve(async (req) => {
 - خيارات معقولة ومتجانسة في الطول
 - مستوى: ${difficulty}
 - لغة عربية فصحى صحيحة`;
-
-      questionStructure = {
-        verbal_questions: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              question_type: { 
-                type: "string", 
-                enum: ["استيعاب_المقروء", "إكمال_الجمل", "التناظر_اللفظي", "الخطأ_السياقي", "الارتباط_والاختلاف"]
-              },
-              question_text: { type: "string" },
-              passage: { type: "string", description: "النص المرجعي (للاستيعاب المقروء فقط)" },
-              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
-              correct_answer: { type: "string" },
-              explanation: { type: "string" }
-            },
-            required: ["question_type", "question_text", "options", "correct_answer", "explanation"]
-          },
-          minItems: isInitialAssessment ? 13 : 5,
-          maxItems: isInitialAssessment ? 13 : 5
-        },
-        quantitative_questions: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              question_type: { 
-                type: "string", 
-                enum: ["حساب", "جبر", "هندسة", "إحصاء", "منطق"]
-              },
-              question_text: { type: "string" },
-              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
-              correct_answer: { type: "string" },
-              explanation: { type: "string" },
-              difficulty: { type: "string", enum: ["easy", "medium", "hard"], description: "مستوى الصعوبة" }
-            },
-            required: ["question_type", "question_text", "options", "correct_answer", "explanation"]
-          },
-          minItems: isInitialAssessment ? 12 : 5,
-          maxItems: isInitialAssessment ? 12 : 5
-        }
-      };
     } else if (testType === "تحصيلي" && track === "علمي") {
       systemPrompt = `أنت خبير في تصميم الاختبار التحصيلي العلمي (SAAT).
 
 📚 **هيكل الاختبار:**
-الاختبار يتكون من 10 أسئلة موزعة على المواد العلمية:
+الاختبار يتكون من ${numQuestions} أسئلة موزعة على المواد العلمية:
 
 1. **الرياضيات** (3 أسئلة): جبر، هندسة، تفاضل وتكامل، حساب مثلثات
 2. **الفيزياء** (3 أسئلة): ميكانيكا، كهرباء، مغناطيسية، بصريات
@@ -233,32 +189,11 @@ serve(async (req) => {
 - خيارات دقيقة علمياً
 - مستوى: ${difficulty}
 - توزيع: 20% أول ثانوي، 30% ثاني ثانوي، 50% ثالث ثانوي`;
-
-      questionStructure = {
-        questions: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              section: { type: "string", description: "قسم السؤال أو المسار" },
-              subject: { type: "string" },
-              question_type: { type: "string" },
-              question_text: { type: "string" },
-              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
-              correct_answer: { type: "string" },
-              explanation: { type: "string" },
-              grade_level: { type: "string" },
-              difficulty: { type: "string" }
-            },
-            required: ["question_text", "options", "correct_answer", "explanation"]
-          }
-        }
-      };
     } else if (testType === "تحصيلي" && track === "نظري") {
       systemPrompt = `أنت خبير في تصميم الاختبار التحصيلي النظري (الأدبي).
 
 📖 **هيكل الاختبار:**
-الاختبار يتكون من 10 أسئلة موزعة على المواد النظرية:
+الاختبار يتكون من ${numQuestions} أسئلة موزعة على المواد النظرية:
 
 1. **العلوم الشرعية** (4 أسئلة): توحيد، فقه، حديث وثقافة إسلامية
 2. **اللغة العربية** (4 أسئلة): نحو وصرف، بلاغة ونقد، أدب
@@ -269,27 +204,6 @@ serve(async (req) => {
 - دقة في المعلومات الشرعية والتاريخية
 - مستوى: ${difficulty}
 - توزيع: 20% أول ثانوي، 30% ثاني ثانوي، 50% ثالث ثانوي`;
-
-      questionStructure = {
-        questions: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              section: { type: "string", description: "قسم السؤال أو المسار" },
-              subject: { type: "string" },
-              question_type: { type: "string" },
-              question_text: { type: "string" },
-              options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
-              correct_answer: { type: "string" },
-              explanation: { type: "string" },
-              grade_level: { type: "string" },
-              difficulty: { type: "string" }
-            },
-            required: ["question_text", "options", "correct_answer", "explanation"]
-          }
-        }
-      };
     }
     
     const userPrompt = isPracticeMode
@@ -354,11 +268,29 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
           {
             type: "function",
             function: {
-              name: testType === "قدرات" ? "generate_qudurat_quiz" : "generate_tahseeli_quiz",
-              description: `Generate ${testType} quiz questions`,
+              name: "generate_quiz",
+              description: "Generate quiz questions",
               parameters: {
                 type: "object",
-                properties: questionStructure,
+                properties: {
+                  questions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        question_text: { type: "string" },
+                        options: { type: "array", items: { type: "string" } },
+                        correct_answer: { type: "string" },
+                        explanation: { type: "string" },
+                        section: { type: "string" },
+                        subject: { type: "string" },
+                        question_type: { type: "string" },
+                        difficulty: { type: "string" }
+                      },
+                      required: ["question_text", "options", "correct_answer", "explanation"]
+                    }
+                  }
+                },
                 required: ["questions"]
               }
             }
@@ -366,7 +298,7 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
         ],
         tool_choice: { 
           type: "function", 
-          function: { name: testType === "قدرات" ? "generate_qudurat_quiz" : "generate_tahseeli_quiz" } 
+          function: { name: "generate_quiz" } 
         }
       }),
     });
@@ -377,20 +309,38 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "تم تجاوز الحد المسموح من الطلبات. يرجى المحاولة لاحقاً." }),
+          JSON.stringify({ 
+            error: "تم تجاوز الحد المسموح من الطلبات. يرجى المحاولة لاحقاً.",
+            details: errorText 
+          }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "يرجى إضافة رصيد للمتابعة." }),
+          JSON.stringify({ 
+            error: "يرجى إضافة رصيد للمتابعة.",
+            details: errorText 
+          }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
+      // Parse error text for provider details
+      let providerError = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error?.metadata?.raw) {
+          providerError = errorJson.error.metadata.raw;
+        }
+      } catch {}
+
       return new Response(
-        JSON.stringify({ error: `AI gateway error: ${response.status}`, details: errorText }),
+        JSON.stringify({ 
+          error: `فشل توليد الأسئلة. خطأ من المزود.`,
+          details: `Status: ${response.status}. ${providerError}`
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -404,37 +354,28 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
 
     const quizData = JSON.parse(toolCall.function.arguments);
     
-    // تحويل البيانات حسب نوع الاختبار
+    // Always expect questions array
     let allQuestions: any[] = [];
     
     if (Array.isArray(quizData.questions)) {
-      allQuestions = quizData.questions;
-    } else if (testType === "قدرات") {
-      const verbalQuestions = quizData.verbal_questions?.map((q: any) => ({
-        ...q,
-        section: "لفظي",
-        topic: q.question_type
-      })) || [];
-      const quantQuestions = quizData.quantitative_questions?.map((q: any) => ({
-        ...q,
-        section: "كمي",
-        topic: q.question_type
-      })) || [];
-      allQuestions = [...verbalQuestions, ...quantQuestions];
+      allQuestions = quizData.questions.map((q: any) => {
+        // Normalize section for قدرات if missing
+        if (testType === "قدرات" && !q.section) {
+          const qType = q.question_type?.toLowerCase() || "";
+          if (qType.includes("لفظ") || qType.includes("مقروء") || qType.includes("جمل") || qType.includes("تناظر") || qType.includes("خطأ") || qType.includes("ارتباط")) {
+            q.section = "لفظي";
+          } else {
+            q.section = "كمي";
+          }
+        }
+        return q;
+      });
     } else {
-      allQuestions = quizData.questions?.map((q: any) => ({
-        ...q,
-        section: q.section || track,
-        topic: q.topic || q.subject || q.question_type
-      })) || [];
+      // Fallback for unexpected structure
+      allQuestions = [];
     }
 
-    // Normalize fields
-    allQuestions = allQuestions.map((q: any) => ({
-      ...q,
-      section: q.section || (testType === "قدرات" ? ((["استيعاب_المقروء","إكمال_الجمل","التناظر_اللفظي","الخطأ_السياقي","الارتباط_والاختلاف"]).includes(q.question_type) ? "لفظي" : "كمي") : track),
-      topic: q.topic || q.subject || q.question_type
-    }));
+    console.log(`Generated ${allQuestions.length} raw questions`);
     
     // Validate questions quality
     const validatedQuestions = allQuestions.filter((q: any) => {
@@ -463,15 +404,73 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
     const minQuestions = isInitialAssessment ? 20 : 8;
     const expectedQuestions = isInitialAssessment ? 25 : 10;
     
+    console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions (expected: ${expectedQuestions}, min: ${minQuestions})`);
+    
+    // Handle insufficient questions
     if (validatedQuestions.length < minQuestions) {
-      throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/${expectedQuestions})`);
+      if (validatedQuestions.length >= 10) {
+        // Partial success: return with warning
+        console.warn(`Returning ${validatedQuestions.length} questions (below target but acceptable)`);
+        return new Response(
+          JSON.stringify({
+            questions: validatedQuestions.slice(0, validatedQuestions.length),
+            warning: `تم توليد ${validatedQuestions.length} سؤالاً من أصل ${expectedQuestions} المطلوبة`,
+            dayNumber,
+            contentTitle: content.title,
+            testType,
+            track
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Too few questions - try fallback with simpler model
+      console.log("Attempting fallback generation with simpler model...");
+      const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt + "\n\n**IMPORTANT: Return EXACTLY " + expectedQuestions + " questions in valid JSON array format.**" }
+          ]
+        }),
+      });
+      
+      if (fallbackResponse.ok) {
+        const fallbackResult = await fallbackResponse.json();
+        const fallbackContent = fallbackResult.choices?.[0]?.message?.content;
+        if (fallbackContent) {
+          try {
+            const fallbackQuestions = JSON.parse(fallbackContent);
+            if (Array.isArray(fallbackQuestions) && fallbackQuestions.length >= 10) {
+              console.log(`Fallback generated ${fallbackQuestions.length} questions`);
+              return new Response(
+                JSON.stringify({
+                  questions: fallbackQuestions.slice(0, Math.min(fallbackQuestions.length, expectedQuestions)),
+                  dayNumber,
+                  contentTitle: content.title,
+                  testType,
+                  track
+                }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          } catch {}
+        }
+      }
+      
+      throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/${expectedQuestions}). الرجاء المحاولة مرة أخرى.`);
     }
 
-    console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions`);
-    
+    // Success: return requested number of questions
     return new Response(
       JSON.stringify({
-        questions: validatedQuestions.slice(0, 10),
+        questions: validatedQuestions.slice(0, expectedQuestions),
         dayNumber,
         contentTitle: content.title,
         testType,
@@ -483,7 +482,10 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
   } catch (e) {
     console.error("Generate quiz error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "حدث خطأ غير متوقع" }),
+      JSON.stringify({ 
+        error: e instanceof Error ? e.message : "حدث خطأ غير متوقع",
+        details: e instanceof Error ? e.stack : undefined
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
