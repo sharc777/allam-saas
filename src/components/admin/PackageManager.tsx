@@ -24,6 +24,7 @@ export const PackageManager = () => {
     description_ar: "",
     price_monthly: 0,
     price_yearly: 0,
+    trial_days: 3,
     features: [] as string[],
     limits: {} as Record<string, number>,
     is_active: true,
@@ -106,6 +107,7 @@ export const PackageManager = () => {
       description_ar: "",
       price_monthly: 0,
       price_yearly: 0,
+      trial_days: 3,
       features: [],
       limits: {},
       is_active: true,
@@ -122,6 +124,7 @@ export const PackageManager = () => {
       description_ar: pkg.description_ar || "",
       price_monthly: Number(pkg.price_monthly) || 0,
       price_yearly: Number(pkg.price_yearly) || 0,
+      trial_days: pkg.trial_days || 3,
       features: Array.isArray(pkg.features) ? pkg.features as string[] : [],
       limits: (pkg.limits as Record<string, number>) || {},
       is_active: pkg.is_active,
@@ -212,7 +215,7 @@ export const PackageManager = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>السعر الشهري (ريال)</Label>
                   <Input
@@ -229,6 +232,15 @@ export const PackageManager = () => {
                     step="0.01"
                     value={formData.price_yearly}
                     onChange={(e) => setFormData({ ...formData, price_yearly: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label>الأيام التجريبية</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={formData.trial_days}
+                    onChange={(e) => setFormData({ ...formData, trial_days: parseInt(e.target.value) || 0 })}
                   />
                 </div>
               </div>
@@ -321,7 +333,7 @@ export const PackageManager = () => {
                   {pkg.description_ar && (
                     <p className="text-muted-foreground mb-3">{pkg.description_ar}</p>
                   )}
-                  <div className="flex gap-4 mb-3">
+                  <div className="flex gap-4 mb-3 items-center">
                     <div>
                       <span className="text-2xl font-bold text-primary">
                         {pkg.price_monthly ? `${pkg.price_monthly} ريال` : 'مجاني'}
@@ -336,6 +348,11 @@ export const PackageManager = () => {
                         <span className="text-sm text-muted-foreground">/سنة</span>
                       </div>
                     )}
+                    <div className="bg-muted px-3 py-1 rounded-full">
+                      <span className="text-sm font-medium">
+                        🎁 {pkg.trial_days || 0} أيام تجريبية
+                      </span>
+                    </div>
                   </div>
                   {pkg.features && Array.isArray(pkg.features) && pkg.features.length > 0 && (
                     <div className="space-y-1">
