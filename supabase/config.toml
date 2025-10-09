@@ -21,3 +21,9 @@ verify_jwt = true
 [functions.check-subscription]
 verify_jwt = true
 
+[functions.customer-portal]
+verify_jwt = true
+
+[functions.decrement-trial-days]
+verify_jwt = true
+

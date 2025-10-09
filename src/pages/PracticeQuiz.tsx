@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Brain, Target, Zap } from "lucide-react";
+import { BookOpen, Brain, Target, Zap, Lock } from "lucide-react";
+import { useProfile } from "@/hooks/useProfile";
+import { useSubscription } from "@/hooks/useSubscription";
 import type { Database } from "@/integrations/supabase/types";
 
 type TestType = Database["public"]["Enums"]["test_type"];
@@ -14,10 +16,37 @@ type AcademicTrack = Database["public"]["Enums"]["academic_track"];
 
 const PracticeQuiz = () => {
   const navigate = useNavigate();
+  const { data: profile } = useProfile();
+  const { subscribed, isLoading: subscriptionLoading } = useSubscription();
   const [testType, setTestType] = useState<TestType>("قدرات");
   const [track, setTrack] = useState<AcademicTrack>("عام");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [questionCount] = useState(10);
+
+  // Check if trial expired and no active subscription
+  if (!subscriptionLoading && !subscribed && !profile?.subscription_active && (profile?.trial_days || 0) === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-24 pb-12 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <Card className="border-2 border-destructive/20">
+              <div className="p-12 text-center space-y-4">
+                <Lock className="w-16 h-16 text-destructive mx-auto mb-4" />
+                <h2 className="text-2xl font-bold">انتهت الفترة التجريبية</h2>
+                <p className="text-muted-foreground">
+                  اشترك الآن للحصول على وصول كامل للاختبارات التدريبية
+                </p>
+                <Button onClick={() => navigate("/subscription")} size="lg">
+                  اشترك الآن
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleStartQuiz = () => {
     // Navigate to quiz page with practice mode parameters

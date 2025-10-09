@@ -19,7 +19,7 @@ const Subscription = () => {
       name: "شهري",
       price: "99",
       period: "شهر",
-      priceId: "price_1SGHtMAAmQE640SA9VrhcguK",
+      priceId: "price_1SGI2tAAmQE640SAiEsPiM7z",
       icon: Zap,
       color: "primary",
       features: [
@@ -34,7 +34,7 @@ const Subscription = () => {
       name: "ربع سنوي",
       price: "249",
       period: "3 أشهر",
-      priceId: "price_1SGHtnAAmQE640SAvc5QmGhN",
+      priceId: "price_1SGI4CAAmQE640SAdNiLXM5X",
       icon: Sparkles,
       color: "secondary",
       discount: "17%",
@@ -51,7 +51,7 @@ const Subscription = () => {
       name: "سنوي",
       price: "799",
       period: "سنة",
-      priceId: "price_1SGHu3AAmQE640SAibqtBMKd",
+      priceId: "price_1SGI3NAAmQE640SAKrGf4EIH",
       icon: Crown,
       color: "accent",
       discount: "33%",
@@ -94,7 +94,7 @@ const Subscription = () => {
         
         toast({
           title: "جاري التوجيه",
-          description: "تم فتح صفحة الدفع في نافذة جديدة",
+          description: "تم فتح صفحة الدفع في نافذة جديدة. بعد إتمام الدفع، سيتم تحديث حالة الاشتراك تلقائياً.",
         });
       }
     } catch (error) {

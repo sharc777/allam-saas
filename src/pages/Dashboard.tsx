@@ -209,19 +209,37 @@ const Dashboard = () => {
             )}
 
             {/* Subscription Active Banner */}
-            {subscribed || profile?.subscription_active && (
+            {(subscribed || profile?.subscription_active) && (
               <Card className="bg-gradient-to-r from-green-500/10 via-green-500/5 to-background border-green-500/20">
                 <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-full bg-green-500/20">
-                      <CheckCircle2 className="w-6 h-6 text-green-500" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-full bg-green-500/20">
+                        <CheckCircle2 className="w-6 h-6 text-green-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg">اشتراك نشط 🎉</h3>
+                        <p className="text-muted-foreground">
+                          لديك وصول كامل لجميع ميزات المنصة
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg">اشتراك نشط 🎉</h3>
-                      <p className="text-muted-foreground">
-                        لديك وصول كامل لجميع ميزات المنصة
-                      </p>
-                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={async () => {
+                        try {
+                          const { data, error } = await supabase.functions.invoke("customer-portal");
+                          if (error) throw error;
+                          if (data?.url) {
+                            window.open(data.url, "_blank");
+                          }
+                        } catch (error) {
+                          console.error("Error opening portal:", error);
+                        }
+                      }}
+                    >
+                      إدارة الاشتراك
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

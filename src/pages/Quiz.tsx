@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Lock } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
+import Navbar from "@/components/Navbar";
 
 interface Question {
   question_text: string;
@@ -26,16 +28,42 @@ const Quiz = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const dayNumber = parseInt(searchParams.get("day") || "1");
-  const contentId = searchParams.get("contentId"); // Get daily_content_id from URL
+  const contentId = searchParams.get("contentId");
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: profile } = useProfile();
+  const { subscribed, isLoading: subscriptionLoading } = useSubscription();
   const queryClient = useQueryClient();
 
   // Redirect to test selection if no preferences set
   if (profile && !profile.test_type_preference) {
     navigate("/test-selection");
     return null;
+  }
+
+  // Check if trial expired and no active subscription - block access
+  if (!subscriptionLoading && !subscribed && !profile?.subscription_active && (profile?.trial_days || 0) === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-24 pb-12 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <Card className="border-2 border-destructive/20">
+              <div className="p-12 text-center space-y-4">
+                <Lock className="w-16 h-16 text-destructive mx-auto mb-4" />
+                <h2 className="text-2xl font-bold">انتهت الفترة التجريبية</h2>
+                <p className="text-muted-foreground">
+                  اشترك الآن للحصول على وصول كامل لجميع الاختبارات
+                </p>
+                <Button onClick={() => navigate("/subscription")} size="lg">
+                  اشترك الآن
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const [loading, setLoading] = useState(false);

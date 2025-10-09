@@ -15,10 +15,11 @@ export const useSubscription = () => {
 
       if (error) {
         console.error("Error checking subscription:", error);
-        return { subscribed: false };
+        // Return minimal data on error to prevent UI breaks
+        return { subscribed: false, product_id: null, subscription_end: null };
       }
 
-      return subscriptionData;
+      return subscriptionData || { subscribed: false, product_id: null, subscription_end: null };
     },
     refetchInterval: 60000, // Refetch every minute
   });

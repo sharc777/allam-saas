@@ -47,8 +47,9 @@ const Auth = () => {
 
         if (error) throw error;
         
-        // Check subscription status after login
+        // Check subscription status and decrement trial days after login
         await supabase.functions.invoke("check-subscription");
+        await supabase.functions.invoke("decrement-trial-days");
         
         toast.success("تم تسجيل الدخول بنجاح");
       } else {

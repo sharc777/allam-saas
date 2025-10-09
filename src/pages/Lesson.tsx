@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ export default function Lesson() {
   const { dayNumber, topicId } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { subscribed, isLoading: subscriptionLoading } = useSubscription();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
 
@@ -167,10 +169,35 @@ export default function Lesson() {
     updateProgressMutation.mutate({ notes });
   };
 
-  if (authLoading || contentLoading || progressLoading) {
+  if (authLoading || contentLoading || progressLoading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Check if trial expired and no active subscription
+  if (!subscribed && !profile?.subscription_active && (profile?.trial_days || 0) === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-24 pb-12 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <Card className="border-2 border-destructive/20">
+              <div className="p-12 text-center space-y-4">
+                <Lock className="w-16 h-16 text-destructive mx-auto mb-4" />
+                <h2 className="text-2xl font-bold">انتهت الفترة التجريبية</h2>
+                <p className="text-muted-foreground">
+                  اشترك الآن للحصول على وصول كامل لجميع الدروس والاختبارات
+                </p>
+                <Button onClick={() => navigate("/subscription")} size="lg">
+                  اشترك الآن
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }
