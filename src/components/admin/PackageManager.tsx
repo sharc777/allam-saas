@@ -25,6 +25,8 @@ export const PackageManager = () => {
     price_monthly: 0,
     price_yearly: 0,
     trial_days: 3,
+    stripe_price_id_monthly: "",
+    stripe_price_id_yearly: "",
     features: [] as string[],
     limits: {} as Record<string, number>,
     is_active: true,
@@ -108,6 +110,8 @@ export const PackageManager = () => {
       price_monthly: 0,
       price_yearly: 0,
       trial_days: 3,
+      stripe_price_id_monthly: "",
+      stripe_price_id_yearly: "",
       features: [],
       limits: {},
       is_active: true,
@@ -125,6 +129,8 @@ export const PackageManager = () => {
       price_monthly: Number(pkg.price_monthly) || 0,
       price_yearly: Number(pkg.price_yearly) || 0,
       trial_days: pkg.trial_days || 3,
+      stripe_price_id_monthly: pkg.stripe_price_id_monthly || "",
+      stripe_price_id_yearly: pkg.stripe_price_id_yearly || "",
       features: Array.isArray(pkg.features) ? pkg.features as string[] : [],
       limits: (pkg.limits as Record<string, number>) || {},
       is_active: pkg.is_active,
@@ -245,6 +251,29 @@ export const PackageManager = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Stripe Price ID (شهري)</Label>
+                  <Input
+                    value={formData.stripe_price_id_monthly}
+                    onChange={(e) => setFormData({ ...formData, stripe_price_id_monthly: e.target.value })}
+                    placeholder="price_xxxxx"
+                    pattern="^price_.*"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">يجب أن يبدأ بـ price_</p>
+                </div>
+                <div>
+                  <Label>Stripe Price ID (سنوي)</Label>
+                  <Input
+                    value={formData.stripe_price_id_yearly}
+                    onChange={(e) => setFormData({ ...formData, stripe_price_id_yearly: e.target.value })}
+                    placeholder="price_xxxxx"
+                    pattern="^price_.*"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">يجب أن يبدأ بـ price_</p>
+                </div>
+              </div>
+
               <div>
                 <Label>المميزات</Label>
                 <div className="flex gap-2 mb-2">
@@ -355,7 +384,7 @@ export const PackageManager = () => {
                     </div>
                   </div>
                   {pkg.features && Array.isArray(pkg.features) && pkg.features.length > 0 && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 mb-3">
                       {(pkg.features as string[]).map((feature, index) => (
                         <div key={index} className="flex items-center gap-2 text-sm">
                           <span className="text-primary">✓</span>
@@ -364,6 +393,29 @@ export const PackageManager = () => {
                       ))}
                     </div>
                   )}
+                  
+                  {/* Stripe Price IDs */}
+                  <div className="space-y-2 pt-3 border-t">
+                    <div className="text-xs text-muted-foreground">
+                      {pkg.stripe_price_id_monthly && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Stripe Monthly:</span>
+                          <code className="bg-muted px-2 py-0.5 rounded">{pkg.stripe_price_id_monthly}</code>
+                        </div>
+                      )}
+                      {pkg.stripe_price_id_yearly && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Stripe Yearly:</span>
+                          <code className="bg-muted px-2 py-0.5 rounded">{pkg.stripe_price_id_yearly}</code>
+                        </div>
+                      )}
+                      {pkg.is_active && !pkg.stripe_price_id_monthly && !pkg.stripe_price_id_yearly && (
+                        <div className="text-warning flex items-center gap-1">
+                          ⚠️ تحذير: الباقة نشطة بدون Stripe Price IDs
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(pkg)}>
