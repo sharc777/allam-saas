@@ -401,22 +401,37 @@ const InitialAssessment = () => {
               onValueChange={handleAnswerSelect}
               className="space-y-3"
             >
-              {currentQuestion.options.map((option, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-4 p-4 rounded-lg border-2 hover:bg-accent/50 hover:border-primary transition-all cursor-pointer"
-                >
-                  <div className="flex items-center h-6 mt-1">
-                    <RadioGroupItem value={option} id={`option-${idx}`} className="w-5 h-5" />
-                  </div>
-                  <Label
-                    htmlFor={`option-${idx}`}
-                    className="flex-1 text-right cursor-pointer leading-relaxed"
+              {currentQuestion.options.map((option, idx) => {
+                const isSelected = selectedAnswers[currentQuestionIndex] === option;
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => handleAnswerSelect(option)}
+                    className={`flex items-start gap-4 p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                      isSelected
+                        ? "bg-primary/10 border-primary shadow-md"
+                        : "hover:bg-accent/50 hover:border-primary/50"
+                    }`}
                   >
-                    {option}
-                  </Label>
-                </div>
-              ))}
+                    <div className="flex items-center h-6 mt-1">
+                      <RadioGroupItem 
+                        value={option} 
+                        id={`q${currentQuestionIndex}-option-${idx}`} 
+                        className="w-5 h-5" 
+                      />
+                    </div>
+                    <Label
+                      htmlFor={`q${currentQuestionIndex}-option-${idx}`}
+                      className="flex-1 text-right cursor-pointer leading-relaxed"
+                    >
+                      {option}
+                    </Label>
+                    {isSelected && (
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    )}
+                  </div>
+                );
+              })}
             </RadioGroup>
           </CardContent>
         </Card>
