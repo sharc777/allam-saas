@@ -76,8 +76,17 @@ serve(async (req) => {
         content_text: "",
         topics: null
       };
+    } else if (mode === "initial_assessment") {
+      // Initial Assessment mode: comprehensive evaluation quiz
+      isPracticeMode = true;
+      content = {
+        title: "التقييم الأولي",
+        description: "اختبار شامل لتحديد مستواك الحالي",
+        content_text: "",
+        topics: null
+      };
     } else {
-      throw new Error("يجب تحديد contentId أو dayNumber أو mode: practice");
+      throw new Error("يجب تحديد contentId أو dayNumber أو mode: practice أو mode: initial_assessment");
     }
 
     if (!isPracticeMode && (contentError || !content)) {
@@ -130,6 +139,12 @@ serve(async (req) => {
 
     console.log("Generating quiz - Day:", dayNumber, "Difficulty:", difficulty, "Test Type:", testType, "Track:", track);
 
+    // Determine number of questions based on mode
+    const isInitialAssessment = mode === "initial_assessment";
+    const numQuestions = isInitialAssessment ? 25 : 10;
+    const verbalQuestions = isInitialAssessment ? 13 : 5;
+    const quantQuestions = isInitialAssessment ? 12 : 5;
+
     // تحديد نوع الاختبار والمحتوى المطلوب
     let systemPrompt = "";
     let questionStructure = {};
@@ -178,8 +193,8 @@ serve(async (req) => {
             },
             required: ["question_type", "question_text", "options", "correct_answer", "explanation"]
           },
-          minItems: 5,
-          maxItems: 5
+          minItems: isInitialAssessment ? 13 : 5,
+          maxItems: isInitialAssessment ? 13 : 5
         },
         quantitative_questions: {
           type: "array",
@@ -193,12 +208,13 @@ serve(async (req) => {
               question_text: { type: "string" },
               options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
               correct_answer: { type: "string" },
-              explanation: { type: "string" }
+              explanation: { type: "string" },
+              difficulty: { type: "string", enum: ["easy", "medium", "hard"], description: "مستوى الصعوبة" }
             },
             required: ["question_type", "question_text", "options", "correct_answer", "explanation"]
           },
-          minItems: 5,
-          maxItems: 5
+          minItems: isInitialAssessment ? 12 : 5,
+          maxItems: isInitialAssessment ? 12 : 5
         }
       };
     } else if (testType === "تحصيلي" && track === "علمي") {
@@ -233,8 +249,8 @@ serve(async (req) => {
             },
             required: ["subject", "question_text", "options", "correct_answer", "explanation", "grade_level"]
           },
-          minItems: 10,
-          maxItems: 10
+          minItems: isInitialAssessment ? 25 : 10,
+          maxItems: isInitialAssessment ? 25 : 10
         }
       };
     } else if (testType === "تحصيلي" && track === "نظري") {
@@ -268,14 +284,14 @@ serve(async (req) => {
             },
             required: ["subject", "question_text", "options", "correct_answer", "explanation", "grade_level"]
           },
-          minItems: 10,
-          maxItems: 10
+          minItems: isInitialAssessment ? 25 : 10,
+          maxItems: isInitialAssessment ? 25 : 10
         }
       };
     }
-
-    const userPrompt = isPracticeMode 
-      ? `قم بتوليد ${testType === "قدرات" ? "اختبار قدرات تدريبي شامل (5 لفظي + 5 كمي)" : `اختبار تحصيلي ${track} تدريبي شامل (10 أسئلة)`} بناءً على المنهج الكامل:
+    
+    const userPrompt = isPracticeMode
+      ? `قم بتوليد ${testType === "قدرات" ? `اختبار قدرات ${isInitialAssessment ? "تقييم أولي" : "تدريبي"} (${verbalQuestions} لفظي + ${quantQuestions} كمي)` : `اختبار تحصيلي ${track} ${isInitialAssessment ? "تقييم أولي" : "تدريبي"} (${numQuestions} أسئلة)`} بناءً على المنهج الكامل:
 
 📚 **نوع الاختبار:** ${testType} ${testType === "تحصيلي" ? `- ${track}` : ""}
 📊 **مستوى الصعوبة:** ${difficulty}
@@ -283,12 +299,24 @@ serve(async (req) => {
 ${additionalKnowledge}
 
 ⚠️ **متطلبات مهمة:**
-- أسئلة متنوعة تغطي جميع جوانب المنهج
+${isInitialAssessment ? `
+- 📊 **توزيع الصعوبة للتقييم الأولي:**
+  ${testType === "قدرات" ? `
+  * الأسئلة اللفظية (${verbalQuestions}): 7 سهلة، 4 متوسطة، 2 صعبة
+  * الأسئلة الكمية (${quantQuestions}): 5 سهلة، 4 متوسطة، 3 صعبة
+  ` : `
+  * ${Math.floor(numQuestions * 0.48)} سؤال سهل
+  * ${Math.floor(numQuestions * 0.32)} سؤال متوسط
+  * ${Math.ceil(numQuestions * 0.20)} سؤال صعب
+  `}
+- أسئلة متنوعة لتقييم جميع المهارات الأساسية` : `
+- أسئلة متنوعة تغطي جميع جوانب المنهج`}
 - كل سؤال يختبر فهماً حقيقياً وليس حفظاً
 - الخيارات الخاطئة معقولة ومقنعة
 - ${testType === "قدرات" ? "تنوع بين الأسئلة اللفظية والكمية" : "تغطية شاملة للمواد الدراسية"}
 - كل تفسير تعليمي واضح ومفيد
-${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة أول ثانوي، 3 أسئلة ثاني ثانوي، 5 أسئلة ثالث ثانوي` : ""}`
+${testType === "تحصيلي" && !isInitialAssessment ? `- التوزيع المطلوب: 2 أسئلة أول ثانوي، 3 أسئلة ثاني ثانوي، 5 أسئلة ثالث ثانوي` : ""}
+${isInitialAssessment ? "- التنوع في مستويات الصعوبة لتحديد المستوى بدقة" : ""}`
       : `قم بتوليد ${testType === "قدرات" ? "اختبار قدرات (5 لفظي + 5 كمي)" : `اختبار تحصيلي ${track} (10 أسئلة)`} بناءً على المحتوى التالي:
 
 📚 **المحتوى:**
@@ -422,8 +450,11 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       return true;
     });
 
-    if (validatedQuestions.length < 8) {
-      throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/10)`);
+    const minQuestions = isInitialAssessment ? 20 : 8;
+    const expectedQuestions = isInitialAssessment ? 25 : 10;
+    
+    if (validatedQuestions.length < minQuestions) {
+      throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/${expectedQuestions})`);
     }
 
     console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions`);

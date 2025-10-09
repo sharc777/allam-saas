@@ -25,6 +25,7 @@ const InitialAssessment = () => {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(false);
   const [testType, setTestType] = useState<string>("");
   const [track, setTrack] = useState<string>("");
   const navigate = useNavigate();
@@ -34,22 +35,38 @@ const InitialAssessment = () => {
     fetchUserPreferencesAndQuestions();
   }, []);
 
-  const fetchUserPreferencesAndQuestions = async () => {
+  const fetchUserPreferencesAndQuestions = async (retryCount = 0) => {
     try {
+      setIsLoading(true);
+      setError(false);
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        toast({
+          title: "خطأ",
+          description: "يجب تسجيل الدخول أولاً",
+          variant: "destructive",
+        });
         navigate("/auth");
         return;
       }
 
       // جلب تفضيلات المستخدم
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("test_type_preference, track_preference, initial_assessment_completed")
         .eq("id", user.id)
         .single();
 
+      if (profileError) {
+        throw new Error("فشل في تحميل معلومات المستخدم");
+      }
+
       if (profile?.initial_assessment_completed) {
+        toast({
+          title: "تم الإكمال",
+          description: "لقد أكملت التقييم الأولي مسبقاً",
+        });
         navigate("/dashboard");
         return;
       }
@@ -57,34 +74,73 @@ const InitialAssessment = () => {
       setTestType(profile?.test_type_preference || "قدرات");
       setTrack(profile?.track_preference || "عام");
 
+      console.log("Fetching initial assessment questions with mode: initial_assessment");
+
       // توليد أسئلة التقييم الأولي
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
         body: {
           testType: profile?.test_type_preference || "قدرات",
           track: profile?.track_preference || "عام",
-          count: 25,
           mode: "initial_assessment",
+          difficulty: "medium"
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Function error:", error);
+        
+        // Retry logic for transient errors
+        if (retryCount < 2 && error.message?.includes("429")) {
+          toast({
+            title: "جاري إعادة المحاولة...",
+            description: "الرجاء الانتظار",
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return fetchUserPreferencesAndQuestions(retryCount + 1);
+        }
+        
+        throw new Error(error.message || "فشل في توليد الأسئلة");
+      }
 
-      if (data?.questions && data.questions.length > 0) {
-        setQuestions(data.questions);
+      if (!data?.questions || data.questions.length === 0) {
+        throw new Error("لم يتم توليد الأسئلة بشكل صحيح");
+      }
+
+      if (data.questions.length < 20) {
+        console.warn(`Warning: Expected 25 questions, got ${data.questions.length}`);
+        toast({
+          title: "تنبيه",
+          description: `تم توليد ${data.questions.length} سؤالاً فقط من أصل 25`,
+        });
+      }
+
+      console.log(`Successfully loaded ${data.questions.length} questions`);
+      setQuestions(data.questions);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      const errorMessage = error.message || "حدث خطأ في تحميل الأسئلة";
+      
+      if (errorMessage.includes("429")) {
+        toast({
+          title: "خطأ",
+          description: "تم تجاوز الحد المسموح. يرجى المحاولة بعد دقيقة.",
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes("402")) {
+        toast({
+          title: "خطأ",
+          description: "خطأ في النظام. يرجى الاتصال بالدعم.",
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "خطأ",
-          description: "لم نتمكن من توليد أسئلة التقييم. الرجاء المحاولة مرة أخرى.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
-    } catch (error) {
-      console.error("Error fetching questions:", error);
-      toast({
-        title: "خطأ",
-        description: "حدث خطأ أثناء تحميل الأسئلة",
-        variant: "destructive",
-      });
+      
+      setError(true);
     } finally {
       setIsLoading(false);
     }
@@ -219,6 +275,43 @@ const InitialAssessment = () => {
           <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
             <Loader2 className="w-12 h-12 animate-spin text-primary" />
             <p className="text-lg font-medium">جاري تحضير اختبار التقييم الأولي...</p>
+            <p className="text-sm text-muted-foreground text-center">
+              سيتم توليد 25 سؤالاً لتقييم مستواك بدقة
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-accent/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center space-y-4">
+            <div className="text-destructive text-6xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold">حدث خطأ</h2>
+            <p className="text-muted-foreground">
+              لم نتمكن من تحميل أسئلة التقييم الأولي. يرجى المحاولة مرة أخرى.
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => {
+                  setError(false);
+                  fetchUserPreferencesAndQuestions();
+                }} 
+                className="flex-1"
+              >
+                إعادة المحاولة
+              </Button>
+              <Button 
+                onClick={() => navigate("/dashboard")} 
+                variant="outline"
+                className="flex-1"
+              >
+                العودة للوحة التحكم
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
