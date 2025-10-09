@@ -6,21 +6,99 @@ import {
   Users, 
   BookOpen, 
   Database, 
-  Settings, 
   TrendingUp,
   Plus,
   Upload,
-  Brain,
-  BarChart3,
-  Loader2
+  Loader2,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { SimplifiedAISettings } from "@/components/admin/SimplifiedAISettings";
 import { ContentParser } from "@/components/admin/ContentParser";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
 const Admin = () => {
   const { loading } = useAuth(true);
+
+  // Fetch real statistics
+  const { data: studentsCount } = useQuery({
+    queryKey: ['students-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      return count || 0;
+    }
+  });
+
+  const { data: lessonsCount } = useQuery({
+    queryKey: ['lessons-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('daily_content')
+        .select('*', { count: 'exact', head: true });
+      return count || 0;
+    }
+  });
+
+  const { data: questionsCount } = useQuery({
+    queryKey: ['questions-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('questions_bank')
+        .select('*', { count: 'exact', head: true });
+      return count || 0;
+    }
+  });
+
+  const { data: completionRate } = useQuery({
+    queryKey: ['completion-rate'],
+    queryFn: async () => {
+      const { count: completed } = await supabase
+        .from('student_progress')
+        .select('*', { count: 'exact', head: true })
+        .eq('quiz_completed', true);
+      
+      const { count: total } = await supabase
+        .from('student_progress')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!total || total === 0) return 0;
+      return Math.round(((completed || 0) / total) * 100);
+    }
+  });
+
+  const { data: questions, isLoading: questionsLoading } = useQuery({
+    queryKey: ['questions-bank'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('questions_bank')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: users, isLoading: usersLoading } = useQuery({
+    queryKey: ['all-users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return data;
+    }
+  });
 
   if (loading) {
     return (
@@ -52,7 +130,9 @@ const Admin = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">إجمالي الطلاب</p>
-                    <p className="text-3xl font-bold text-primary">1,234</p>
+                    <p className="text-3xl font-bold text-primary">
+                      {studentsCount !== undefined ? studentsCount : <Loader2 className="w-6 h-6 animate-spin" />}
+                    </p>
                   </div>
                   <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center">
                     <Users className="w-6 h-6 text-primary-foreground" />
@@ -66,7 +146,9 @@ const Admin = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">الدروس</p>
-                    <p className="text-3xl font-bold text-secondary">30</p>
+                    <p className="text-3xl font-bold text-secondary">
+                      {lessonsCount !== undefined ? lessonsCount : <Loader2 className="w-6 h-6 animate-spin" />}
+                    </p>
                   </div>
                   <div className="w-12 h-12 rounded-full gradient-secondary flex items-center justify-center">
                     <BookOpen className="w-6 h-6 text-secondary-foreground" />
@@ -80,7 +162,9 @@ const Admin = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">الأسئلة</p>
-                    <p className="text-3xl font-bold text-success">5,678</p>
+                    <p className="text-3xl font-bold text-success">
+                      {questionsCount !== undefined ? questionsCount : <Loader2 className="w-6 h-6 animate-spin" />}
+                    </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
                     <Database className="w-6 h-6 text-success" />
@@ -94,7 +178,9 @@ const Admin = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">معدل الإكمال</p>
-                    <p className="text-3xl font-bold text-primary">87%</p>
+                    <p className="text-3xl font-bold text-primary">
+                      {completionRate !== undefined ? `${completionRate}%` : <Loader2 className="w-6 h-6 animate-spin" />}
+                    </p>
                   </div>
                   <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center">
                     <TrendingUp className="w-6 h-6 text-primary-foreground" />
@@ -136,7 +222,7 @@ const Admin = () => {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Database className="w-6 h-6 text-secondary" />
-                      قاعدة بيانات الأسئلة
+                      بنك الأسئلة ({questionsCount || 0})
                     </CardTitle>
                     <div className="flex gap-2">
                       <Button variant="outline">
@@ -151,107 +237,108 @@ const Admin = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {/* Filters */}
-                    <div className="grid md:grid-cols-4 gap-4">
-                      <select className="px-4 py-2 rounded-lg border-2 border-border">
-                        <option>كل المواد</option>
-                        <option>الرياضيات</option>
-                        <option>اللغة العربية</option>
-                      </select>
-                      <select className="px-4 py-2 rounded-lg border-2 border-border">
-                        <option>كل المستويات</option>
-                        <option>سهل</option>
-                        <option>متوسط</option>
-                        <option>صعب</option>
-                      </select>
-                      <select className="px-4 py-2 rounded-lg border-2 border-border">
-                        <option>كل الأنواع</option>
-                        <option>اختيار من متعدد</option>
-                        <option>صح/خطأ</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="بحث..."
-                        className="px-4 py-2 rounded-lg border-2 border-border"
-                      />
+                  {questionsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin" />
                     </div>
-
-                    {/* Questions List */}
+                  ) : questions && questions.length > 0 ? (
                     <div className="space-y-3">
-                      {[1, 2, 3].map((q) => (
-                        <div key={q} className="p-4 border-2 rounded-lg hover:border-secondary/50 transition-smooth">
+                      {questions.map((q) => (
+                        <div key={q.id} className="p-4 border-2 rounded-lg hover:border-secondary/50 transition-smooth">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">رياضيات</span>
-                                <span className="px-2 py-1 text-xs rounded-full bg-secondary/10 text-secondary">متوسط</span>
-                                <span className="px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">الجبر</span>
+                                <Badge variant="secondary">{q.subject}</Badge>
+                                <Badge variant={
+                                  q.difficulty === 'easy' ? 'default' :
+                                  q.difficulty === 'medium' ? 'secondary' : 'destructive'
+                                }>{q.difficulty === 'easy' ? 'سهل' : q.difficulty === 'medium' ? 'متوسط' : 'صعب'}</Badge>
+                                {q.topic && <Badge variant="outline">{q.topic}</Badge>}
                               </div>
-                              <p className="font-medium mb-2">ما هي قيمة x في المعادلة: 2x + 5 = 13؟</p>
-                              <p className="text-sm text-muted-foreground">الإجابة الصحيحة: x = 4</p>
+                              <p className="font-medium mb-2">{q.question_text}</p>
+                              <p className="text-sm text-muted-foreground">الإجابة الصحيحة: {q.correct_answer}</p>
+                              {q.usage_count > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  استخدمت {q.usage_count} مرة
+                                </p>
+                              )}
                             </div>
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm">تعديل</Button>
-                              <Button variant="outline" size="sm">حذف</Button>
+                              <Button variant="outline" size="sm">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Database className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>لا توجد أسئلة في البنك حالياً</p>
+                      <Button className="mt-4" variant="outline">
+                        <Plus className="ml-2 w-4 h-4" />
+                        إضافة أول سؤال
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Questions Database */}
-            <TabsContent value="questions" className="space-y-6">
+            {/* Users Management */}
+            <TabsContent value="users" className="space-y-6">
               <Card className="border-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-6 h-6 text-success" />
-                    إدارة المستخدمين
+                    إدارة المستخدمين ({studentsCount || 0})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex gap-4">
-                      <input
-                        type="text"
-                        placeholder="بحث عن مستخدم..."
-                        className="flex-1 px-4 py-2 rounded-lg border-2 border-border"
-                      />
-                      <select className="px-4 py-2 rounded-lg border-2 border-border">
-                        <option>كل المستخدمين</option>
-                        <option>نشط</option>
-                        <option>غير نشط</option>
-                        <option>مشترك</option>
-                      </select>
+                  {usersLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin" />
                     </div>
-
+                  ) : users && users.length > 0 ? (
                     <div className="space-y-3">
-                      {[1, 2, 3, 4].map((user) => (
-                        <div key={user} className="flex items-center justify-between p-4 border-2 rounded-lg">
+                      {users.map((user) => (
+                        <div key={user.id} className="flex items-center justify-between p-4 border-2 rounded-lg">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                              ط{user}
+                              {user.full_name?.charAt(0) || 'ط'}
                             </div>
                             <div>
-                              <h4 className="font-bold">طالب {user}</h4>
-                              <p className="text-sm text-muted-foreground">student{user}@example.com</p>
+                              <h4 className="font-bold">{user.full_name}</h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant={user.subscription_active ? 'default' : 'secondary'}>
+                                  {user.subscription_active ? 'مشترك' : `تجريبي (${user.trial_days} أيام)`}
+                                </Badge>
+                                <Badge variant="outline">{user.role}</Badge>
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-left">
-                              <p className="text-sm font-medium">اليوم 12 من 30</p>
-                              <p className="text-xs text-muted-foreground">نشط</p>
+                              <p className="text-sm font-medium">اليوم {user.current_day} من 30</p>
+                              <p className="text-xs text-muted-foreground">
+                                {user.total_points} نقطة - {user.streak_days} يوم متتالي
+                              </p>
                             </div>
                             <Button variant="outline" size="sm">عرض التفاصيل</Button>
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>لا يوجد مستخدمين مسجلين حالياً</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
