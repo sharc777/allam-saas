@@ -46,6 +46,10 @@ const Auth = () => {
         });
 
         if (error) throw error;
+        
+        // Check subscription status after login
+        await supabase.functions.invoke("check-subscription");
+        
         toast.success("تم تسجيل الدخول بنجاح");
       } else {
         const { error } = await supabase.auth.signUp({

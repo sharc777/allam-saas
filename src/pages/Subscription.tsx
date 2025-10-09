@@ -1,18 +1,25 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles, Zap, Crown } from "lucide-react";
+import { Check, Sparkles, Zap, Crown, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 const Subscription = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
+  // Stripe price IDs من المنتجات التي أنشأناها
   const plans = [
     {
       name: "شهري",
       price: "99",
       period: "شهر",
+      priceId: "price_1SGHtMAAmQE640SA9VrhcguK",
       icon: Zap,
       color: "primary",
       features: [
@@ -27,6 +34,7 @@ const Subscription = () => {
       name: "ربع سنوي",
       price: "249",
       period: "3 أشهر",
+      priceId: "price_1SGHtnAAmQE640SAvc5QmGhN",
       icon: Sparkles,
       color: "secondary",
       discount: "17%",
@@ -43,6 +51,7 @@ const Subscription = () => {
       name: "سنوي",
       price: "799",
       period: "سنة",
+      priceId: "price_1SGHu3AAmQE640SAibqtBMKd",
       icon: Crown,
       color: "accent",
       discount: "33%",
@@ -55,6 +64,50 @@ const Subscription = () => {
       ],
     },
   ];
+
+  const handleSubscribe = async (priceId: string, planName: string) => {
+    try {
+      setLoadingPlan(planName);
+
+      // التحقق من تسجيل الدخول
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "يجب تسجيل الدخول",
+          description: "الرجاء تسجيل الدخول للاشتراك",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      // إنشاء جلسة الدفع
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { priceId },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // فتح صفحة الدفع في نافذة جديدة
+        window.open(data.url, "_blank");
+        
+        toast({
+          title: "جاري التوجيه",
+          description: "تم فتح صفحة الدفع في نافذة جديدة",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating checkout:", error);
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء إنشاء جلسة الدفع",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/5 to-primary/5">
@@ -128,12 +181,17 @@ const Subscription = () => {
                     className="w-full"
                     variant={plan.popular ? "default" : "outline"}
                     size="lg"
-                    onClick={() => {
-                      // TODO: Implement payment integration
-                      console.log("Subscribe to:", plan.name);
-                    }}
+                    disabled={loadingPlan === plan.name}
+                    onClick={() => handleSubscribe(plan.priceId, plan.name)}
                   >
-                    اشترك الآن
+                    {loadingPlan === plan.name ? (
+                      <>
+                        <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                        جاري التحميل...
+                      </>
+                    ) : (
+                      "اشترك الآن"
+                    )}
                   </Button>
                 </CardContent>
               </Card>

@@ -38,6 +38,7 @@ import { useStudentProgress } from "@/hooks/useStudentProgress";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useQuizStats } from "@/hooks/useQuizStats";
 import { useAllProgress } from "@/hooks/useAllProgress";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const Dashboard = () => {
   // All hooks MUST be called before any conditional returns
@@ -47,6 +48,9 @@ const Dashboard = () => {
   
   // Fetch data from Supabase
   const { data: profile, isLoading: profileLoading } = useProfile();
+  
+  // Check subscription status
+  const { subscribed, isLoading: subscriptionLoading } = useSubscription();
   
   // Redirect to test selection if no preferences set
   if (profile && !profile.test_type_preference) {
@@ -94,7 +98,7 @@ const Dashboard = () => {
   const progress = (currentDay / totalDays) * 100;
 
   // Conditional return AFTER all hooks
-  const isLoading = authLoading || profileLoading || contentLoading || progressLoading || achievementsLoading || quizLoading || allProgressLoading;
+  const isLoading = authLoading || profileLoading || contentLoading || progressLoading || achievementsLoading || quizLoading || allProgressLoading || subscriptionLoading;
   
   if (isLoading) {
     return (
@@ -181,7 +185,7 @@ const Dashboard = () => {
             </div>
 
             {/* Trial Period Banner */}
-            {!profile?.subscription_active && (profile?.trial_days || 0) > 0 && (
+            {!subscribed && !profile?.subscription_active && (profile?.trial_days || 0) > 0 && (
               <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -205,7 +209,7 @@ const Dashboard = () => {
             )}
 
             {/* Subscription Active Banner */}
-            {profile?.subscription_active && (
+            {subscribed || profile?.subscription_active && (
               <Card className="bg-gradient-to-r from-green-500/10 via-green-500/5 to-background border-green-500/20">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
@@ -218,6 +222,30 @@ const Dashboard = () => {
                         لديك وصول كامل لجميع ميزات المنصة
                       </p>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Trial Expired Banner */}
+            {!subscribed && !profile?.subscription_active && (profile?.trial_days || 0) === 0 && (
+              <Card className="bg-gradient-to-r from-destructive/10 via-destructive/5 to-background border-destructive/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-full bg-destructive/20">
+                        <Lock className="w-6 h-6 text-destructive" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg">انتهت الفترة التجريبية</h3>
+                        <p className="text-muted-foreground">
+                          اشترك الآن للحصول على وصول كامل لجميع الميزات
+                        </p>
+                      </div>
+                    </div>
+                    <Button onClick={() => navigate("/subscription")}>
+                      اشترك الآن
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
