@@ -134,15 +134,31 @@ serve(async (req) => {
     
     if (isPracticeMode) {
       // In practice mode, fetch ALL relevant knowledge base content
-      const { data: kbData } = await supabase
+      let kbQuery = supabase
         .from("knowledge_base")
         .select("*")
         .eq("test_type", testType)
         .eq("track", track)
-        .eq("is_active", true)
-        .limit(kbLimits.practice_fetch_limit || 20);
+        .eq("is_active", true);
+      
+      const { data: kbData } = await kbQuery.limit(kbLimits.practice_fetch_limit || 20);
       
       knowledgeData = kbData || [];
+      
+      // Plan #1: Filter knowledge base by section (لفظي/كمي)
+      if (sectionFilter && knowledgeData.length > 0) {
+        const sectionKeyword = sectionFilter === "لفظي" ? "القسم اللفظي" : "القسم الكمي";
+        const filteredKB = knowledgeData.filter(kb => 
+          kb.related_topics?.some((rt: string) => rt.includes(sectionKeyword))
+        );
+        
+        if (filteredKB.length > 0) {
+          knowledgeData = filteredKB;
+          console.log(`Filtered knowledge base to ${knowledgeData.length} ${sectionFilter} topics`);
+        } else {
+          console.warn(`No ${sectionFilter} topics found in KB, using all topics with strict prompting`);
+        }
+      }
       
       if (knowledgeData.length > 0) {
         // Extract topics from knowledge base
@@ -207,8 +223,8 @@ serve(async (req) => {
     const baseQuestions = questionCount || (isInitialAssessment ? 25 : defaultCount);
     const targetQuestions = Math.max(quizLimits.min_questions, Math.min(quizLimits.max_questions, baseQuestions));
     
-    // Phase 2: Add buffer to account for validation rejections (request 50% more)
-    const bufferMultiplier = 1.5;
+    // Plan #4: Increase buffer to 2.0 for better coverage
+    const bufferMultiplier = 2.0;
     const numQuestions = Math.ceil(targetQuestions * bufferMultiplier);
     
     const verbalQuestions = isInitialAssessment ? 13 : (questionCount ? Math.ceil(questionCount / 2) : 5);
@@ -275,16 +291,17 @@ ${filterPrompt}
     // Phase 3: Build system prompt with knowledge base topics as primary source
     let systemPrompt = systemPromptOverride ? `${systemPromptOverride}\n\n` : "";
     
-    // Add knowledge base topics instruction if available
+    // Plan #6: Add section-specific KB topics with strict instructions
     if (isPracticeMode && availableTopics.length > 0) {
       systemPrompt += `
-📚 **المواضيع المتاحة في قاعدة المعرفة:**
+📚 **المواضيع المتاحة في قاعدة المعرفة${sectionFilter ? ` (${sectionFilter} فقط)` : ''}:**
 ${availableTopics.map((topic, i) => `${i+1}. ${topic}`).join('\n')}
 
 ⚠️ **مهم جداً - قاعدة المعرفة هي المصدر الأساسي:**
 - جميع الأسئلة يجب أن تكون من المواضيع المذكورة أعلاه فقط
 - لا تولّد أسئلة خارج هذه المواضيع
 - استخدم المحتوى المعرفي المتوفر كمرجع أساسي
+${sectionFilter ? `- جميع الأسئلة يجب أن تكون ${sectionFilter} حصرياً` : ''}
 - يمكنك استخدام المواضيع المرتبطة: ${allRelatedTopics.join('، ')}
 
 `;
@@ -481,16 +498,47 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
                     items: {
                       type: "object",
                       properties: {
-                        question_text: { type: "string" },
-                        options: { type: "array", items: { type: "string" } },
-                        correct_answer: { type: "string" },
-                        explanation: { type: "string" },
-                        section: { type: "string" },
-                        subject: { type: "string" },
-                        question_type: { type: "string" },
-                        difficulty: { type: "string" }
+                        question_text: { 
+                          type: "string",
+                          description: "نص السؤال الكامل"
+                        },
+                        options: { 
+                          type: "array", 
+                          items: { type: "string" },
+                          description: "4 خيارات للإجابة"
+                        },
+                        correct_answer: { 
+                          type: "string",
+                          description: "الإجابة الصحيحة (يجب أن تكون من ضمن الخيارات)"
+                        },
+                        explanation: { 
+                          type: "string",
+                          description: "تفسير واضح للإجابة"
+                        },
+                        section: { 
+                          type: "string",
+                          description: "القسم: 'لفظي' أو 'كمي'",
+                          enum: ["لفظي", "كمي"]
+                        },
+                        subject: { 
+                          type: "string",
+                          description: "المادة أو الموضوع"
+                        },
+                        question_type: { 
+                          type: "string",
+                          description: "نوع السؤال (مثل: استيعاب المقروء، الجبر، إلخ)"
+                        },
+                        difficulty: { 
+                          type: "string",
+                          description: "مستوى الصعوبة",
+                          enum: ["easy", "medium", "hard"]
+                        },
+                        topic: {
+                          type: "string",
+                          description: "الموضوع المحدد من قاعدة المعرفة"
+                        }
                       },
-                      required: ["question_text", "options", "correct_answer", "explanation"]
+                      required: ["question_text", "options", "correct_answer", "explanation", "section", "question_type", "topic"]
                     }
                   }
                 },
@@ -603,10 +651,28 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
     const uniqueQuestions = questionsWithHash.filter(q => !usedHashes.has(q.question_hash));
     console.log(`Filtered to ${uniqueQuestions.length} unique questions (removed ${questionsWithHash.length - uniqueQuestions.length} duplicates)`);
     
-    // Phase 1: Validate section if sectionFilter is specified
-    let sectionFilteredQuestions = uniqueQuestions;
+    // Plan #3: Improved section detection with dynamic assignment
+    const mathKeywords = ['نسبة', 'معادلة', 'مجموع', 'مساحة', 'محيط', 'حجم', 'طول', 'عرض', 'ارتفاع', 'قطر', 'نصف قطر', 'زاوية', 'درجة', 'جذر', 'أس', 'كسر', 'ضرب', 'قسمة', 'جمع', 'طرح'];
+    
+    let sectionFilteredQuestions = uniqueQuestions.map((q: any) => {
+      // Auto-assign section if missing
+      if (!q.section && testType === "قدرات") {
+        const text = q.question_text?.toLowerCase() || "";
+        const hasNumbers = /\d/.test(text);
+        const hasMathWords = mathKeywords.some(kw => text.includes(kw));
+        
+        if (hasNumbers || hasMathWords) {
+          q.section = "كمي";
+        } else {
+          q.section = "لفظي";
+        }
+      }
+      return q;
+    });
+    
+    // Apply section filter
     if (sectionFilter === "كمي") {
-      sectionFilteredQuestions = uniqueQuestions.filter((q: any) => {
+      sectionFilteredQuestions = sectionFilteredQuestions.filter((q: any) => {
         const section = q.section?.toLowerCase() || "";
         const type = q.question_type?.toLowerCase() || "";
         const text = q.question_text?.toLowerCase() || "";
@@ -619,7 +685,8 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
                        type.includes("هندسة") ||
                        type.includes("إحصاء") ||
                        type.includes("رياضي") ||
-                       /\d/.test(text); // Contains numbers
+                       /\d/.test(text) ||
+                       mathKeywords.some(kw => text.includes(kw));
         
         if (!isQuant) {
           console.warn(`Rejected non-quantitative question: ${q.question_text.substring(0, 50)}...`);
@@ -628,18 +695,24 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       });
       console.log(`Section filter (كمي): ${sectionFilteredQuestions.length}/${uniqueQuestions.length} questions passed`);
     } else if (sectionFilter === "لفظي") {
-      sectionFilteredQuestions = uniqueQuestions.filter((q: any) => {
+      sectionFilteredQuestions = sectionFilteredQuestions.filter((q: any) => {
         const section = q.section?.toLowerCase() || "";
         const type = q.question_type?.toLowerCase() || "";
+        const text = q.question_text?.toLowerCase() || "";
         
-        // Check if it's truly a verbal question
-        const isVerbal = section.includes("لفظ") || 
-                        section.includes("لفظي") ||
-                        type.includes("استيعاب") || 
-                        type.includes("إكمال") || 
-                        type.includes("تناظر") ||
-                        type.includes("خطأ") ||
-                        type.includes("ارتباط");
+        // Plan #3: Improved verbal detection - no numbers and no math words
+        const hasNumbers = /\d/.test(text);
+        const hasMathWords = mathKeywords.some(kw => text.includes(kw));
+        
+        const isVerbal = (section.includes("لفظ") || 
+                         section.includes("لفظي") ||
+                         type.includes("استيعاب") || 
+                         type.includes("إكمال") || 
+                         type.includes("تناظر") ||
+                         type.includes("خطأ") ||
+                         type.includes("ارتباط")) && 
+                         !hasNumbers && 
+                         !hasMathWords;
         
         if (!isVerbal) {
           console.warn(`Rejected non-verbal question: ${q.question_text.substring(0, 50)}...`);
@@ -700,124 +773,238 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       validatedQuestions = topicFilteredQuestions;
     }
 
-    const minAcceptableQuestions = Math.floor(targetQuestions * (quizLimits.min_ratio || 0.6));
-    const minQuestions = isInitialAssessment ? 20 : minAcceptableQuestions;
-    const expectedQuestions = isInitialAssessment ? 25 : targetQuestions;
+    console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions (expected: ${targetQuestions}, min: ${targetQuestions})`);
     
-    console.log(`Validated ${validatedQuestions.length} out of ${allQuestions.length} questions (expected: ${expectedQuestions}, min: ${minQuestions})`);
+    // Plan #4: Guarantee exact number of questions
+    let finalQuestions = validatedQuestions.slice(0, targetQuestions);
+    let missing = targetQuestions - finalQuestions.length;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 3;
     
-    // Phase 2: Handle insufficient questions - Fill from database if needed
-    if (validatedQuestions.length < minQuestions) {
-      console.log(`Only ${validatedQuestions.length} validated, attempting to fill from questions_bank...`);
+    while (missing > 0 && attempts < MAX_ATTEMPTS) {
+      attempts++;
+      console.log(`Attempt ${attempts}: Need ${missing} more questions to reach ${targetQuestions}`);
       
-      // Try to fill from questions_bank with better matching
-      const needed = targetQuestions - validatedQuestions.length;
-      
-      let bankQuery = supabase
-        .from("questions_bank")
-        .select("*")
-        .eq("difficulty", actualDifficulty);
-      
-      // Apply section filter if specified
-      if (sectionFilter) {
-        bankQuery = bankQuery.eq("subject", sectionFilter);
-      } else {
-        bankQuery = bankQuery.eq("subject", testType === "قدرات" ? "قدرات" : track);
-      }
-      
-      const { data: bankQuestions } = await bankQuery.limit(needed * 3); // Request 3x to account for duplicates
-      
-      if (bankQuestions && bankQuestions.length > 0) {
-        const bankQuestionsFormatted = bankQuestions
-          .filter(q => {
-            // Check it's not a duplicate
-            const text = q.question_text?.trim().toLowerCase();
-            const isDuplicate = validatedQuestions.some(vq => vq.question_text?.trim().toLowerCase() === text);
-            
-            // Check topic matches if knowledge base filtering is active
-            if (!isDuplicate && availableTopics.length > 0 && isPracticeMode) {
-              const topic = q.topic?.toLowerCase() || "";
-              const matchesTopic = availableTopics.some(t => 
-                topic.includes(t.toLowerCase()) || 
-                allRelatedTopics.some(rt => topic.includes(rt.toLowerCase()))
-              );
-              return matchesTopic;
-            }
-            
-            return !isDuplicate;
-          })
-          .slice(0, needed)
-          .map(q => ({
-            question_text: q.question_text,
-            options: q.options || [],
-            correct_answer: q.correct_answer,
-            explanation: q.explanation || "لا يوجد تفسير متاح",
-            section: sectionFilter || (testType === "قدرات" ? "عام" : track),
-            subject: q.subject || "",
-            question_type: q.question_type || "multiple_choice",
-            difficulty: q.difficulty || actualDifficulty,
-            topic: q.topic || "",
-            question_hash: "" // Will be calculated later if needed
-          }));
+      // Step A: Try to fill from questions_bank with progressive relaxation
+      if (missing > 0) {
+        console.log(`Step A: Attempting to fill ${missing} questions from questions_bank...`);
         
-        validatedQuestions.push(...bankQuestionsFormatted);
-        console.log(`Added ${bankQuestionsFormatted.length} questions from questions_bank`);
-      }
-      
-      // If still not enough, try fallback with simpler model
-      if (validatedQuestions.length < Math.max(5, minQuestions * 0.6)) {
-        console.log("Still insufficient, attempting fallback generation with simpler model...");
-      const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt + "\n\n**IMPORTANT: Return EXACTLY " + expectedQuestions + " questions in valid JSON array format.**" }
-          ]
-        }),
-      });
-      
-      if (fallbackResponse.ok) {
-        const fallbackResult = await fallbackResponse.json();
-        const fallbackContent = fallbackResult.choices?.[0]?.message?.content;
-        if (fallbackContent) {
-          try {
-            const fallbackQuestions = JSON.parse(fallbackContent);
-            if (Array.isArray(fallbackQuestions) && fallbackQuestions.length >= 10) {
-              console.log(`Fallback generated ${fallbackQuestions.length} questions`);
-              return new Response(
-                JSON.stringify({
-                  questions: fallbackQuestions.slice(0, Math.min(fallbackQuestions.length, expectedQuestions)),
-                  dayNumber,
-                  contentTitle: content.title,
-                  testType,
-                  track
-                }),
-                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
-            }
-          } catch {}
+        // Try 1: Exact match (section + difficulty)
+        let bankQuery = supabase
+          .from("questions_bank")
+          .select("*");
+        
+        if (sectionFilter) {
+          bankQuery = bankQuery.eq("subject", sectionFilter);
+        }
+        bankQuery = bankQuery.eq("difficulty", actualDifficulty);
+        
+        const { data: exactMatch } = await bankQuery.limit(missing * 2);
+        
+        let bankQuestions = exactMatch || [];
+        
+        // Try 2: If not enough, relax difficulty constraint
+        if (bankQuestions.length < missing) {
+          console.log(`Only ${bankQuestions.length} exact matches, relaxing difficulty...`);
+          bankQuery = supabase
+            .from("questions_bank")
+            .select("*");
+          
+          if (sectionFilter) {
+            bankQuery = bankQuery.eq("subject", sectionFilter);
+          }
+          
+          const { data: relaxedMatch } = await bankQuery.limit(missing * 3);
+          bankQuestions = relaxedMatch || [];
+        }
+        
+        // Try 3: If still not enough, broaden to general قدرات
+        if (bankQuestions.length < missing && testType === "قدرات") {
+          console.log(`Still only ${bankQuestions.length}, broadening to general قدرات...`);
+          bankQuery = supabase
+            .from("questions_bank")
+            .select("*")
+            .eq("subject", "قدرات");
+          
+          const { data: broadMatch } = await bankQuery.limit(missing * 3);
+          bankQuestions = broadMatch || [];
+        }
+        
+        if (bankQuestions && bankQuestions.length > 0) {
+          const usedTexts = new Set(finalQuestions.map(q => q.question_text?.trim().toLowerCase()));
+          
+          const bankQuestionsFormatted = bankQuestions
+            .filter(q => {
+              const text = q.question_text?.trim().toLowerCase();
+              if (usedTexts.has(text)) return false;
+              
+              // Check topic matches if knowledge base filtering is active
+              if (availableTopics.length > 0 && isPracticeMode) {
+                const topic = q.topic?.toLowerCase() || "";
+                const matchesTopic = availableTopics.some(t => 
+                  topic.includes(t.toLowerCase()) || 
+                  allRelatedTopics.some(rt => topic.includes(rt.toLowerCase()))
+                );
+                return matchesTopic;
+              }
+              
+              return true;
+            })
+            .slice(0, missing)
+            .map(q => ({
+              question_text: q.question_text,
+              options: q.options || [],
+              correct_answer: q.correct_answer,
+              explanation: q.explanation || "لا يوجد تفسير متاح",
+              section: sectionFilter || q.subject || (testType === "قدرات" ? "عام" : track),
+              subject: q.subject || "",
+              question_type: q.question_type || "multiple_choice",
+              difficulty: q.difficulty || actualDifficulty,
+              topic: q.topic || "",
+              question_hash: "" // Will be calculated if needed
+            }));
+          
+          if (bankQuestionsFormatted.length > 0) {
+            finalQuestions.push(...bankQuestionsFormatted);
+            missing = targetQuestions - finalQuestions.length;
+            console.log(`Added ${bankQuestionsFormatted.length} from questions_bank. Still need: ${missing}`);
+          }
         }
       }
       
-      throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/${expectedQuestions}). الرجاء المحاولة مرة أخرى.`);
-      }
-    }
+      // Step B: If still missing, use AI top-up call
+      if (missing > 0 && attempts <= 2) {
+        console.log(`Step B: Requesting ${missing} top-up questions from AI (attempt ${attempts})...`);
+        
+        const topupPrompt = `قم بتوليد ${missing} سؤال ${sectionFilter || ''} بالضبط لإكمال الاختبار.
 
-    // Phase 2: Save generated questions to log
-    const finalQuestions = validatedQuestions.slice(0, expectedQuestions);
+⚠️ **مهم جداً:**
+- يجب توليد ${missing} سؤال فقط
+${sectionFilter ? `- جميع الأسئلة يجب أن تكون ${sectionFilter} حصرياً` : ''}
+${sectionFilter === "لفظي" ? `- لا أرقام نهائياً، لغة عربية فقط` : ''}
+${sectionFilter === "كمي" ? `- رياضيات فقط، كل سؤال يحتوي أرقام` : ''}
+${availableTopics.length > 0 ? `- المواضيع المتاحة فقط: ${availableTopics.join('، ')}` : ''}
+
+المواضيع: ${availableTopics.slice(0, 5).join('، ')}`;
+
+        try {
+          const topupResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-lite",
+              temperature: 0.8,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: topupPrompt }
+              ],
+              tools: [
+                {
+                  type: "function",
+                  function: {
+                    name: "generate_quiz",
+                    description: "Generate quiz questions",
+                    parameters: {
+                      type: "object",
+                      properties: {
+                        questions: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              question_text: { type: "string" },
+                              options: { type: "array", items: { type: "string" } },
+                              correct_answer: { type: "string" },
+                              explanation: { type: "string" },
+                              section: { type: "string", enum: ["لفظي", "كمي"] },
+                              subject: { type: "string" },
+                              question_type: { type: "string" },
+                              difficulty: { type: "string" },
+                              topic: { type: "string" }
+                            },
+                            required: ["question_text", "options", "correct_answer", "explanation", "section", "question_type", "topic"]
+                          }
+                        }
+                      },
+                      required: ["questions"]
+                    }
+                  }
+                }
+              ],
+              tool_choice: { 
+                type: "function", 
+                function: { name: "generate_quiz" } 
+              }
+            }),
+          });
+          
+          if (topupResponse.ok) {
+            const topupResult = await topupResponse.json();
+            const topupToolCall = topupResult.choices?.[0]?.message?.tool_calls?.[0];
+            
+            if (topupToolCall) {
+              const topupData = JSON.parse(topupToolCall.function.arguments);
+              let topupQuestions = topupData.questions || [];
+              
+              // Validate and filter
+              const usedTexts = new Set(finalQuestions.map(q => q.question_text?.trim().toLowerCase()));
+              
+              topupQuestions = topupQuestions
+                .filter((q: any) => {
+                  const text = q.question_text?.trim().toLowerCase();
+                  if (usedTexts.has(text)) return false;
+                  if (!q.question_text || !q.explanation) return false;
+                  if (!q.options || q.options.length !== 4) return false;
+                  if (!q.options.includes(q.correct_answer)) return false;
+                  
+                  // Section validation
+                  if (sectionFilter === "لفظي") {
+                    const hasNumbers = /\d/.test(q.question_text);
+                    if (hasNumbers) return false;
+                  } else if (sectionFilter === "كمي") {
+                    const hasNumbers = /\d/.test(q.question_text);
+                    if (!hasNumbers) return false;
+                  }
+                  
+                  return true;
+                })
+                .slice(0, missing);
+              
+              if (topupQuestions.length > 0) {
+                finalQuestions.push(...topupQuestions);
+                missing = targetQuestions - finalQuestions.length;
+                console.log(`AI top-up added ${topupQuestions.length} questions. Still need: ${missing}`);
+              }
+            }
+          }
+        } catch (topupError) {
+          console.error("Top-up call failed:", topupError);
+        }
+      }
+      
+      // Exit if we have enough
+      if (missing <= 0) break;
+    }
+    
+    // Final check and trim to exact count
+    finalQuestions = finalQuestions.slice(0, targetQuestions);
+    
+    if (finalQuestions.length < targetQuestions) {
+      console.error(`Failed to generate ${targetQuestions} questions after ${attempts} attempts. Got: ${finalQuestions.length}`);
+      throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${finalQuestions.length}/${targetQuestions}). الرجاء المحاولة مرة أخرى.`);
+    }
+    
+    console.log(`✅ Successfully generated exactly ${finalQuestions.length}/${targetQuestions} questions`);
     
     // Save to generated_questions_log with proper day_number
     const questionsToLog = finalQuestions.map((q: any) => ({
       user_id: user.id,
       question_hash: q.question_hash,
       question_data: q,
-      day_number: dayNumber || 0, // Default to 0 if not provided
+      day_number: dayNumber || 0,
     }));
     
     const { error: logError } = await supabase
@@ -827,26 +1014,18 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
     if (logError) {
       console.warn("Failed to log questions:", logError);
     } else {
-      console.log(`Logged ${questionsToLog.length} questions to database`);
+      console.log(`✅ Logged ${questionsToLog.length} questions to database`);
     }
 
-    // Phase 2: Return with warning if insufficient questions
-    const responseData: any = {
-      questions: finalQuestions,
-      dayNumber,
-      contentTitle: content.title,
-      testType,
-      track
-    };
-    
-    // Add warning if we couldn't get the requested number
-    if (finalQuestions.length < targetQuestions) {
-      responseData.warning = `تم توليد ${finalQuestions.length} سؤال فقط من أصل ${targetQuestions} المطلوبة`;
-      console.warn(`Warning: Only ${finalQuestions.length}/${targetQuestions} questions generated`);
-    }
-    
+    // Return successful response
     return new Response(
-      JSON.stringify(responseData),
+      JSON.stringify({
+        questions: finalQuestions,
+        dayNumber,
+        contentTitle: content.title,
+        testType,
+        track
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
