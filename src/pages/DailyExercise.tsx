@@ -122,6 +122,7 @@ const DailyExercise = () => {
         is_correct: selectedAnswers[index] === q.correct_answer,
       }));
 
+      // Save exercise to daily_exercises table
       await supabase.from("daily_exercises").insert([{
         user_id: profile?.id,
         day_number: dayNumber,

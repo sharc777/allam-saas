@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain } from "lucide-react";
+import { Brain, History } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -182,6 +182,17 @@ const NewDashboard = () => {
               )}
             </div>
           </div>
+
+          {/* Exercise History Button */}
+          <Button
+            onClick={() => navigate("/exercise-history")}
+            size="lg"
+            variant="outline"
+            className="fixed bottom-8 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+          >
+            <History className="w-6 h-6 ml-2" />
+            <span className="text-lg font-semibold">سجل التمارين</span>
+          </Button>
 
           {/* AI Tutor Button */}
           <Button

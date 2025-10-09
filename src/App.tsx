@@ -17,6 +17,8 @@ import Lesson from "./pages/Lesson";
 import PracticeQuiz from "./pages/PracticeQuiz";
 import InitialAssessment from "./pages/InitialAssessment";
 import Subscription from "./pages/Subscription";
+import ExerciseHistory from "./pages/ExerciseHistory";
+import ExerciseDetails from "./pages/ExerciseDetails";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +37,8 @@ const App = () => (
           <Route path="/dashboard" element={<NewDashboard />} />
           <Route path="/old-dashboard" element={<Dashboard />} />
           <Route path="/daily-exercise" element={<DailyExercise />} />
+          <Route path="/exercise-history" element={<ExerciseHistory />} />
+          <Route path="/exercise-details/:exerciseId" element={<ExerciseDetails />} />
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/practice-quiz" element={<PracticeQuiz />} />
           <Route path="/admin" element={<Admin />} />

@@ -146,6 +146,17 @@ serve(async (req) => {
     const verbalQuestions = isInitialAssessment ? 13 : (questionCount ? Math.ceil(questionCount / 2) : 5);
     const quantQuestions = isInitialAssessment ? 12 : (questionCount ? Math.floor(questionCount / 2) : 5);
     
+    // Fetch previous questions to avoid duplication (Phase 2)
+    const { data: previousQuestions } = await supabase
+      .from("generated_questions_log")
+      .select("question_hash")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    
+    const previousHashes = new Set(previousQuestions?.map(q => q.question_hash) || []);
+    console.log(`Found ${previousHashes.size} previous question hashes to avoid`);
+
     // Build context for the AI based on available content
     let contextPrompt = '';
     let filterPrompt = '';
@@ -195,7 +206,56 @@ ${filterPrompt}
     let systemPrompt = "";
 
     if (testType === "قدرات") {
-      systemPrompt = `أنت خبير في تصميم اختبار القدرات العامة (GAT) السعودي.
+      // Phase 1: Section-specific prompts
+      if (sectionFilter === "كمي") {
+        systemPrompt = `أنت خبير في تصميم القسم الكمي من اختبار القدرات العامة (GAT) السعودي.
+
+🔢 **القسم الكمي - رياضيات فقط:**
+${isInitialAssessment ? `الاختبار يتكون من 12 سؤال كمي:` : `الاختبار يتكون من 10 أسئلة كمي:`}
+
+**أنواع الأسئلة المطلوبة (رياضيات فقط):**
+1. الحساب: عمليات حسابية، نسب مئوية، تناسب، متوسطات
+2. الجبر: معادلات، متراجحات، أنماط، متتابعات
+3. الهندسة: زوايا، مثلثات، مساحات، محيطات، حجوم
+4. الإحصاء والاحتمالات: تحليل بيانات، رسوم بيانية، جداول
+5. مسائل منطقية: استنتاج وحل مسائل تطبيقية
+
+⚠️ **مهم جداً:** 
+- جميع الأسئلة يجب أن تكون رياضية فقط
+- لا أسئلة لفظية نهائياً
+- كل سؤال يحتوي على أرقام أو معادلات أو أشكال هندسية
+
+**معايير الجودة:**
+- أسئلة رياضية واضحة
+- خيارات عددية معقولة
+- مستوى: ${isPracticeMode ? "easy" : difficulty}
+${isPracticeMode ? "- تفسير رياضي مفصل لكل إجابة" : ""}`;
+      } else if (sectionFilter === "لفظي") {
+        systemPrompt = `أنت خبير في تصميم القسم اللفظي من اختبار القدرات العامة (GAT) السعودي.
+
+📝 **القسم اللفظي - لغة عربية فقط:**
+${isInitialAssessment ? `الاختبار يتكون من 13 سؤال لفظي:` : `الاختبار يتكون من 10 أسئلة لفظي:`}
+
+**أنواع الأسئلة المطلوبة (لغة عربية فقط):**
+1. استيعاب المقروء: نص قصير بالعربية + سؤال فهم
+2. إكمال الجمل: جملة عربية ناقصة + اختيار الكلمة المناسبة
+3. التناظر اللفظي: علاقة بين كلمتين عربيتين (ترادف، تضاد، جزء-كل، سبب-نتيجة)
+4. الخطأ السياقي: جملة عربية بها كلمة غير مناسبة للسياق
+5. الارتباط والاختلاف: تحديد الكلمة العربية المختلفة في المجموعة
+
+⚠️ **مهم جداً:**
+- جميع الأسئلة يجب أن تكون لغوية فقط
+- لا أسئلة كمية أو رياضية نهائياً
+- كل سؤال يختبر مهارات لغوية بالعربية
+
+**معايير الجودة:**
+- أسئلة لغوية واضحة
+- لغة عربية فصحى صحيحة
+- مستوى: ${isPracticeMode ? "easy" : difficulty}
+${isPracticeMode ? "- تفسير لغوي مفصل لكل إجابة" : ""}`;
+      } else {
+        // Mixed sections
+        systemPrompt = `أنت خبير في تصميم اختبار القدرات العامة (GAT) السعودي.
 
 📋 **هيكل الاختبار:**
 ${isInitialAssessment ? `الاختبار يتكون من 25 سؤالاً (13 لفظي + 12 كمي):` : `الاختبار يتكون من 10 أسئلة (5 لفظي + 5 كمي):`}
@@ -220,6 +280,7 @@ ${isInitialAssessment ? `الاختبار يتكون من 25 سؤالاً (13 ل
 - مستوى: ${isPracticeMode ? "easy" : difficulty}
 - لغة عربية فصحى صحيحة
 ${isPracticeMode ? "- تفسير تعليمي مفصل لكل إجابة (للتدريب)" : ""}`;
+      }
     } else if (testType === "تحصيلي" && track === "علمي") {
       systemPrompt = `أنت خبير في تصميم الاختبار التحصيلي العلمي (SAAT).
 
@@ -424,8 +485,77 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
 
     console.log(`Generated ${allQuestions.length} raw questions`);
     
+    // Phase 2: Calculate hash for each question and filter duplicates
+    const crypto = await import("https://deno.land/std@0.177.0/crypto/mod.ts");
+    
+    const questionsWithHash = await Promise.all(
+      allQuestions.map(async (q: any) => {
+        const questionText = q.question_text || "";
+        const encoder = new TextEncoder();
+        const data = encoder.encode(questionText);
+        const hashBuffer = await crypto.crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        return {
+          ...q,
+          question_hash: hashHex
+        };
+      })
+    );
+    
+    // Filter out duplicate questions
+    const uniqueQuestions = questionsWithHash.filter(q => !previousHashes.has(q.question_hash));
+    console.log(`Filtered to ${uniqueQuestions.length} unique questions (removed ${questionsWithHash.length - uniqueQuestions.length} duplicates)`);
+    
+    // Phase 1: Validate section if sectionFilter is specified
+    let sectionFilteredQuestions = uniqueQuestions;
+    if (sectionFilter === "كمي") {
+      sectionFilteredQuestions = uniqueQuestions.filter((q: any) => {
+        const section = q.section?.toLowerCase() || "";
+        const type = q.question_type?.toLowerCase() || "";
+        const text = q.question_text?.toLowerCase() || "";
+        
+        // Check if it's truly a quantitative question
+        const isQuant = section.includes("كمي") || 
+                       section.includes("كم") ||
+                       type.includes("حساب") || 
+                       type.includes("جبر") || 
+                       type.includes("هندسة") ||
+                       type.includes("إحصاء") ||
+                       type.includes("رياضي") ||
+                       /\d/.test(text); // Contains numbers
+        
+        if (!isQuant) {
+          console.warn(`Rejected non-quantitative question: ${q.question_text.substring(0, 50)}...`);
+        }
+        return isQuant;
+      });
+      console.log(`Section filter (كمي): ${sectionFilteredQuestions.length}/${uniqueQuestions.length} questions passed`);
+    } else if (sectionFilter === "لفظي") {
+      sectionFilteredQuestions = uniqueQuestions.filter((q: any) => {
+        const section = q.section?.toLowerCase() || "";
+        const type = q.question_type?.toLowerCase() || "";
+        
+        // Check if it's truly a verbal question
+        const isVerbal = section.includes("لفظ") || 
+                        section.includes("لفظي") ||
+                        type.includes("استيعاب") || 
+                        type.includes("إكمال") || 
+                        type.includes("تناظر") ||
+                        type.includes("خطأ") ||
+                        type.includes("ارتباط");
+        
+        if (!isVerbal) {
+          console.warn(`Rejected non-verbal question: ${q.question_text.substring(0, 50)}...`);
+        }
+        return isVerbal;
+      });
+      console.log(`Section filter (لفظي): ${sectionFilteredQuestions.length}/${uniqueQuestions.length} questions passed`);
+    }
+    
     // Validate questions quality
-    const validatedQuestions = allQuestions.filter((q: any) => {
+    const validatedQuestions = sectionFilteredQuestions.filter((q: any) => {
       // التحقق من أن كل سؤال لديه 4 خيارات مختلفة
       const uniqueOptions = new Set(q.options);
       if (uniqueOptions.size !== 4) {
@@ -514,10 +644,31 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       throw new Error(`عدد الأسئلة الصالحة غير كافٍ (${validatedQuestions.length}/${expectedQuestions}). الرجاء المحاولة مرة أخرى.`);
     }
 
+    // Phase 2: Save generated questions to log
+    const finalQuestions = validatedQuestions.slice(0, expectedQuestions);
+    
+    // Save to generated_questions_log
+    const questionsToLog = finalQuestions.map((q: any) => ({
+      user_id: user.id,
+      question_hash: q.question_hash,
+      question_data: q,
+      day_number: dayNumber || null,
+    }));
+    
+    const { error: logError } = await supabase
+      .from("generated_questions_log")
+      .insert(questionsToLog);
+    
+    if (logError) {
+      console.warn("Failed to log questions:", logError);
+    } else {
+      console.log(`Logged ${questionsToLog.length} questions to database`);
+    }
+
     // Success: return requested number of questions
     return new Response(
       JSON.stringify({
-        questions: validatedQuestions.slice(0, expectedQuestions),
+        questions: finalQuestions,
         dayNumber,
         contentTitle: content.title,
         testType,
