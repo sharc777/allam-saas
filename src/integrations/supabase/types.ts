@@ -130,6 +130,48 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_training_examples: {
+        Row: {
+          correct_answer: string
+          created_at: string | null
+          difficulty: Database["public"]["Enums"]["difficulty_level"] | null
+          explanation: string | null
+          id: string
+          options: Json
+          question_text: string
+          section: string
+          subject: string | null
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
+          explanation?: string | null
+          id?: string
+          options: Json
+          question_text: string
+          section: string
+          subject?: string | null
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
+          explanation?: string | null
+          id?: string
+          options?: Json
+          question_text?: string
+          section?: string
+          subject?: string | null
+          test_type?: Database["public"]["Enums"]["test_type"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       daily_content: {
         Row: {
           content_text: string | null
@@ -380,6 +422,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           current_day: number | null
+          daily_exercises_count: Json | null
           daily_quiz_count: number | null
           full_name: string
           id: string
@@ -401,6 +444,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           current_day?: number | null
+          daily_exercises_count?: Json | null
           daily_quiz_count?: number | null
           full_name: string
           id: string
@@ -424,6 +468,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           current_day?: number | null
+          daily_exercises_count?: Json | null
           daily_quiz_count?: number | null
           full_name?: string
           id?: string
@@ -722,6 +767,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_daily_count: {
+        Args: { p_section: string; p_user_id: string }
+        Returns: undefined
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean

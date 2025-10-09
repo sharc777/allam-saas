@@ -165,6 +165,17 @@ serve(async (req) => {
       }
     }
 
+    // Fetch previous question hashes to avoid duplicates
+    const { data: prevHashesData } = await supabase
+      .from("generated_questions_log")
+      .select("question_hash")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(500); // Increased limit to avoid more duplicates
+
+    const usedHashes = new Set(prevHashesData?.map(p => p.question_hash) || []);
+    console.log(`Found ${usedHashes.size} previous question hashes to avoid`);
+
     // Calculate question counts
     const actualDifficulty = isPracticeMode && !difficulty ? 'easy' : difficulty;
     
@@ -552,8 +563,8 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
       })
     );
     
-    // Filter out duplicate questions
-    const uniqueQuestions = questionsWithHash.filter(q => !previousHashes.has(q.question_hash));
+    // Filter out duplicate questions  
+    const uniqueQuestions = questionsWithHash.filter(q => !usedHashes.has(q.question_hash));
     console.log(`Filtered to ${uniqueQuestions.length} unique questions (removed ${questionsWithHash.length - uniqueQuestions.length} duplicates)`);
     
     // Phase 1: Validate section if sectionFilter is specified
@@ -717,12 +728,12 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
     // Phase 2: Save generated questions to log
     const finalQuestions = validatedQuestions.slice(0, expectedQuestions);
     
-    // Save to generated_questions_log
+    // Save to generated_questions_log with proper day_number
     const questionsToLog = finalQuestions.map((q: any) => ({
       user_id: user.id,
       question_hash: q.question_hash,
       question_data: q,
-      day_number: dayNumber || null,
+      day_number: dayNumber || 0, // Default to 0 if not provided
     }));
     
     const { error: logError } = await supabase

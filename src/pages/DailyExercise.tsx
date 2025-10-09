@@ -44,6 +44,29 @@ const DailyExercise = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<"easy" | "medium" | "hard">("medium");
 
   const generateExercise = async () => {
+    // Check daily limits first
+    try {
+      const { data: limitsData, error: limitsError } = await supabase.functions.invoke('check-daily-limits');
+      
+      if (limitsError) throw limitsError;
+      
+      if (!limitsData.can_exercise) {
+        toast({
+          title: "تم الوصول للحد الأقصى",
+          description: limitsData.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "معلومات الحدود",
+        description: limitsData.message,
+      });
+    } catch (limitErr) {
+      console.error('Limits check error:', limitErr);
+    }
+
     try {
       setLoading(true);
       
@@ -121,6 +144,18 @@ const DailyExercise = () => {
   };
 
   const submitExercise = async () => {
+    // Increment daily count first
+    if (profile) {
+      try {
+        await supabase.rpc('increment_daily_count', {
+          p_user_id: profile.id,
+          p_section: sectionType
+        });
+      } catch (countError) {
+        console.error('Failed to increment daily count:', countError);
+      }
+    }
+
     try {
       setLoading(true);
 
