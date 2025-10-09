@@ -119,29 +119,37 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
 
     const newRole = user.role === "admin" ? "student" : "admin";
     
-    const { error } = await supabase
-      .from("user_roles")
-      .upsert({
-        user_id: user.id,
-        role: newRole,
-      });
+    try {
+      // تحديث أو إضافة الصلاحية في user_roles
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert({
+          user_id: user.id,
+          role: newRole,
+        }, {
+          onConflict: 'user_id,role'
+        });
 
-    if (error) {
-      toast({
-        title: "❌ خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      await supabase
+      if (roleError) throw roleError;
+
+      // تحديث الـ profile
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({ role: newRole })
         .eq("id", user.id);
 
+      if (profileError) throw profileError;
+
       queryClient.invalidateQueries({ queryKey: ["all-users"] });
       toast({
         title: "✅ تم تغيير الصلاحية",
-        description: `تم تغيير الصلاحية إلى ${newRole}`,
+        description: `تم تغيير الصلاحية إلى ${newRole === "admin" ? "أدمن" : "طالب"}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "❌ خطأ في تغيير الصلاحية",
+        description: error.message,
+        variant: "destructive",
       });
     }
   };
