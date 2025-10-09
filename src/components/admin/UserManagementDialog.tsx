@@ -120,19 +120,21 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
     const newRole = user.role === "admin" ? "student" : "admin";
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('manage-roles', {
         body: {
           target_user_id: user.id,
           desired_role: newRole,
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
+        }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message || "Failed to update role");
+      }
+
+      if (!data || !data.success) {
+        throw new Error(data?.error || "Failed to update role");
+      }
 
       // Refresh lists
       queryClient.invalidateQueries({ queryKey: ["all-users"] });
@@ -142,9 +144,10 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
       });
       onClose();
     } catch (error: any) {
+      console.error("Error toggling role:", error);
       toast({
         title: "❌ خطأ في تغيير الصلاحية",
-        description: error.message,
+        description: error.message || "حدث خطأ أثناء تحديث الدور",
         variant: "destructive",
       });
     }

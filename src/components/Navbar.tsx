@@ -3,10 +3,25 @@ import { Link } from "react-router-dom";
 import { Menu, X, Target, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { signOut, user } = useAuth(false);
+
+  const { data: isAdmin } = useQuery({
+    queryKey: ['is-admin', user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return false;
+      const { data, error } = await supabase.rpc('is_admin', {
+        user_id: user.id
+      });
+      if (error) throw error;
+      return data;
+    }
+  });
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border">
@@ -32,9 +47,11 @@ const Navbar = () => {
                 <Link to="/dashboard" className="text-foreground hover:text-primary transition-smooth font-medium">
                   لوحة التحكم
                 </Link>
-                <Link to="/admin" className="text-foreground hover:text-primary transition-smooth font-medium">
-                  الإدارة
-                </Link>
+                {isAdmin && (
+                  <Link to="/admin" className="text-foreground hover:text-primary transition-smooth font-medium">
+                    الإدارة
+                  </Link>
+                )}
                 <Button variant="outline" onClick={signOut}>
                   <LogOut className="ml-2 h-4 w-4" />
                   تسجيل خروج
@@ -75,13 +92,15 @@ const Navbar = () => {
                 >
                   لوحة التحكم
                 </Link>
-                <Link
-                  to="/admin"
-                  className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
-                  onClick={() => setIsOpen(false)}
-                >
-                  الإدارة
-                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    الإدارة
+                  </Link>
+                )}
                 <Button className="w-full" variant="outline" onClick={signOut}>
                   <LogOut className="ml-2 h-4 w-4" />
                   تسجيل خروج

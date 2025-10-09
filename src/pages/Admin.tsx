@@ -12,22 +12,28 @@ import {
   Upload,
   Loader2,
   Edit,
-  Trash2
+  Trash2,
+  Shield
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { AIContentManager } from "@/components/admin/AIContentManager";
 import { UnifiedFileManager } from "@/components/admin/UnifiedFileManager";
 import { PackageManager } from "@/components/admin/PackageManager";
 import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Admin = () => {
-  const { loading } = useAuth(true);
+  const { user } = useAuth(true);
+  const { isAdmin, loading } = useAdminGuard();
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch statistics with caching
   const { data: studentsCount } = useQuery({
@@ -113,12 +119,61 @@ const Admin = () => {
     }
   });
 
+  const { data: adminsCount } = useQuery({
+    queryKey: ['admins-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('user_roles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'admin');
+      
+      if (error) throw error;
+      return count || 0;
+    }
+  });
+
+  const handleBootstrapAdmin = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-roles', {
+        body: {
+          target_user_id: user.id,
+          desired_role: 'admin'
+        }
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || "Failed to promote to admin");
+      }
+
+      toast({
+        title: "تم الترقية بنجاح",
+        description: "أنت الآن أدمن في النظام",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admins-count'] });
+    } catch (error: any) {
+      console.error("Error bootstrapping admin:", error);
+      toast({
+        title: "خطأ",
+        description: error.message || "حدث خطأ أثناء الترقية",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  if (!isAdmin) {
+    return null;
   }
   return (
     <div className="min-h-screen bg-background">
@@ -235,6 +290,17 @@ const Admin = () => {
 
             {/* Users Management */}
             <TabsContent value="users" className="space-y-6">
+              {adminsCount === 0 && (
+                <Alert className="border-warning bg-warning/10">
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>لا يوجد مديرين في النظام. قم بترقية نفسك لتصبح أول أدمن.</span>
+                    <Button onClick={handleBootstrapAdmin} size="sm" className="mr-4">
+                      ترقية نفسي لأدمن
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
               <Card className="border-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

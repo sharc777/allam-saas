@@ -22,8 +22,10 @@ serve(async (req) => {
   );
 
   try {
+    log('Request received');
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      log('Missing authorization header');
       return new Response(JSON.stringify({ error: "No authorization header" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
@@ -32,14 +34,17 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
 
     // Get operator (caller)
+    log('Getting user from token');
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData?.user) {
+      log('Unauthorized user', { error: userErr });
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
       });
     }
     const operatorId = userData.user.id;
+    log('Operator identified', { operatorId });
 
     const body = await req.json().catch(() => ({}));
     const { target_user_id, desired_role } = body as {
