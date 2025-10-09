@@ -27,3 +27,6 @@ verify_jwt = true
 [functions.decrement-trial-days]
 verify_jwt = true
 
+[functions.stripe-webhook]
+verify_jwt = false
+

@@ -6,12 +6,33 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { SubscriptionPageSkeleton } from "@/components/LoadingSkeleton";
 
 const Subscription = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const { subscribed, isLoading: subscriptionLoading } = useSubscription();
+
+  // Show success message if redirected from successful payment
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      toast({
+        title: "🎉 تم الاشتراك بنجاح!",
+        description: "مبروك! تم تفعيل اشتراكك ويمكنك الآن الوصول لجميع المحتوى",
+        duration: 5000,
+      });
+      // Clean URL
+      window.history.replaceState({}, '', '/subscription');
+    }
+  }, [toast]);
+
+  if (subscriptionLoading) {
+    return <SubscriptionPageSkeleton />;
+  }
 
   // Stripe price IDs من المنتجات التي أنشأناها
   const plans = [
@@ -73,8 +94,8 @@ const Subscription = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({
-          title: "يجب تسجيل الدخول",
-          description: "الرجاء تسجيل الدخول للاشتراك",
+          title: "⚠️ يجب تسجيل الدخول أولاً",
+          description: "للاشتراك في الخطة، يرجى تسجيل الدخول إلى حسابك",
           variant: "destructive",
         });
         navigate("/auth");
@@ -86,23 +107,33 @@ const Subscription = () => {
         body: { priceId },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Checkout error:", error);
+        throw new Error(error.message || "فشل إنشاء جلسة الدفع");
+      }
 
       if (data?.url) {
         // فتح صفحة الدفع في نافذة جديدة
         window.open(data.url, "_blank");
         
         toast({
-          title: "جاري التوجيه",
-          description: "تم فتح صفحة الدفع في نافذة جديدة. بعد إتمام الدفع، سيتم تحديث حالة الاشتراك تلقائياً.",
+          title: "✅ تم التوجيه بنجاح",
+          description: "تم فتح صفحة الدفع. بعد إتمام الدفع، سيتم تحديث اشتراكك تلقائياً خلال ثوانٍ.",
+          duration: 5000,
         });
+      } else {
+        throw new Error("لم يتم إرجاع رابط الدفع");
       }
     } catch (error) {
       console.error("Error creating checkout:", error);
+      const errorMessage = error instanceof Error ? error.message : "حدث خطأ غير متوقع";
       toast({
-        title: "خطأ",
-        description: "حدث خطأ أثناء إنشاء جلسة الدفع",
+        title: "❌ فشل إنشاء جلسة الدفع",
+        description: errorMessage.includes("STRIPE") 
+          ? "مشكلة في الاتصال بنظام الدفع. يرجى المحاولة مرة أخرى."
+          : errorMessage,
         variant: "destructive",
+        duration: 6000,
       });
     } finally {
       setLoadingPlan(null);

@@ -39,6 +39,7 @@ import { useAchievements } from "@/hooks/useAchievements";
 import { useQuizStats } from "@/hooks/useQuizStats";
 import { useAllProgress } from "@/hooks/useAllProgress";
 import { useSubscription } from "@/hooks/useSubscription";
+import { DashboardSkeleton } from "@/components/LoadingSkeleton";
 
 const Dashboard = () => {
   // All hooks MUST be called before any conditional returns
@@ -101,11 +102,7 @@ const Dashboard = () => {
   const isLoading = authLoading || profileLoading || contentLoading || progressLoading || achievementsLoading || quizLoading || allProgressLoading || subscriptionLoading;
   
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const MIN_PASSING_SCORE = 70;
@@ -186,21 +183,42 @@ const Dashboard = () => {
 
             {/* Trial Period Banner */}
             {!subscribed && !profile?.subscription_active && (profile?.trial_days || 0) > 0 && (
-              <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
+              <Card className={`bg-gradient-to-r border-primary/20 ${
+                (profile?.trial_days || 0) <= 2 
+                  ? 'from-destructive/10 via-destructive/5 to-background animate-pulse' 
+                  : 'from-primary/10 via-primary/5 to-background'
+              }`}>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-full bg-primary/20">
-                        <Sparkles className="w-6 h-6 text-primary" />
+                      <div className={`p-3 rounded-full ${
+                        (profile?.trial_days || 0) <= 2 ? 'bg-destructive/20' : 'bg-primary/20'
+                      }`}>
+                        <Sparkles className={`w-6 h-6 ${
+                          (profile?.trial_days || 0) <= 2 ? 'text-destructive' : 'text-primary'
+                        }`} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg">الفترة التجريبية المجانية</h3>
+                        <h3 className="font-bold text-lg">
+                          {(profile?.trial_days || 0) <= 2 ? '⚠️ تنبيه: الفترة التجريبية تقارب الانتهاء' : 'الفترة التجريبية المجانية'}
+                        </h3>
                         <p className="text-muted-foreground">
-                          لديك <span className="font-bold text-primary">{profile?.trial_days || 0} أيام</span> متبقية من الفترة التجريبية
+                          لديك <span className={`font-bold ${
+                            (profile?.trial_days || 0) <= 2 ? 'text-destructive' : 'text-primary'
+                          }`}>{profile?.trial_days || 0} {(profile?.trial_days || 0) === 1 ? 'يوم واحد' : 'أيام'}</span> متبقية من الفترة التجريبية
                         </p>
+                        {(profile?.trial_days || 0) <= 2 && (
+                          <p className="text-sm text-destructive font-medium mt-1">
+                            اشترك الآن لتستمر في الوصول للمحتوى بدون انقطاع!
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <Button variant="outline" onClick={() => navigate("/subscription")}>
+                    <Button 
+                      variant={(profile?.trial_days || 0) <= 2 ? "default" : "outline"} 
+                      onClick={() => navigate("/subscription")}
+                      className={(profile?.trial_days || 0) <= 2 ? 'animate-pulse' : ''}
+                    >
                       الاشتراك الآن
                     </Button>
                   </div>
