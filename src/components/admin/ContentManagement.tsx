@@ -118,6 +118,49 @@ export const ContentManagement = () => {
     },
   });
 
+  const addToKnowledgeBaseMutation = useMutation({
+    mutationFn: async (content: DailyContent) => {
+      // Extract main topics from content_text (first 3 lines or key phrases)
+      const topics = content.content_text
+        ?.split('\n')
+        .filter(line => line.trim())
+        .slice(0, 3) || [];
+
+      const { error } = await supabase
+        .from("knowledge_base")
+        .insert({
+          title: content.title,
+          content: content.content_text || "",
+          content_type: "text",
+          test_type: content.test_type,
+          track: content.track,
+          related_topics: [
+            ...topics,
+            content.test_type === "قدرات" ? "القسم الكمي" : "",
+            content.test_type === "قدرات" ? "القسم اللفظي" : "",
+          ].filter(Boolean),
+          is_active: true,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge-base"] });
+      toast({ 
+        title: "تمت الإضافة لقاعدة المعرفة", 
+        description: "يمكن للذكاء الاصطناعي الآن استخدام هذا المحتوى" 
+      });
+    },
+    onError: (error) => {
+      console.error("Error adding to knowledge base:", error);
+      toast({
+        title: "خطأ في الإضافة",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       title: "",
@@ -167,8 +210,13 @@ export const ContentManagement = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">إدارة المحتوى التعليمي</h2>
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold">إدارة المحتوى التعليمي</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            دروس وفيديوهات للطلاب (لا تُستخدم في توليد الأسئلة مباشرة)
+          </p>
+        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => { setEditingContent(null); resetForm(); }}>
@@ -337,6 +385,23 @@ export const ContentManagement = () => {
                 <p className="text-sm text-muted-foreground">المدة: {content.duration_minutes} دقيقة</p>
               </div>
               <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    if (confirm("إضافة هذا المحتوى لقاعدة معرفة الذكاء الاصطناعي؟")) {
+                      addToKnowledgeBaseMutation.mutate(content);
+                    }
+                  }}
+                  disabled={addToKnowledgeBaseMutation.isPending}
+                  title="إضافة لقاعدة المعرفة"
+                >
+                  {addToKnowledgeBaseMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileUp className="h-4 w-4" />
+                  )}
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => handleEdit(content)}>
                   <Edit className="h-4 w-4" />
                 </Button>

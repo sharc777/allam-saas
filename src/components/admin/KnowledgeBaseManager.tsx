@@ -203,6 +203,24 @@ export const KnowledgeBaseManager = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
+      {/* Info Banner */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <p className="font-semibold text-sm">📚 قاعدة المعرفة - معرفة الذكاء الاصطناعي</p>
+              <p className="text-xs text-muted-foreground">
+                هذه المواضيع يستخدمها الذكاء الاصطناعي في <code className="bg-muted px-1 py-0.5 rounded">generate-quiz</code> لإثراء السياق
+                عند توليد الأسئلة. كلما كان المحتوى أغنى، كانت الأسئلة أفضل وأكثر دقة.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Statistics */}
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
