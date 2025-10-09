@@ -35,6 +35,7 @@ export const KnowledgeBaseManager = () => {
   const [newTopic, setNewTopic] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "قدرات" | "تحصيلي">("all");
+  const [filterTrack, setFilterTrack] = useState<"all" | "عام" | "علمي" | "نظري">("all");
   const [filterSection, setFilterSection] = useState<"all" | "كمي" | "لفظي">("all");
   const [form, setForm] = useState<KBForm>({
     title: "",
@@ -170,18 +171,26 @@ export const KnowledgeBaseManager = () => {
     const matchesSearch = kb.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          kb.content?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === "all" || kb.test_type === filterType;
+    const matchesTrack = filterTrack === "all" || kb.track === filterTrack;
     const matchesSection = filterSection === "all" ||
-                          (filterSection === "كمي" && kb.content?.includes("كمي")) ||
-                          (filterSection === "لفظي" && kb.content?.includes("لفظي"));
-    return matchesSearch && matchesType && matchesSection;
+                          kb.related_topics?.some((t: string) => 
+                            (filterSection === "كمي" && t.includes("كمي")) ||
+                            (filterSection === "لفظي" && t.includes("لفظي"))
+                          );
+    return matchesSearch && matchesType && matchesTrack && matchesSection;
   });
 
   // Statistics
   const stats = {
     total: knowledgeBase?.length || 0,
-    quant: knowledgeBase?.filter(kb => kb.content?.includes("كمي")).length || 0,
-    verbal: knowledgeBase?.filter(kb => kb.content?.includes("لفظي")).length || 0,
+    qudurat: knowledgeBase?.filter(kb => kb.test_type === "قدرات").length || 0,
+    tahseeli: knowledgeBase?.filter(kb => kb.test_type === "تحصيلي").length || 0,
     active: knowledgeBase?.filter(kb => kb.is_active).length || 0,
+    byTrack: {
+      general: knowledgeBase?.filter(kb => kb.track === "عام").length || 0,
+      scientific: knowledgeBase?.filter(kb => kb.track === "علمي").length || 0,
+      literary: knowledgeBase?.filter(kb => kb.track === "نظري").length || 0,
+    }
   };
 
   if (isLoading) {
@@ -195,94 +204,168 @@ export const KnowledgeBaseManager = () => {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Statistics */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">إجمالي المواضيع</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">مواضيع كمي</p>
-                <p className="text-2xl font-bold">{stats.quant}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-green-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">مواضيع لفظي</p>
-                <p className="text-2xl font-bold">{stats.verbal}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-orange-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">مواضيع نشطة</p>
-                <p className="text-2xl font-bold">{stats.active}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+          <TabsTrigger value="tracks">حسب المسار</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="mt-4">
+          <div className="grid grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">إجمالي</p>
+                    <p className="text-2xl font-bold">{stats.total}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-secondary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">قدرات</p>
+                    <p className="text-2xl font-bold">{stats.qudurat}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">تحصيلي</p>
+                    <p className="text-2xl font-bold">{stats.tahseeli}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">نشط</p>
+                    <p className="text-2xl font-bold">{stats.active}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="tracks" className="mt-4">
+          <div className="grid grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">مسار عام</p>
+                    <p className="text-2xl font-bold">{stats.byTrack.general}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-secondary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">مسار علمي</p>
+                    <p className="text-2xl font-bold">{stats.byTrack.scientific}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">مسار نظري</p>
+                    <p className="text-2xl font-bold">{stats.byTrack.literary}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Filters and Add Button */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-2 flex-1">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="بحث في المواضيع..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pr-10"
-            />
-          </div>
-          <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل الأنواع</SelectItem>
-              <SelectItem value="قدرات">قدرات</SelectItem>
-              <SelectItem value="تحصيلي">تحصيلي</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterSection} onValueChange={(v: any) => setFilterSection(v)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل الأقسام</SelectItem>
-              <SelectItem value="كمي">كمي</SelectItem>
-              <SelectItem value="لفظي">لفظي</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-4 items-center justify-between">
+            <div className="flex gap-2 flex-1 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="بحث في المواضيع..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pr-10"
+                />
+              </div>
+              <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="نوع الاختبار" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الأنواع</SelectItem>
+                  <SelectItem value="قدرات">قدرات</SelectItem>
+                  <SelectItem value="تحصيلي">تحصيلي</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterTrack} onValueChange={(v: any) => setFilterTrack(v)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="المسار" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل المسارات</SelectItem>
+                  <SelectItem value="عام">عام</SelectItem>
+                  <SelectItem value="علمي">علمي</SelectItem>
+                  <SelectItem value="نظري">نظري</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterSection} onValueChange={(v: any) => setFilterSection(v)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="القسم" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الأقسام</SelectItem>
+                  <SelectItem value="كمي">كمي</SelectItem>
+                  <SelectItem value="لفظي">لفظي</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
         
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 ml-2" />
-              إضافة موضوع
-            </Button>
-          </DialogTrigger>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <Plus className="h-4 w-4 ml-2" />
+                  إضافة موضوع
+                </Button>
+              </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
             <DialogHeader>
               <DialogTitle>{form.id ? "تعديل موضوع" : "إضافة موضوع جديد"}</DialogTitle>
@@ -408,8 +491,10 @@ export const KnowledgeBaseManager = () => {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
-      </div>
+            </Dialog>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Topics List */}
       <div className="grid gap-4">
