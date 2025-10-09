@@ -428,6 +428,9 @@ export type Database = {
           id: string
           initial_assessment_completed: boolean | null
           last_quiz_date: string | null
+          package_end_date: string | null
+          package_id: string | null
+          package_start_date: string | null
           preferred_sections: Json | null
           role: Database["public"]["Enums"]["user_role"]
           streak_days: number | null
@@ -450,6 +453,9 @@ export type Database = {
           id: string
           initial_assessment_completed?: boolean | null
           last_quiz_date?: string | null
+          package_end_date?: string | null
+          package_id?: string | null
+          package_start_date?: string | null
           preferred_sections?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
@@ -474,6 +480,9 @@ export type Database = {
           id?: string
           initial_assessment_completed?: boolean | null
           last_quiz_date?: string | null
+          package_end_date?: string | null
+          package_id?: string | null
+          package_start_date?: string | null
           preferred_sections?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
@@ -488,7 +497,15 @@ export type Database = {
           updated_at?: string
           user_level?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_packages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       questions_bank: {
         Row: {
@@ -761,6 +778,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_packages: {
+        Row: {
+          created_at: string | null
+          description_ar: string | null
+          description_en: string | null
+          display_order: number | null
+          features: Json
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          limits: Json
+          name_ar: string
+          name_en: string | null
+          price_monthly: number | null
+          price_yearly: number | null
+          stripe_price_id_monthly: string | null
+          stripe_price_id_yearly: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description_ar?: string | null
+          description_en?: string | null
+          display_order?: number | null
+          features?: Json
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          limits?: Json
+          name_ar: string
+          name_en?: string | null
+          price_monthly?: number | null
+          price_yearly?: number | null
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description_ar?: string | null
+          description_en?: string | null
+          display_order?: number | null
+          features?: Json
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          limits?: Json
+          name_ar?: string
+          name_en?: string | null
+          price_monthly?: number | null
+          price_yearly?: number | null
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

@@ -18,6 +18,7 @@ import { ContentManagement } from "@/components/admin/ContentManagement";
 import { AIContentManager } from "@/components/admin/AIContentManager";
 import { ContentParser } from "@/components/admin/ContentParser";
 import { FileUploadManager } from "@/components/admin/FileUploadManager";
+import { PackageManager } from "@/components/admin/PackageManager";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -201,13 +202,14 @@ const Admin = () => {
 
           {/* Main Content Tabs */}
           <Tabs defaultValue="content" className="space-y-6" dir="rtl">
-            <TabsList className="grid w-full grid-cols-6 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-7 lg:w-auto">
               <TabsTrigger value="content">المحتوى</TabsTrigger>
-              <TabsTrigger value="parser">رفع PDF</TabsTrigger>
-              <TabsTrigger value="upload">📁 رفع ملفات</TabsTrigger>
-              <TabsTrigger value="ai">إدارة AI</TabsTrigger>
-              <TabsTrigger value="questions">الأسئلة</TabsTrigger>
-              <TabsTrigger value="users">المستخدمين</TabsTrigger>
+              <TabsTrigger value="parser">PDF</TabsTrigger>
+              <TabsTrigger value="upload">📁 ملفات</TabsTrigger>
+              <TabsTrigger value="ai">AI</TabsTrigger>
+              <TabsTrigger value="questions">أسئلة</TabsTrigger>
+              <TabsTrigger value="packages">💳 باقات</TabsTrigger>
+              <TabsTrigger value="users">مستخدمين</TabsTrigger>
             </TabsList>
 
             {/* Content Management */}
@@ -302,6 +304,11 @@ const Admin = () => {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* Packages Management */}
+            <TabsContent value="packages" className="space-y-6">
+              <PackageManager />
             </TabsContent>
 
             {/* Users Management */}
