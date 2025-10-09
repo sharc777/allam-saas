@@ -240,17 +240,18 @@ serve(async (req) => {
           items: {
             type: "object",
             properties: {
-              subject: { type: "string", enum: ["رياضيات", "فيزياء", "كيمياء", "أحياء"] },
+              section: { type: "string", description: "قسم السؤال أو المسار" },
+              subject: { type: "string" },
+              question_type: { type: "string" },
               question_text: { type: "string" },
               options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
               correct_answer: { type: "string" },
               explanation: { type: "string" },
-              grade_level: { type: "string", enum: ["أول_ثانوي", "ثاني_ثانوي", "ثالث_ثانوي"] }
+              grade_level: { type: "string" },
+              difficulty: { type: "string" }
             },
-            required: ["subject", "question_text", "options", "correct_answer", "explanation", "grade_level"]
-          },
-          minItems: isInitialAssessment ? 25 : 10,
-          maxItems: isInitialAssessment ? 25 : 10
+            required: ["question_text", "options", "correct_answer", "explanation"]
+          }
         }
       };
     } else if (testType === "تحصيلي" && track === "نظري") {
@@ -275,17 +276,18 @@ serve(async (req) => {
           items: {
             type: "object",
             properties: {
-              subject: { type: "string", enum: ["توحيد", "فقه", "حديث", "نحو", "بلاغة", "أدب", "تاريخ", "جغرافيا"] },
+              section: { type: "string", description: "قسم السؤال أو المسار" },
+              subject: { type: "string" },
+              question_type: { type: "string" },
               question_text: { type: "string" },
               options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
               correct_answer: { type: "string" },
               explanation: { type: "string" },
-              grade_level: { type: "string", enum: ["أول_ثانوي", "ثاني_ثانوي", "ثالث_ثانوي"] }
+              grade_level: { type: "string" },
+              difficulty: { type: "string" }
             },
-            required: ["subject", "question_text", "options", "correct_answer", "explanation", "grade_level"]
-          },
-          minItems: isInitialAssessment ? 25 : 10,
-          maxItems: isInitialAssessment ? 25 : 10
+            required: ["question_text", "options", "correct_answer", "explanation"]
+          }
         }
       };
     }
@@ -357,7 +359,7 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
               parameters: {
                 type: "object",
                 properties: questionStructure,
-                required: testType === "قدرات" ? ["verbal_questions", "quantitative_questions"] : ["questions"]
+                required: ["questions"]
               }
             }
           }
@@ -387,7 +389,10 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
         );
       }
 
-      throw new Error(`AI gateway error: ${response.status}`);
+      return new Response(
+        JSON.stringify({ error: `AI gateway error: ${response.status}`, details: errorText }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const result = await response.json();
@@ -402,29 +407,34 @@ ${testType === "تحصيلي" ? `- التوزيع المطلوب: 2 أسئلة �
     // تحويل البيانات حسب نوع الاختبار
     let allQuestions: any[] = [];
     
-    if (testType === "قدرات") {
-      // دمج الأسئلة اللفظية والكمية
+    if (Array.isArray(quizData.questions)) {
+      allQuestions = quizData.questions;
+    } else if (testType === "قدرات") {
       const verbalQuestions = quizData.verbal_questions?.map((q: any) => ({
         ...q,
         section: "لفظي",
         topic: q.question_type
       })) || [];
-      
       const quantQuestions = quizData.quantitative_questions?.map((q: any) => ({
         ...q,
         section: "كمي",
         topic: q.question_type
       })) || [];
-      
       allQuestions = [...verbalQuestions, ...quantQuestions];
     } else {
-      // أسئلة التحصيلي
       allQuestions = quizData.questions?.map((q: any) => ({
         ...q,
-        section: track,
-        topic: q.subject
+        section: q.section || track,
+        topic: q.topic || q.subject || q.question_type
       })) || [];
     }
+
+    // Normalize fields
+    allQuestions = allQuestions.map((q: any) => ({
+      ...q,
+      section: q.section || (testType === "قدرات" ? ((["استيعاب_المقروء","إكمال_الجمل","التناظر_اللفظي","الخطأ_السياقي","الارتباط_والاختلاف"]).includes(q.question_type) ? "لفظي" : "كمي") : track),
+      topic: q.topic || q.subject || q.question_type
+    }));
     
     // Validate questions quality
     const validatedQuestions = allQuestions.filter((q: any) => {
