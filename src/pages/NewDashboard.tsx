@@ -13,20 +13,24 @@ import { SectionCard } from "@/components/SectionCard";
 import { DayGrid } from "@/components/DayGrid";
 import { PerformanceStats } from "@/components/PerformanceStats";
 import { DashboardSkeleton } from "@/components/LoadingSkeleton";
+import { TestTypeDialog } from "@/components/TestTypeDialog";
 
 const NewDashboard = () => {
   const { loading: authLoading } = useAuth(true);
   const [showAIChat, setShowAIChat] = useState(false);
+  const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [selectedTestType, setSelectedTestType] = useState<"قدرات" | "تحصيلي">("قدرات");
+  const [selectedTrack, setSelectedTrack] = useState<"علمي" | "نظري" | "عام">("عام");
   const navigate = useNavigate();
 
   const { data: profile, isLoading: profileLoading } = useProfile();
 
-  // Redirect to test selection if no preferences set
+  // Show dialog for existing users without test type preference
   useEffect(() => {
     if (profile && !profile.test_type_preference) {
-      navigate("/test-selection");
+      setShowTypeDialog(true);
     }
-  }, [profile, navigate]);
+  }, [profile]);
 
   const testType = profile?.test_type_preference || "قدرات";
   const track = profile?.track_preference || "عام";
@@ -207,6 +211,17 @@ const NewDashboard = () => {
       </div>
 
       {showAIChat && <AITutor onClose={() => setShowAIChat(false)} />}
+      
+      {profile && (
+        <TestTypeDialog
+          open={showTypeDialog}
+          onComplete={() => {
+            setShowTypeDialog(false);
+            window.location.reload();
+          }}
+          userId={profile.id}
+        />
+      )}
     </div>
   );
 };

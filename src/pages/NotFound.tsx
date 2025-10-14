@@ -1,12 +1,33 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 
 const NotFound = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Redirect old routes to dashboard
+    const oldRoutes = [
+      '/test-selection',
+      '/initial-assessment',
+      '/old-dashboard',
+      '/quiz',
+      '/practice-quiz',
+      '/lesson',
+    ];
+    
+    const shouldRedirect = oldRoutes.some(route => 
+      location.pathname === route || location.pathname.startsWith(`${route}/`)
+    );
+    
+    if (shouldRedirect) {
+      console.log("Redirecting from old route:", location.pathname);
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
+  }, [location.pathname, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">

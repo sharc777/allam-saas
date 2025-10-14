@@ -13,6 +13,8 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [testType, setTestType] = useState<"قدرات" | "تحصيلي">("قدرات");
+  const [track, setTrack] = useState<"علمي" | "نظري" | "عام">("عام");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -53,6 +55,13 @@ const Auth = () => {
         
         toast.success("تم تسجيل الدخول بنجاح");
       } else {
+        // Validation for sign up
+        if (!fullName.trim()) {
+          toast.error("الرجاء إدخال الاسم الكامل");
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -60,6 +69,8 @@ const Auth = () => {
             emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
               full_name: fullName,
+              test_type_preference: testType,
+              track_preference: track,
             },
           },
         });
@@ -97,18 +108,85 @@ const Auth = () => {
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">الاسم الكامل</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="أدخل اسمك الكامل"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required={!isLogin}
-                  disabled={loading}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">الاسم الكامل</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="أدخل اسمك الكامل"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required={!isLogin}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>نوع الاختبار</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTestType("قدرات")}
+                      disabled={loading}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        testType === "قدرات"
+                          ? "border-primary bg-primary/10 text-primary font-semibold"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      قدرات
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestType("تحصيلي");
+                        setTrack("علمي");
+                      }}
+                      disabled={loading}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        testType === "تحصيلي"
+                          ? "border-primary bg-primary/10 text-primary font-semibold"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      تحصيلي
+                    </button>
+                  </div>
+                </div>
+
+                {testType === "تحصيلي" && (
+                  <div className="space-y-2">
+                    <Label>المسار</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTrack("علمي")}
+                        disabled={loading}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          track === "علمي"
+                            ? "border-primary bg-primary/10 text-primary font-semibold"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        علمي
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTrack("نظري")}
+                        disabled={loading}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          track === "نظري"
+                            ? "border-primary bg-primary/10 text-primary font-semibold"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        نظري
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="space-y-2">
