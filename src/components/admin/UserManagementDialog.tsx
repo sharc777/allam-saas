@@ -114,10 +114,27 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
     }
   };
 
+  // Fetch user's current role from user_roles table
+  const { data: userRoles } = useQuery({
+    queryKey: ["user-roles", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const isAdmin = userRoles?.some(r => r.role === "admin") ?? false;
+
   const toggleRole = async () => {
     if (!user) return;
 
-    const newRole = user.role === "admin" ? "student" : "admin";
+    const newRole = isAdmin ? "student" : "admin";
 
     try {
       const { data, error } = await supabase.functions.invoke('manage-roles', {
@@ -138,6 +155,7 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
 
       // Refresh lists
       queryClient.invalidateQueries({ queryKey: ["all-users"] });
+      queryClient.invalidateQueries({ queryKey: ["user-roles", user.id] });
       toast({
         title: "✅ تم تغيير الصلاحية",
         description: `تم تغيير الصلاحية إلى ${newRole === "admin" ? "أدمن" : "طالب"}`,
@@ -256,13 +274,13 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
             <h3 className="font-semibold text-lg">الصلاحيات</h3>
             
             <div className="flex items-center gap-4">
-              <p className="text-sm">الصلاحية الحالية: <strong>{user.role === "admin" ? "أدمن" : "طالب"}</strong></p>
+              <p className="text-sm">الصلاحية الحالية: <strong>{isAdmin ? "أدمن" : "طالب"}</strong></p>
               <Button
                 type="button"
                 variant="outline"
                 onClick={toggleRole}
               >
-                تحويل إلى {user.role === "admin" ? "طالب" : "أدمن"}
+                تحويل إلى {isAdmin ? "طالب" : "أدمن"}
               </Button>
             </div>
           </div>

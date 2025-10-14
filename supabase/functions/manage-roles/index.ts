@@ -76,9 +76,20 @@ serve(async (req) => {
 
     const operatorIsAdmin = (operatorAdminCount ?? 0) > 0;
 
-    // Bootstrap rule: if no admins at all, allow the caller to promote (self or others)
+    // Bootstrap rule: if no admins at all, require bootstrap secret
     if ((adminsCount ?? 0) === 0) {
-      log('Bootstrap mode: no admins found');
+      log('Bootstrap mode: no admins found, checking bootstrap secret');
+      const bootstrapSecret = req.headers.get('x-bootstrap-secret');
+      const expectedSecret = Deno.env.get('BOOTSTRAP_ADMIN_SECRET');
+      
+      if (!expectedSecret || bootstrapSecret !== expectedSecret) {
+        log('Bootstrap attempt denied: invalid or missing secret');
+        return new Response(JSON.stringify({ error: "Bootstrap secret required when no admins exist" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
+      log('Bootstrap mode: authorized with valid secret');
     } else if (!operatorIsAdmin) {
       return new Response(JSON.stringify({ error: "Forbidden: admin required" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -87,37 +98,24 @@ serve(async (req) => {
     }
 
     if (desired_role === 'admin') {
-      // Upsert admin role
+      // Upsert admin role in user_roles table ONLY
       const { error: upErr } = await supabase
         .from('user_roles')
         .upsert({ user_id: target_user_id, role: 'admin' }, { onConflict: 'user_id,role' });
       if (upErr) throw upErr;
-
-      // Update profile mirror for UI convenience
-      const { error: profErr } = await supabase
-        .from('profiles')
-        .update({ role: 'admin' })
-        .eq('id', target_user_id);
-      if (profErr) throw profErr;
 
       return new Response(JSON.stringify({ success: true, role: 'admin' }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     } else {
-      // Remove admin role (demote to student)
+      // Remove admin role (demote to student) from user_roles table ONLY
       const { error: delErr } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', target_user_id)
         .eq('role', 'admin');
       if (delErr) throw delErr;
-
-      const { error: profErr } = await supabase
-        .from('profiles')
-        .update({ role: 'student' })
-        .eq('id', target_user_id);
-      if (profErr) throw profErr;
 
       return new Response(JSON.stringify({ success: true, role: 'student' }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

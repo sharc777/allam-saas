@@ -432,7 +432,6 @@ export type Database = {
           package_id: string | null
           package_start_date: string | null
           preferred_sections: Json | null
-          role: Database["public"]["Enums"]["user_role"]
           streak_days: number | null
           subscription_active: boolean | null
           subscription_end_date: string | null
@@ -457,7 +456,6 @@ export type Database = {
           package_id?: string | null
           package_start_date?: string | null
           preferred_sections?: Json | null
-          role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
           subscription_active?: boolean | null
           subscription_end_date?: string | null
@@ -484,7 +482,6 @@ export type Database = {
           package_id?: string | null
           package_start_date?: string | null
           preferred_sections?: Json | null
-          role?: Database["public"]["Enums"]["user_role"]
           streak_days?: number | null
           subscription_active?: boolean | null
           subscription_end_date?: string | null

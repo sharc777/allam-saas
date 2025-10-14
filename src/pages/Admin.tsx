@@ -327,7 +327,6 @@ const Admin = () => {
                                 <Badge variant={user.subscription_active ? 'default' : 'secondary'}>
                                   {user.subscription_active ? 'مشترك' : `تجريبي (${user.trial_days} أيام)`}
                                 </Badge>
-                                <Badge variant="outline">{user.role === "admin" ? "أدمن" : "طالب"}</Badge>
                                 <Badge variant="outline">{user.test_type_preference}</Badge>
                               </div>
                             </div>
