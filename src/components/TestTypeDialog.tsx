@@ -37,11 +37,14 @@ export const TestTypeDialog = ({ open, onComplete, userId }: TestTypeDialogProps
       if (error) throw error;
 
       toast.success("تم حفظ تفضيلاتك بنجاح");
-      onComplete();
+      
+      // Reload to refresh profile data
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error) {
       console.error("Error saving preferences:", error);
       toast.error("حدث خطأ في حفظ التفضيلات");
-    } finally {
       setLoading(false);
     }
   };
@@ -50,9 +53,9 @@ export const TestTypeDialog = ({ open, onComplete, userId }: TestTypeDialogProps
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle className="text-2xl text-center">اختر نوع الاختبار</DialogTitle>
+          <DialogTitle className="text-2xl text-center">اختر نوع الاختبار المناسب لك</DialogTitle>
           <DialogDescription className="text-center">
-            لتخصيص تجربتك التعليمية، الرجاء اختيار نوع الاختبار
+            هذا سيساعدنا في تخصيص تمارينك اليومية حسب احتياجاتك
           </DialogDescription>
         </DialogHeader>
 
