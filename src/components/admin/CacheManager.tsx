@@ -27,13 +27,13 @@ export function CacheManager() {
       }
 
       const { data, error } = await supabase.functions.invoke('pre-generate-questions', {
-        body: { action: 'stats' },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+        body: { action: 'stats' }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Stats error:', error);
+        throw error;
+      }
       setStats(data.stats || {});
       
       toast({
@@ -71,13 +71,13 @@ export function CacheManager() {
       });
 
       const { data, error } = await supabase.functions.invoke('pre-generate-questions', {
-        body: { action: 'generate' },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+        body: { action: 'generate' }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Generate error:', error);
+        throw error;
+      }
 
       const totalGenerated = data.results?.reduce((sum: number, r: any) => sum + (r.cached || 0), 0) || 0;
       
@@ -106,13 +106,13 @@ export function CacheManager() {
       if (!session) return;
 
       const { error } = await supabase.functions.invoke('pre-generate-questions', {
-        body: { action: 'clean' },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+        body: { action: 'clean' }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Clean error:', error);
+        throw error;
+      }
       
       toast({
         title: "✅ تم التنظيف",
