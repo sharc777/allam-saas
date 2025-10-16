@@ -245,6 +245,19 @@ const DailyExerciseContent = () => {
         },
       });
 
+      // Award achievements
+      try {
+        await supabase.functions.invoke("award-achievements", {
+          body: {
+            user_id: profile.id,
+            event_type: "exercise_completed",
+            event_data: { score, total_questions: questions.length }
+          }
+        });
+      } catch (achievementErr) {
+        console.error('Failed to award achievements:', achievementErr);
+      }
+
       setShowResults(true);
     } catch (error: any) {
       console.error("❌ Error in submitExercise:", {

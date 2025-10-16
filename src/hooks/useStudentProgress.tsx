@@ -1,32 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export const useStudentProgress = (dayNumber?: number) => {
+export const useStudentProgress = (userId?: string) => {
   return useQuery({
-    queryKey: ["student-progress", dayNumber],
+    queryKey: ["student-progress", userId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
-
-      if (dayNumber) {
-        const { data, error } = await supabase
-          .from("student_progress")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("day_number", dayNumber)
-          .maybeSingle();
-
-        if (error) throw error;
-        return data;
-      }
+      const targetUserId = userId || (await supabase.auth.getUser()).data.user?.id;
+      if (!targetUserId) throw new Error("User not authenticated");
 
       const { data, error } = await supabase
         .from("student_progress")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", targetUserId);
 
       if (error) throw error;
       return data;
     },
+    enabled: !!userId || true,
   });
 };

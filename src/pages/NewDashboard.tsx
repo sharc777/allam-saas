@@ -1,8 +1,8 @@
 import Navbar from "@/components/Navbar";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, History } from "lucide-react";
+import { Brain, History, BookOpen } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -183,6 +183,17 @@ const NewDashboard = () => {
               )}
             </div>
           </div>
+
+          {/* Daily Content Button */}
+          <Button
+            onClick={() => navigate("/daily-content")}
+            size="lg"
+            variant="outline"
+            className="fixed bottom-24 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+          >
+            <BookOpen className="w-6 h-6 ml-2" />
+            <span className="text-lg font-semibold">المحتوى اليومي</span>
+          </Button>
 
           {/* Exercise History Button */}
           <Button

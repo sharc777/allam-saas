@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NewDashboard from "./pages/NewDashboard";
 import DailyExercise from "./pages/DailyExercise";
+import DailyContent from "./pages/DailyContent";
+import InitialAssessment from "./pages/InitialAssessment";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -28,6 +30,8 @@ const App = () => (
           <Route path="/subscription" element={<Subscription />} />
           <Route path="/dashboard" element={<NewDashboard />} />
           <Route path="/daily-exercise" element={<DailyExercise />} />
+          <Route path="/daily-content/:dayNumber?" element={<DailyContent />} />
+          <Route path="/initial-assessment" element={<InitialAssessment />} />
           <Route path="/exercise-history" element={<ExerciseHistory />} />
           <Route path="/exercise-details/:exerciseId" element={<ExerciseDetails />} />
           <Route path="/admin" element={<Admin />} />
