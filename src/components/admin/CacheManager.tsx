@@ -17,7 +17,7 @@ export function CacheManager() {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (!session?.access_token) {
         toast({
           title: "غير مصرح",
           description: "يجب تسجيل الدخول أولاً",
@@ -26,8 +26,10 @@ export function CacheManager() {
         return;
       }
 
+      const token = session.access_token;
       const { data, error } = await supabase.functions.invoke('pre-generate-questions', {
-        body: { action: 'stats' }
+        body: { action: 'stats' },
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (error) {
@@ -56,7 +58,7 @@ export function CacheManager() {
     setGenerating(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (!session?.access_token) {
         toast({
           title: "غير مصرح",
           description: "يجب تسجيل الدخول أولاً",
@@ -71,7 +73,8 @@ export function CacheManager() {
       });
 
       const { data, error } = await supabase.functions.invoke('pre-generate-questions', {
-        body: { action: 'generate' }
+        body: { action: 'generate' },
+        headers: { Authorization: `Bearer ${session.access_token}` }
       });
 
       if (error) {
@@ -103,10 +106,11 @@ export function CacheManager() {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session?.access_token) return;
 
       const { error } = await supabase.functions.invoke('pre-generate-questions', {
-        body: { action: 'clean' }
+        body: { action: 'clean' },
+        headers: { Authorization: `Bearer ${session.access_token}` }
       });
 
       if (error) {
