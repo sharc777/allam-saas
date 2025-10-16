@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Send, Loader2, X, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface Message {
   role: "user" | "assistant";
@@ -12,19 +14,93 @@ interface Message {
 
 interface AITutorProps {
   onClose: () => void;
+  mode?: "general" | "review_mistakes" | "focused_practice" | "instant_help";
+  initialQuestion?: any;
 }
 
-const AITutor = ({ onClose }: AITutorProps) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "مرحباً! أنا مساعدك الذكي. يمكنني مساعدتك في فهم أي مفهوم أو حل أي مسألة. كيف يمكنني مساعدتك اليوم؟",
-    },
-  ]);
+const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AITutorProps) => {
+  const [mode, setMode] = useState<"general" | "review_mistakes" | "focused_practice" | "instant_help">(initialMode);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch user profile for test type
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("test_type_preference")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch weakness data
+  const { data: weaknessData, isLoading: isLoadingWeakness } = useQuery({
+    queryKey: ["weakness-data", profile?.test_type_preference],
+    enabled: !!profile?.test_type_preference,
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-weaknesses`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            testType: profile?.test_type_preference || "قدرات",
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error("Failed to fetch weakness data");
+        return null;
+      }
+
+      return await response.json();
+    },
+  });
+
+  // Initialize welcome message based on mode
+  useEffect(() => {
+    if (messages.length === 0) {
+      let welcomeMessage = "";
+      
+      if (mode === "general") {
+        welcomeMessage = "مرحباً! أنا مدرسك الذكي الشخصي. ";
+        if (weaknessData?.weaknesses?.critical?.length > 0) {
+          welcomeMessage += `\n\nلاحظت أن لديك ${weaknessData.weaknesses.critical.length} نقطة ضعف تحتاج اهتماماً:\n`;
+          weaknessData.weaknesses.critical.slice(0, 3).forEach((w: any) => {
+            welcomeMessage += `• ${w.topic}\n`;
+          });
+          welcomeMessage += "\nيمكنني مساعدتك في أي منها. ماذا تريد أن نراجع؟";
+        } else {
+          welcomeMessage += "كيف يمكنني مساعدتك اليوم؟";
+        }
+      } else if (mode === "instant_help" && initialQuestion) {
+        welcomeMessage = `دعني أساعدك في حل هذا السؤال:\n\n${initialQuestion.question_text}\n\nلنبدأ معاً. ماذا تلاحظ في السؤال؟`;
+      } else {
+        welcomeMessage = "مرحباً! جاهز لمساعدتك. كيف يمكنني مساعدتك؟";
+      }
+      
+      setMessages([{ role: "assistant", content: welcomeMessage }]);
+    }
+  }, [mode, weaknessData, initialQuestion, messages.length]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -55,7 +131,12 @@ const AITutor = ({ onClose }: AITutorProps) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ 
+          messages: newMessages,
+          mode,
+          weaknessData,
+          currentQuestion: initialQuestion
+        }),
       });
 
       if (!response.ok) {
@@ -157,7 +238,7 @@ const AITutor = ({ onClose }: AITutorProps) => {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Brain className="w-6 h-6" />
-              المدرس الذكي
+              المدرس الذكي الشخصي
               <Sparkles className="w-5 h-5 animate-pulse" />
             </CardTitle>
             <Button
@@ -169,6 +250,70 @@ const AITutor = ({ onClose }: AITutorProps) => {
               <X className="w-5 h-5" />
             </Button>
           </div>
+          
+          {/* Mode Selector */}
+          <div className="flex gap-2 mt-4 flex-wrap" dir="rtl">
+            <Button
+              size="sm"
+              variant={mode === "general" ? "secondary" : "ghost"}
+              className={mode === "general" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/80 hover:bg-white/10"}
+              onClick={() => setMode("general")}
+            >
+              <BookOpen className="w-4 h-4 ml-2" />
+              محادثة عامة
+            </Button>
+            <Button
+              size="sm"
+              variant={mode === "review_mistakes" ? "secondary" : "ghost"}
+              className={mode === "review_mistakes" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/80 hover:bg-white/10"}
+              onClick={() => setMode("review_mistakes")}
+              disabled={!weaknessData?.repeatedMistakes?.length}
+            >
+              <AlertCircle className="w-4 h-4 ml-2" />
+              راجع أخطائي
+              {weaknessData?.repeatedMistakes?.length > 0 && (
+                <Badge variant="destructive" className="mr-1 bg-red-500">
+                  {weaknessData.repeatedMistakes.length}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant={mode === "focused_practice" ? "secondary" : "ghost"}
+              className={mode === "focused_practice" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/80 hover:bg-white/10"}
+              onClick={() => setMode("focused_practice")}
+            >
+              <Target className="w-4 h-4 ml-2" />
+              تدريب مركز
+            </Button>
+            {initialQuestion && (
+              <Button
+                size="sm"
+                variant={mode === "instant_help" ? "secondary" : "ghost"}
+                className={mode === "instant_help" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/80 hover:bg-white/10"}
+                onClick={() => setMode("instant_help")}
+              >
+                <HelpCircle className="w-4 h-4 ml-2" />
+                مساعدة فورية
+              </Button>
+            )}
+          </div>
+
+          {/* Weakness Summary */}
+          {weaknessData && !isLoadingWeakness && mode === "general" && weaknessData.weaknesses?.critical?.length > 0 && (
+            <div className="mt-3 p-3 bg-white/10 rounded-lg" dir="rtl">
+              <p className="text-sm text-primary-foreground/90 font-semibold mb-2">
+                📊 نقاط تحتاج تركيزاً:
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {weaknessData.weaknesses.critical.slice(0, 3).map((w: any, i: number) => (
+                  <Badge key={i} variant="destructive" className="bg-red-500/80">
+                    {w.topic} ({w.errorCount})
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="flex-1 overflow-hidden flex flex-col p-0">
