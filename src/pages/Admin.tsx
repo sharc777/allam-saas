@@ -23,6 +23,7 @@ import { UnifiedFileManager } from "@/components/admin/UnifiedFileManager";
 import { PackageManager } from "@/components/admin/PackageManager";
 import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
 import { CacheManager } from "@/components/admin/CacheManager";
+import { QuestionCachePreFiller } from "@/components/admin/QuestionCachePreFiller";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -287,6 +288,7 @@ const Admin = () => {
 
             {/* Cache Manager */}
             <TabsContent value="cache" className="space-y-6">
+              <QuestionCachePreFiller />
               <CacheManager />
             </TabsContent>
 

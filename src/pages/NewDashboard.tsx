@@ -13,6 +13,8 @@ import { SectionCard } from "@/components/SectionCard";
 import { DayGrid } from "@/components/DayGrid";
 import { PerformanceStats } from "@/components/PerformanceStats";
 import { DashboardSkeleton } from "@/components/LoadingSkeleton";
+import { TrialCountdown } from "@/components/TrialCountdown";
+import { ManageSubscription } from "@/components/ManageSubscription";
 
 const NewDashboard = () => {
   const { loading: authLoading } = useAuth(true);
@@ -162,6 +164,12 @@ const NewDashboard = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Trial Countdown */}
+              <TrialCountdown />
+
+              {/* Manage Subscription */}
+              <ManageSubscription />
+
               {/* Performance Stats */}
               {performance && (
                 <PerformanceStats

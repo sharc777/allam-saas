@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { SubscriptionGuard } from "@/components/SubscriptionGuard";
 
 interface Question {
   question_text: string;
@@ -24,6 +25,14 @@ interface Question {
 }
 
 const DailyExercise = () => {
+  return (
+    <SubscriptionGuard>
+      <DailyExerciseContent />
+    </SubscriptionGuard>
+  );
+};
+
+const DailyExerciseContent = () => {
   const [searchParams] = useSearchParams();
   const sectionType = searchParams.get("section") || "كمي";
   const testType = searchParams.get("testType") || "قدرات";
