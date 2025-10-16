@@ -2,7 +2,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, CheckCircle2, XCircle, Brain, Calendar, Clock } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ArrowRight, CheckCircle2, XCircle, Brain, Calendar, Clock, ListOrdered } from "lucide-react";
 import { useExerciseDetails } from "@/hooks/useExerciseHistory";
 import Navbar from "@/components/Navbar";
 import { useState } from "react";
@@ -26,6 +27,50 @@ const ExerciseDetails = () => {
   const { data: exercise, isLoading } = useExerciseDetails(exerciseId);
   const [showAITutor, setShowAITutor] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+
+  // Function to format explanation into steps
+  const formatExplanation = (text: string) => {
+    if (!text) return [];
+    
+    // Split by numbers followed by period or dash or numbered list patterns
+    const patterns = [
+      /(\d+[\.\):])/g,  // 1. or 1) or 1:
+      /([أ-ي][\.\)])/g, // أ. or أ)
+      /(الخطوة \d+)/gi,
+      /(أولاً|ثانياً|ثالثاً|رابعاً|خامساً)/gi,
+    ];
+    
+    let steps: string[] = [];
+    let remaining = text;
+    
+    // Try to split by common patterns
+    for (const pattern of patterns) {
+      const matches = remaining.match(pattern);
+      if (matches && matches.length > 1) {
+        steps = remaining.split(pattern).filter(s => s.trim());
+        break;
+      }
+    }
+    
+    // If no pattern found, try splitting by periods for long text
+    if (steps.length === 0) {
+      const sentences = remaining.split(/[\.!؟]\s+/);
+      if (sentences.length > 3) {
+        steps = sentences.filter(s => s.trim());
+      } else {
+        // Return as single paragraph
+        return [{ type: 'paragraph', content: text }];
+      }
+    }
+    
+    // Format steps with proper numbering
+    return steps
+      .map((step, idx) => {
+        const content = step.replace(/^[\d\.\)\:أ-ي\s]+/, '').trim();
+        return content ? { type: 'step', number: idx + 1, content } : null;
+      })
+      .filter(Boolean);
+  };
 
   if (isLoading) {
     return (
@@ -187,10 +232,44 @@ const ExerciseDetails = () => {
                       </div>
                     )}
 
-                    <div className="bg-muted/50 rounded-lg p-4">
-                      <p className="text-sm font-semibold mb-2">📖 الشرح:</p>
-                      <p className="text-sm leading-relaxed">{question.explanation}</p>
-                    </div>
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="explanation" className="border-none">
+                        <AccordionTrigger className="bg-primary/5 hover:bg-primary/10 rounded-lg px-4 py-3 hover:no-underline transition-colors">
+                          <div className="flex items-center gap-2 text-right w-full">
+                            <ListOrdered className="w-4 h-4 text-primary" />
+                            <span className="font-semibold text-primary">الشرح التفصيلي</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="bg-muted/30 rounded-b-lg px-4 pt-4 pb-2">
+                          {(() => {
+                            const formattedSteps = formatExplanation(question.explanation);
+                            
+                            if (formattedSteps.length === 0 || formattedSteps[0]?.type === 'paragraph') {
+                              return (
+                                <p className="text-sm leading-relaxed text-foreground/90">
+                                  {question.explanation}
+                                </p>
+                              );
+                            }
+                            
+                            return (
+                              <ol className="space-y-3">
+                                {formattedSteps.map((step: any, idx: number) => (
+                                  <li key={idx} className="flex gap-3 text-sm">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                                      {step.number}
+                                    </span>
+                                    <span className="flex-1 leading-relaxed pt-0.5 text-foreground/90">
+                                      {step.content}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ol>
+                            );
+                          })()}
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
 
                     <Button
                       variant="outline"
