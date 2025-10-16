@@ -54,7 +54,6 @@ async function generateQuestionsWithAI(
   });
 
   const model = aiSettings.quiz_model?.model || "google/gemini-2.5-flash";
-  const temperature = aiSettings.quiz_generation_temperature?.temperature || 0.7;
 
   // Build knowledge context
   const knowledgeContext = knowledgeBase.length > 0
@@ -74,63 +73,100 @@ async function generateQuestionsWithAI(
 - جودة عالية ومناسبة للمستوى المحدد
 - خيارات واضحة ومحددة
 
-${knowledgeContext}
+${knowledgeContext}`;
 
-## صيغة JSON المطلوبة:
-\`\`\`json
-{
-  "questions": [
-    {
-      "question_text": "نص السؤال",
-      "options": ["أ. الخيار 1", "ب. الخيار 2", "ج. الخيار 3", "د. الخيار 4"],
-      "correct_answer": "أ",
-      "explanation": "الشرح",
-      "difficulty": "${config.difficulty}",
-      "topic": "الموضوع"
-    }
-  ]
-}
-\`\`\``;
-
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { 
-          role: "user", 
-          content: `ولّد ${config.count} سؤال ${config.difficulty} للقسم ${config.section}` 
+  const requestBody: any = {
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { 
+        role: "user", 
+        content: `ولّد ${config.count} سؤال ${config.difficulty} للقسم ${config.section}` 
+      }
+    ],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "generate_quiz",
+          description: `Generate ${config.count} quiz questions`,
+          parameters: {
+            type: "object",
+            properties: {
+              questions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    question_text: { type: "string" },
+                    options: { 
+                      type: "array",
+                      items: { type: "string" },
+                      minItems: 4,
+                      maxItems: 4
+                    },
+                    correct_answer: { type: "string" },
+                    explanation: { type: "string" },
+                    difficulty: { type: "string" },
+                    topic: { type: "string" }
+                  },
+                  required: ["question_text", "options", "correct_answer", "explanation", "difficulty", "topic"],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ["questions"],
+            additionalProperties: false
+          }
         }
-      ],
-    }),
-  });
+      }
+    ],
+    tool_choice: { type: "function", function: { name: "generate_quiz" } }
+  };
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("AI Gateway Error:", response.status, errorText);
-    throw new Error(`AI generation failed: ${response.status}`);
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI Gateway Error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error("تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.");
+      }
+      if (response.status === 402) {
+        throw new Error("يرجى إضافة رصيد إلى Lovable AI.");
+      }
+      
+      throw new Error(`AI generation failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (!toolCall?.function?.arguments) {
+      console.error("No tool call in response:", data);
+      return [];
+    }
+
+    const parsed = JSON.parse(toolCall.function.arguments);
+    return parsed.questions || [];
+    
+  } catch (error) {
+    console.error("Error generating with AI:", error);
+    if (error instanceof SyntaxError) {
+      console.error("JSON parse error - returning empty array");
+      return [];
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  const content = data.choices[0].message.content;
-
-  // Parse JSON from response
-  const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
-                    content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
-  
-  if (!jsonMatch) {
-    console.error("No JSON found in response:", content);
-    return [];
-  }
-
-  const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
-  return parsed.questions || [];
 }
 
 async function cacheQuestions(
@@ -143,19 +179,10 @@ async function cacheQuestions(
   for (const question of questions) {
     const questionHash = generateQuestionHash(question);
     
-    // Check if already exists
-    const { data: existing } = await supabase
-      .from("questions_cache")
-      .select("id")
-      .eq("question_hash", questionHash)
-      .maybeSingle();
-
-    if (existing) continue;
-
-    // Insert into cache
+    // Upsert with conflict handling on question_hash
     const { error } = await supabase
       .from("questions_cache")
-      .insert({
+      .upsert({
         test_type: config.test_type,
         section: config.section,
         difficulty: config.difficulty,
@@ -163,6 +190,9 @@ async function cacheQuestions(
         question_data: question,
         question_hash: questionHash,
         is_used: false
+      }, {
+        onConflict: 'question_hash',
+        ignoreDuplicates: true
       });
 
     if (!error) cached++;
@@ -265,33 +295,46 @@ if (req.method === 'OPTIONS') {
       const results = [];
 
       for (const config of generationConfigs) {
-        console.log(`Generating for ${config.test_type}/${config.section}/${config.difficulty}...`);
+        try {
+          console.log(`Generating for ${config.test_type}/${config.section}/${config.difficulty}...`);
 
-        // Load knowledge base
-        const { data: knowledgeBase } = await supabase
-          .from("knowledge_base")
-          .select("title, content")
-          .eq("test_type", config.test_type)
-          .eq("is_active", true)
-          .limit(5);
+          // Load knowledge base
+          const { data: knowledgeBase } = await supabase
+            .from("knowledge_base")
+            .select("title, content")
+            .eq("test_type", config.test_type)
+            .eq("is_active", true)
+            .limit(5);
 
-        // Generate questions
-        const questions = await generateQuestionsWithAI(
-          supabase,
-          config,
-          knowledgeBase || []
-        );
+          // Generate questions
+          const questions = await generateQuestionsWithAI(
+            supabase,
+            config,
+            knowledgeBase || []
+          );
 
-        // Cache them
-        const cached = await cacheQuestions(supabase, questions, config);
+          // Cache them
+          const cached = await cacheQuestions(supabase, questions, config);
 
-        results.push({
-          config,
-          generated: questions.length,
-          cached
-        });
+          results.push({
+            config,
+            generated: questions.length,
+            cached,
+            success: true
+          });
 
-        console.log(`✓ Cached ${cached}/${questions.length} questions`);
+          console.log(`✓ Cached ${cached}/${questions.length} questions`);
+          
+        } catch (error) {
+          console.error(`Error for ${config.test_type}/${config.section}/${config.difficulty}:`, error);
+          results.push({
+            config,
+            generated: 0,
+            cached: 0,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
       }
 
       // Get updated stats

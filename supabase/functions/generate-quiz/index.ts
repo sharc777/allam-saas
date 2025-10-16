@@ -61,8 +61,14 @@ async function fetchFromCache(
     return [];
   }
   
+  // Shuffle to randomize selection
+  const shuffled = cachedQuestions.sort(() => Math.random() - 0.5);
+  
+  // Take only what we need
+  const selected = shuffled.slice(0, targetCount);
+  
   // Reserve these questions
-  const questionIds = cachedQuestions.map((q: any) => q.id);
+  const questionIds = selected.map((q: any) => q.id);
   await supabase
     .from('questions_cache')
     .update({ 
@@ -71,10 +77,10 @@ async function fetchFromCache(
     })
     .in('id', questionIds);
   
-  console.log(`✅ Cache hit: ${cachedQuestions.length} questions`);
+  console.log(`✅ Cache hit: ${selected.length} questions (shuffled from ${cachedQuestions.length})`);
   
   // Convert to quiz format
-  return cachedQuestions.map((q: any) => ({
+  return selected.map((q: any) => ({
     ...q.question_data,
     question_hash: q.question_hash
   }));

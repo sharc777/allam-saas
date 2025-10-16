@@ -44,12 +44,21 @@ export function CacheManager() {
       });
     } catch (error: any) {
       console.error('Error fetching stats:', error);
+      
+      let message = error?.message || "فشل جلب الإحصائيات";
+      if (error?.context?.status === 429) {
+        message = "تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.";
+      } else if (error?.context?.status === 402) {
+        message = "يرجى إضافة رصيد إلى Lovable AI من إعدادات المشروع.";
+      }
+      
       const details =
-        (error?.context?.status ? `status ${error.context.status}` : '') +
-        (error?.context?.body ? ` | ${typeof error.context.body === 'string' ? error.context.body : JSON.stringify(error.context.body)}` : '');
+        (error?.context?.status ? `[${error.context.status}]` : '') +
+        (error?.context?.body ? ` ${typeof error.context.body === 'string' ? error.context.body : JSON.stringify(error.context.body)}` : '');
+      
       toast({
         title: "خطأ",
-        description: `${error?.message || "فشل جلب الإحصائيات"}${details ? " | " + details : ""}`,
+        description: `${message}${details ? " | " + details : ""}`,
         variant: "destructive"
       });
     } finally {
@@ -95,12 +104,21 @@ export function CacheManager() {
       });
     } catch (error: any) {
       console.error('Error generating questions:', error);
+      
+      let message = error?.message || "فشل توليد الأسئلة";
+      if (error?.context?.status === 429) {
+        message = "تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.";
+      } else if (error?.context?.status === 402) {
+        message = "يرجى إضافة رصيد إلى Lovable AI من إعدادات المشروع.";
+      }
+      
       const details =
-        (error?.context?.status ? `status ${error.context.status}` : '') +
-        (error?.context?.body ? ` | ${typeof error.context.body === 'string' ? error.context.body : JSON.stringify(error.context.body)}` : '');
+        (error?.context?.status ? `[${error.context.status}]` : '') +
+        (error?.context?.body ? ` ${typeof error.context.body === 'string' ? error.context.body : JSON.stringify(error.context.body)}` : '');
+      
       toast({
         title: "خطأ",
-        description: `${error?.message || "فشل توليد الأسئلة"}${details ? " | " + details : ""}`,
+        description: `${message}${details ? " | " + details : ""}`,
         variant: "destructive"
       });
     } finally {
