@@ -113,6 +113,219 @@ async function loadAISettings(supabase: any) {
   };
 }
 
+function extractConcept(questionText: string): string {
+  const numbers = (questionText.match(/\d+/g) || []).length;
+  const hasPercentage = questionText.includes('%') || questionText.includes('نسبة');
+  const hasFractions = questionText.includes('/');
+  const hasSqrt = questionText.includes('√') || questionText.includes('جذر');
+  const hasGeometry = /مساحة|محيط|حجم|زاوية/.test(questionText);
+  
+  return `nums:${numbers}_pct:${hasPercentage}_frac:${hasFractions}_sqrt:${hasSqrt}_geo:${hasGeometry}`;
+}
+
+async function generateWithExplicitDiversity(
+  apiKey: string,
+  missing: number,
+  systemPrompt: string,
+  params: any,
+  usedConcepts: Set<string>
+) {
+  const { sectionFilter, availableTopics } = params;
+  
+  const conceptsList = Array.from(usedConcepts).slice(0, 5).join('، ');
+  
+  const diversityPrompt = `قم بتوليد ${missing} سؤال ${sectionFilter || ''} جديد **مختلف تماماً** عن الأسئلة السابقة.
+
+⚠️ **متطلبات التنوع الإلزامية**:
+- استخدم أرقاماً مختلفة تماماً (تجنب التشابه مع: ${conceptsList})
+- استخدم سياقات جديدة متنوعة (تسوق، سفر، رياضة، دراسة، طبخ، بناء)
+- نوّع صيغة السؤال (مباشر، مسألة قصة، مقارنة، استنتاجي)
+- اخلط مستويات الصعوبة (سهل، متوسط، صعب)
+${availableTopics.length > 0 ? `- ركز على المواضيع: ${availableTopics.slice(0, 3).join('، ')}` : ''}
+
+🚫 **ممنوع منعاً باتاً**:
+- تكرار نفس البنية أو الأرقام
+- استخدام نفس السياق
+- أسئلة متشابهة في الفكرة`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        temperature: 0.95,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: diversityPrompt }
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "generate_quiz",
+            parameters: {
+              type: "object",
+              properties: {
+                questions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      question_text: { type: "string" },
+                      options: { type: "array", items: { type: "string" } },
+                      correct_answer: { type: "string" },
+                      explanation: { type: "string" },
+                      section: { type: "string" },
+                      subject: { type: "string" },
+                      question_type: { type: "string" },
+                      difficulty: { type: "string" },
+                      topic: { type: "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }],
+        tool_choice: { type: "function", function: { name: "generate_quiz" } }
+      }),
+    });
+    
+    if (!response.ok) return [];
+    
+    const result = await response.json();
+    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) return [];
+    
+    const data = JSON.parse(toolCall.function.arguments);
+    return (data.questions || []).slice(0, missing);
+  } catch (error) {
+    console.error("Explicit diversity generation failed:", error);
+    return [];
+  }
+}
+
+function validateQuestionQuality(questions: any[]): any[] {
+  return questions.filter((q: any) => {
+    if (!q.question_text || !q.explanation) return false;
+    if (!q.options || q.options.length !== 4) return false;
+    if (!q.options.includes(q.correct_answer)) return false;
+    
+    const uniqueOptions = new Set(q.options);
+    if (uniqueOptions.size !== 4) return false;
+    
+    const questionLength = q.question_text.length;
+    const explanationLength = q.explanation.length;
+    
+    if (questionLength < 20 || questionLength > 600) return false;
+    if (explanationLength < 30) return false;
+    
+    if (q.section === "كمي") {
+      if (!/\d/.test(q.question_text)) return false;
+    } else if (q.section === "لفظي") {
+      const numberCount = (q.question_text.match(/\d+/g) || []).length;
+      if (numberCount > 2) return false;
+    }
+    
+    if (!['easy', 'medium', 'hard'].includes(q.difficulty)) {
+      q.difficulty = 'medium';
+    }
+    
+    return true;
+  });
+}
+
+async function ensureDiversity(
+  questions: any[],
+  usedHashes: Set<string>,
+  params: any
+): Promise<any[]> {
+  const { supabase, userId, targetQuestions, LOVABLE_API_KEY, systemPrompt, sectionFilter, availableTopics } = params;
+  
+  const uniqueQuestions = questions.filter(q => !usedHashes.has(q.question_hash));
+  console.log(`After hash filter: ${uniqueQuestions.length}/${questions.length}`);
+  
+  const diverseQuestions = [];
+  const seenConcepts = new Set<string>();
+  
+  for (const q of uniqueQuestions) {
+    const concept = extractConcept(q.question_text);
+    if (!seenConcepts.has(concept)) {
+      diverseQuestions.push(q);
+      seenConcepts.add(concept);
+    }
+  }
+  
+  console.log(`After concept diversity: ${diverseQuestions.length}/${uniqueQuestions.length}`);
+  
+  if (diverseQuestions.length < targetQuestions) {
+    const missing = targetQuestions - diverseQuestions.length;
+    console.log(`Generating ${missing} more with explicit diversity...`);
+    
+    const additionalQuestions = await generateWithExplicitDiversity(
+      LOVABLE_API_KEY,
+      missing,
+      systemPrompt,
+      { sectionFilter, availableTopics },
+      seenConcepts
+    );
+    
+    const validAdditional = validateQuestionQuality(additionalQuestions);
+    const additionalWithHash = await calculateQuestionHashes(validAdditional);
+    const uniqueAdditional = additionalWithHash.filter(q => !usedHashes.has(q.question_hash));
+    
+    diverseQuestions.push(...uniqueAdditional);
+    console.log(`Added ${uniqueAdditional.length} from explicit diversity generation`);
+  }
+  
+  return diverseQuestions.slice(0, targetQuestions);
+}
+
+async function logGenerationAnalytics(
+  supabase: any,
+  params: any
+): Promise<void> {
+  const { 
+    userId, 
+    questionsGenerated, 
+    questionsUnique,
+    diversityScore,
+    qualityScore,
+    generationTime,
+    model,
+    temperature 
+  } = params;
+  
+  try {
+    await supabase.from('ai_generation_analytics').insert({
+      user_id: userId,
+      questions_generated: questionsGenerated,
+      questions_unique: questionsUnique,
+      diversity_score: diversityScore,
+      quality_score: qualityScore,
+      generation_time_ms: generationTime,
+      model_used: model,
+      temperature: temperature
+    });
+  } catch (error) {
+    console.warn("Failed to log analytics:", error);
+  }
+}
+
+function generateDistribution(total: number, subSkills: string[]): string {
+  if (subSkills.length === 0) return `- ${total} سؤال متنوع`;
+  
+  const perSkill = Math.floor(total / subSkills.length);
+  const remainder = total % subSkills.length;
+  
+  return subSkills
+    .map((skill, i) => `- ${perSkill + (i < remainder ? 1 : 0)} سؤال عن: ${skill}`)
+    .join('\n');
+}
+
 function buildSystemPrompt(params: any) {
   const { testType, sectionFilter, targetQuestions, difficulty, availableTopics, allRelatedTopics, systemPromptOverride, isPractice } = params;
   
@@ -145,31 +358,46 @@ function buildSystemPrompt(params: any) {
 }
 
 function buildUserPrompt(params: any) {
-  const { mode, testType, targetQuestions, content, additionalKnowledge, sectionFilter, isInitialAssessment } = params;
+  const { mode, testType, targetQuestions, content, additionalKnowledge, sectionFilter, isInitialAssessment, knowledgeData } = params;
   
-  if (mode === 'practice' || isInitialAssessment) {
-    return `قم بتوليد ${targetQuestions} سؤال ${sectionFilter || ''} بناءً على المنهج:
-${additionalKnowledge}
+  const templates = knowledgeData?.flatMap((kb: any) => kb.metadata?.templates || []) || [];
+  const variations = knowledgeData?.flatMap((kb: any) => kb.metadata?.variation_strategies || []) || [];
+  const subSkills = knowledgeData?.flatMap((kb: any) => kb.metadata?.sub_skills || []) || [];
+  
+  let prompt = `قم بتوليد ${targetQuestions} سؤال ${sectionFilter || ''} بناءً على ${mode === 'practice' || isInitialAssessment ? 'المنهج' : 'المحتوى'}:
 
-⚠️ **متطلبات:**
-${sectionFilter ? `- ${targetQuestions} سؤال ${sectionFilter} فقط` : '- أسئلة متنوعة'}
-- كل سؤال له 4 خيارات مختلفة
-- الإجابة الصحيحة من ضمن الخيارات
-- تفسير واضح ومفيد`;
+📚 **المحتوى المعرفي:**
+${mode === 'practice' || isInitialAssessment ? additionalKnowledge : `${content.title}\n${content.content_text || ""}\n${additionalKnowledge}`}`;
+
+  if (templates.length > 0) {
+    prompt += `\n\n🎯 **قوالب الأسئلة المتاحة** (استخدم كل قالب بتنويع مختلف):
+${templates.slice(0, 5).map((t: any, i: number) => `${i+1}. ${t.pattern || t}`).join('\n')}`;
   }
-  
-  return `قم بتوليد ${targetQuestions} سؤال ${sectionFilter || ''} من المحتوى:
 
-📚 **المحتوى:**
-${content.title}
-${content.content_text || ""}
-${additionalKnowledge}
+  if (variations.length > 0) {
+    prompt += `\n\n🔄 **استراتيجيات التنوع** (طبّق على كل سؤال):
+${variations.slice(0, 5).map((v: any, i: number) => `${i+1}. ${v}`).join('\n')}`;
+  }
 
-⚠️ **متطلبات:**
-${sectionFilter ? `- ${targetQuestions} سؤال ${sectionFilter} فقط` : ''}
-- أسئلة واضحة ومباشرة
-- 4 خيارات مختلفة لكل سؤال
-- تفسير تعليمي مفصل`;
+  if (subSkills.length > 0) {
+    prompt += `\n\n📊 **توزيع الأسئلة المطلوب**:
+${generateDistribution(targetQuestions, subSkills)}`;
+  }
+
+  prompt += `\n\n⚠️ **متطلبات إلزامية**:
+- ${targetQuestions} سؤال مختلف تماماً
+- كل سؤال يستخدم أرقاماً وسياقاً مختلفاً
+- نوّع مستوى الصعوبة (${Math.floor(targetQuestions * 0.3)} سهل، ${Math.floor(targetQuestions * 0.5)} متوسط، ${Math.floor(targetQuestions * 0.2)} صعب)
+${sectionFilter ? `- جميع الأسئلة ${sectionFilter} فقط` : '- أسئلة متنوعة'}
+- 4 خيارات مختلفة لكل سؤال (الخيارات يجب أن تكون معقولة وليست واضحة الخطأ)
+- تفسير تعليمي مفصل يشرح الحل خطوة بخطوة ويربط بالمهارة الأساسية
+
+🚫 **ممنوع**:
+- تكرار نفس الأرقام أو السياق
+- أسئلة متشابهة في البنية
+- خيارات واضحة الخطأ أو سهلة الاستبعاد`;
+
+  return prompt;
 }
 
 async function generateWithAI(apiKey: string, systemPrompt: string, userPrompt: string, model: string, temp: number) {
@@ -468,10 +696,11 @@ serve(async (req) => {
     });
     const userPrompt = buildUserPrompt({ 
       mode, testType, targetQuestions, content, additionalKnowledge, 
-      sectionFilter, isInitialAssessment 
+      sectionFilter, isInitialAssessment, knowledgeData 
     });
     
     // 5. Generate questions with AI
+    const startTime = Date.now();
     let allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, quizTemp);
     console.log(`🤖 AI generated: ${allQuestions.length} questions`);
     
@@ -480,19 +709,38 @@ serve(async (req) => {
     let uniqueQuestions = questionsWithHash.filter(q => !usedHashes.has(q.question_hash));
     console.log(`✅ Unique: ${uniqueQuestions.length}/${allQuestions.length}`);
     
-    // 7. Filter by section and validate
+    // 7. Validate quality first
+    uniqueQuestions = validateQuestionQuality(uniqueQuestions);
+    console.log(`✅ Quality validated: ${uniqueQuestions.length}`);
+    
+    // 8. Filter by section
     uniqueQuestions = filterBySection(uniqueQuestions, sectionFilter, testType);
     uniqueQuestions = validateQuestions(uniqueQuestions);
-    console.log(`✅ Valid: ${uniqueQuestions.length}`);
+    console.log(`✅ Section filtered: ${uniqueQuestions.length}`);
     
-    // 8. Fill missing questions (single attempt)
-    let finalQuestions = uniqueQuestions.slice(0, targetQuestions);
+    // 9. Apply diversity engine
+    console.log(`🎨 Applying diversity engine...`);
+    const diverseQuestions = await ensureDiversity(
+      uniqueQuestions,
+      usedHashes,
+      {
+        supabase,
+        userId: user.id,
+        targetQuestions,
+        LOVABLE_API_KEY,
+        systemPrompt,
+        sectionFilter,
+        availableTopics
+      }
+    );
+    
+    // 10. Fill missing questions if needed
+    let finalQuestions = diverseQuestions;
     let missing = targetQuestions - finalQuestions.length;
     
     if (missing > 0) {
-      console.log(`⚠️ Missing ${missing} questions, filling...`);
+      console.log(`⚠️ Missing ${missing} questions, filling from bank...`);
       
-      // Try question bank first
       const bankQuestions = await fillFromQuestionBank(supabase, missing, {
         sectionFilter, difficulty, testType, availableTopics, allRelatedTopics, isPractice
       });
@@ -500,27 +748,46 @@ serve(async (req) => {
       missing = targetQuestions - finalQuestions.length;
       console.log(`📦 Added ${bankQuestions.length} from bank, still need: ${missing}`);
       
-      // Single AI top-up if needed
       if (missing > 0) {
         const topupQuestions = await topupWithAI(LOVABLE_API_KEY, missing, systemPrompt, {
           sectionFilter, availableTopics
         });
-        const validTopup = validateQuestions(topupQuestions).slice(0, missing);
+        const validTopup = validateQuestionQuality(validateQuestions(topupQuestions)).slice(0, missing);
         finalQuestions.push(...validTopup);
         console.log(`🔝 Added ${validTopup.length} from AI top-up`);
       }
     }
     
-    // 9. Final check
+    // 11. Final check
     finalQuestions = finalQuestions.slice(0, targetQuestions);
     if (finalQuestions.length < targetQuestions) {
       throw new Error(`عدد الأسئلة غير كافٍ (${finalQuestions.length}/${targetQuestions})`);
     }
     
-    console.log(`✅ Success: ${finalQuestions.length}/${targetQuestions} questions`);
+    const generationTime = Date.now() - startTime;
+    console.log(`✅ Success: ${finalQuestions.length}/${targetQuestions} questions in ${generationTime}ms`);
     
-    // 10. Log questions
-    await logQuestions(supabase, user.id, finalQuestions, dayNumber);
+    // 12. Calculate analytics metrics
+    const uniqueCount = new Set(finalQuestions.map(q => q.question_hash)).size;
+    const diversityScore = (uniqueCount / finalQuestions.length) * 100;
+    const qualityScore = (finalQuestions.length / allQuestions.length) * 100;
+    
+    // 13. Log questions and analytics
+    await Promise.all([
+      logQuestions(supabase, user.id, finalQuestions, dayNumber),
+      logGenerationAnalytics(supabase, {
+        userId: user.id,
+        questionsGenerated: allQuestions.length,
+        questionsUnique: uniqueCount,
+        diversityScore: Math.round(diversityScore),
+        qualityScore: Math.round(qualityScore),
+        generationTime,
+        model: quizModel,
+        temperature: quizTemp
+      })
+    ]);
+    
+    console.log(`📊 Analytics: Diversity=${diversityScore.toFixed(1)}%, Quality=${qualityScore.toFixed(1)}%`);
     
     // 11. Return response
     return new Response(
