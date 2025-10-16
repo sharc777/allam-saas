@@ -45,3 +45,6 @@ verify_jwt = false
 [functions.manage-roles]
 verify_jwt = true
 
+[functions.analyze-weaknesses]
+verify_jwt = true
+
