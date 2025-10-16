@@ -44,9 +44,12 @@ export function CacheManager() {
       });
     } catch (error: any) {
       console.error('Error fetching stats:', error);
+      const details =
+        (error?.context?.status ? `status ${error.context.status}` : '') +
+        (error?.context?.body ? ` | ${typeof error.context.body === 'string' ? error.context.body : JSON.stringify(error.context.body)}` : '');
       toast({
         title: "خطأ",
-        description: error.message || "فشل جلب الإحصائيات",
+        description: `${error?.message || "فشل جلب الإحصائيات"}${details ? " | " + details : ""}`,
         variant: "destructive"
       });
     } finally {
@@ -92,9 +95,12 @@ export function CacheManager() {
       });
     } catch (error: any) {
       console.error('Error generating questions:', error);
+      const details =
+        (error?.context?.status ? `status ${error.context.status}` : '') +
+        (error?.context?.body ? ` | ${typeof error.context.body === 'string' ? error.context.body : JSON.stringify(error.context.body)}` : '');
       toast({
         title: "خطأ",
-        description: error.message || "فشل توليد الأسئلة",
+        description: `${error?.message || "فشل توليد الأسئلة"}${details ? " | " + details : ""}`,
         variant: "destructive"
       });
     } finally {
@@ -125,9 +131,13 @@ export function CacheManager() {
       
       await fetchStats();
     } catch (error: any) {
+      console.error('Error cleaning cache:', error);
+      const details =
+        (error?.context?.status ? `status ${error.context.status}` : '') +
+        (error?.context?.body ? ` | ${typeof error.context.body === 'string' ? error.context.body : JSON.stringify(error.context.body)}` : '');
       toast({
         title: "خطأ",
-        description: error.message,
+        description: `${error?.message || "فشل تنظيف الذاكرة"}${details ? " | " + details : ""}`,
         variant: "destructive"
       });
     } finally {
