@@ -3,6 +3,9 @@ project_id = "pwjoxhvadzwabozxrkpc"
 [functions.ai-tutor]
 verify_jwt = true
 
+[functions.pre-generate-questions]
+verify_jwt = true
+
 [functions.check-daily-limits]
 verify_jwt = true
 

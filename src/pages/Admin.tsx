@@ -22,6 +22,7 @@ import { AIContentManager } from "@/components/admin/AIContentManager";
 import { UnifiedFileManager } from "@/components/admin/UnifiedFileManager";
 import { PackageManager } from "@/components/admin/PackageManager";
 import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
+import { CacheManager } from "@/components/admin/CacheManager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -264,6 +265,7 @@ const Admin = () => {
               <TabsTrigger value="content">📚 المحتوى</TabsTrigger>
               <TabsTrigger value="files">📁 الملفات</TabsTrigger>
               <TabsTrigger value="ai">🤖 AI</TabsTrigger>
+              <TabsTrigger value="cache">⚡ ذاكرة الأسئلة</TabsTrigger>
               <TabsTrigger value="packages">💳 الباقات</TabsTrigger>
               <TabsTrigger value="users">👥 المستخدمين</TabsTrigger>
             </TabsList>
@@ -281,6 +283,11 @@ const Admin = () => {
             {/* AI Settings */}
             <TabsContent value="ai" className="space-y-6">
               <AIContentManager />
+            </TabsContent>
+
+            {/* Cache Manager */}
+            <TabsContent value="cache" className="space-y-6">
+              <CacheManager />
             </TabsContent>
 
             {/* Packages Management */}

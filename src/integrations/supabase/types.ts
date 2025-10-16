@@ -612,6 +612,51 @@ export type Database = {
         }
         Relationships: []
       }
+      questions_cache: {
+        Row: {
+          created_at: string | null
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          id: string
+          is_used: boolean | null
+          question_data: Json
+          question_hash: string
+          reserved_at: string | null
+          reserved_by: string | null
+          section: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          track: Database["public"]["Enums"]["academic_track"] | null
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          id?: string
+          is_used?: boolean | null
+          question_data: Json
+          question_hash: string
+          reserved_at?: string | null
+          reserved_by?: string | null
+          section: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty_level"]
+          id?: string
+          is_used?: boolean | null
+          question_data?: Json
+          question_hash?: string
+          reserved_at?: string | null
+          reserved_by?: string | null
+          section?: string
+          test_type?: Database["public"]["Enums"]["test_type"]
+          track?: Database["public"]["Enums"]["academic_track"] | null
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       quiz_results: {
         Row: {
           completed_at: string
@@ -966,6 +1011,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clean_expired_cache_reservations: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

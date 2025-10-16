@@ -8,6 +8,133 @@ const corsHeaders = {
 
 // ============= HELPER FUNCTIONS =============
 
+// Simple hash function (faster than SHA-256)
+function simpleHash(text: string): string {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+// ============= CACHE FUNCTIONS =============
+
+async function fetchFromCache(
+  supabase: any,
+  targetCount: number,
+  params: {
+    testType: string;
+    section: string;
+    difficulty: string;
+    track: string;
+    userId: string;
+  }
+): Promise<any[]> {
+  const { testType, section, difficulty, track, userId } = params;
+  
+  console.log(`🔍 Checking cache: ${testType}/${section}/${difficulty}/${track}`);
+  
+  // Clean expired reservations first
+  await supabase.rpc('clean_expired_cache_reservations');
+  
+  // Fetch from cache with reservation
+  const { data: cachedQuestions, error } = await supabase
+    .from('questions_cache')
+    .select('*')
+    .eq('test_type', testType)
+    .eq('section', section)
+    .eq('difficulty', difficulty)
+    .eq('track', track)
+    .eq('is_used', false)
+    .is('reserved_by', null)
+    .limit(targetCount);
+  
+  if (error) {
+    console.error('Cache fetch error:', error);
+    return [];
+  }
+  
+  if (!cachedQuestions || cachedQuestions.length === 0) {
+    console.log('❌ Cache miss - no questions available');
+    return [];
+  }
+  
+  // Reserve these questions
+  const questionIds = cachedQuestions.map((q: any) => q.id);
+  await supabase
+    .from('questions_cache')
+    .update({ 
+      reserved_by: userId, 
+      reserved_at: new Date().toISOString() 
+    })
+    .in('id', questionIds);
+  
+  console.log(`✅ Cache hit: ${cachedQuestions.length} questions`);
+  
+  // Convert to quiz format
+  return cachedQuestions.map((q: any) => ({
+    ...q.question_data,
+    question_hash: q.question_hash
+  }));
+}
+
+async function markCacheAsUsed(supabase: any, questions: any[]): Promise<void> {
+  const hashes = questions
+    .map(q => q.question_hash)
+    .filter(h => h);
+  
+  if (hashes.length === 0) return;
+  
+  await supabase
+    .from('questions_cache')
+    .update({ 
+      is_used: true, 
+      used_at: new Date().toISOString() 
+    })
+    .in('question_hash', hashes);
+  
+  console.log(`✅ Marked ${hashes.length} cache questions as used`);
+}
+
+async function checkCacheStatus(
+  supabase: any,
+  params: {
+    testType: string;
+    section: string;
+    difficulty: string;
+    track: string;
+  }
+): Promise<{ available: number; total: number }> {
+  const { testType, section, difficulty, track } = params;
+  
+  const [availableResult, totalResult] = await Promise.all([
+    supabase
+      .from('questions_cache')
+      .select('id', { count: 'exact', head: true })
+      .eq('test_type', testType)
+      .eq('section', section)
+      .eq('difficulty', difficulty)
+      .eq('track', track)
+      .eq('is_used', false),
+    supabase
+      .from('questions_cache')
+      .select('id', { count: 'exact', head: true })
+      .eq('test_type', testType)
+      .eq('section', section)
+      .eq('difficulty', difficulty)
+      .eq('track', track)
+  ]);
+  
+  return {
+    available: availableResult.count || 0,
+    total: totalResult.count || 0
+  };
+}
+
+// ============= AUTHENTICATION =============
+
 async function authenticateUser(req: Request) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader) throw new Error("Missing authorization header");
@@ -274,8 +401,8 @@ async function ensureDiversity(
     );
     
     const validAdditional = validateQuestionQuality(additionalQuestions);
-    const additionalWithHash = await calculateQuestionHashes(validAdditional);
-    const uniqueAdditional = additionalWithHash.filter(q => !usedHashes.has(q.question_hash));
+    const additionalWithHash = calculateQuestionHashes(validAdditional);
+    const uniqueAdditional = additionalWithHash.filter((q: any) => !usedHashes.has(q.question_hash));
     
     diverseQuestions.push(...uniqueAdditional);
     console.log(`Added ${uniqueAdditional.length} from explicit diversity generation`);
@@ -470,19 +597,15 @@ async function generateWithAI(apiKey: string, systemPrompt: string, userPrompt: 
   return quizData.questions || [];
 }
 
-async function calculateQuestionHashes(questions: any[]) {
-  const crypto = await import("https://deno.land/std@0.177.0/crypto/mod.ts");
-  
-  return await Promise.all(
-    questions.map(async (q: any) => {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(q.question_text || "");
-      const hashBuffer = await crypto.crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      return { ...q, question_hash: hashHex };
-    })
-  );
+function calculateQuestionHashes(questions: any[]) {
+  // Use simple hash instead of SHA-256 for speed
+  return questions.map((q: any) => {
+    const hashInput = `${q.question_text}${JSON.stringify(q.options)}`;
+    return { 
+      ...q, 
+      question_hash: simpleHash(hashInput)
+    };
+  });
 }
 
 function filterBySection(questions: any[], sectionFilter: string | null, testType: string) {
@@ -689,7 +812,59 @@ serve(async (req) => {
     
     console.log(`🎯 Target: ${targetQuestions}, Buffer: ${bufferQuestions}`);
     
-    // 4. Build prompts
+    // 4. Check cache status
+    const cacheStatus = await checkCacheStatus(supabase, {
+      testType,
+      section: sectionFilter || 'عام',
+      difficulty,
+      track
+    });
+    console.log(`📦 Cache status: ${cacheStatus.available}/${cacheStatus.total} available`);
+    
+    // 5. Try to fetch from cache first
+    const startTime = Date.now();
+    let cachedQuestions: any[] = [];
+    
+    if (cacheStatus.available >= targetQuestions && sectionFilter) {
+      cachedQuestions = await fetchFromCache(supabase, targetQuestions, {
+        testType,
+        section: sectionFilter,
+        difficulty,
+        track,
+        userId: user.id
+      });
+    }
+    
+    // 6. If cache is sufficient, use it
+    if (cachedQuestions.length >= targetQuestions) {
+      const finalQuestions = cachedQuestions.slice(0, targetQuestions);
+      const generationTime = Date.now() - startTime;
+      
+      console.log(`⚡ CACHE HIT: ${finalQuestions.length} questions in ${generationTime}ms`);
+      
+      // Mark as used
+      await markCacheAsUsed(supabase, finalQuestions);
+      
+      // Log questions
+      await logQuestions(supabase, user.id, finalQuestions, dayNumber);
+      
+      return new Response(
+        JSON.stringify({
+          questions: finalQuestions,
+          dayNumber,
+          contentTitle: content.title,
+          testType,
+          track,
+          fromCache: true,
+          generationTime
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // 7. Build prompts for AI generation
+    console.log(`🤖 Cache insufficient (${cachedQuestions.length}/${targetQuestions}), generating with AI...`);
+    
     const systemPrompt = buildSystemPrompt({ 
       testType, sectionFilter, targetQuestions, difficulty, 
       availableTopics, allRelatedTopics, systemPromptOverride, isPractice 
@@ -699,26 +874,31 @@ serve(async (req) => {
       sectionFilter, isInitialAssessment, knowledgeData 
     });
     
-    // 5. Generate questions with AI
-    const startTime = Date.now();
+    // 8. Generate questions with AI
     let allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, quizTemp);
     console.log(`🤖 AI generated: ${allQuestions.length} questions`);
     
-    // 6. Calculate hashes and filter duplicates
-    const questionsWithHash = await calculateQuestionHashes(allQuestions);
-    let uniqueQuestions = questionsWithHash.filter(q => !usedHashes.has(q.question_hash));
+    // 9. Calculate hashes and filter duplicates
+    const questionsWithHash = calculateQuestionHashes(allQuestions);
+    let uniqueQuestions = questionsWithHash.filter((q: any) => !usedHashes.has(q.question_hash));
     console.log(`✅ Unique: ${uniqueQuestions.length}/${allQuestions.length}`);
     
-    // 7. Validate quality first
+    // 10. Add cached questions to the pool
+    if (cachedQuestions.length > 0) {
+      console.log(`📦 Adding ${cachedQuestions.length} cached questions to pool`);
+      uniqueQuestions.push(...cachedQuestions);
+    }
+    
+    // 11. Validate quality first
     uniqueQuestions = validateQuestionQuality(uniqueQuestions);
     console.log(`✅ Quality validated: ${uniqueQuestions.length}`);
     
-    // 8. Filter by section
+    // 12. Filter by section
     uniqueQuestions = filterBySection(uniqueQuestions, sectionFilter, testType);
     uniqueQuestions = validateQuestions(uniqueQuestions);
     console.log(`✅ Section filtered: ${uniqueQuestions.length}`);
     
-    // 9. Apply diversity engine
+    // 13. Apply diversity engine
     console.log(`🎨 Applying diversity engine...`);
     const diverseQuestions = await ensureDiversity(
       uniqueQuestions,
@@ -734,7 +914,7 @@ serve(async (req) => {
       }
     );
     
-    // 10. Fill missing questions if needed
+    // 14. Fill missing questions if needed
     let finalQuestions = diverseQuestions;
     let missing = targetQuestions - finalQuestions.length;
     
@@ -772,7 +952,15 @@ serve(async (req) => {
     const diversityScore = (uniqueCount / finalQuestions.length) * 100;
     const qualityScore = (finalQuestions.length / allQuestions.length) * 100;
     
-    // 13. Log questions and analytics
+    // 13. Mark cached questions as used
+    if (cachedQuestions.length > 0) {
+      const usedCached = finalQuestions.filter(fq => 
+        cachedQuestions.some(cq => cq.question_hash === fq.question_hash)
+      );
+      await markCacheAsUsed(supabase, usedCached);
+    }
+    
+    // 14. Log questions and analytics
     await Promise.all([
       logQuestions(supabase, user.id, finalQuestions, dayNumber),
       logGenerationAnalytics(supabase, {
@@ -789,14 +977,17 @@ serve(async (req) => {
     
     console.log(`📊 Analytics: Diversity=${diversityScore.toFixed(1)}%, Quality=${qualityScore.toFixed(1)}%`);
     
-    // 11. Return response
+    // 15. Return response
     return new Response(
       JSON.stringify({
         questions: finalQuestions,
         dayNumber,
         contentTitle: content.title,
         testType,
-        track
+        track,
+        fromCache: cachedQuestions.length > 0,
+        cacheHitRate: Math.round((cachedQuestions.length / targetQuestions) * 100),
+        generationTime
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
