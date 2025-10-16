@@ -99,10 +99,16 @@ async function loadAISettings(supabase: any) {
     aiSettings[setting.setting_key] = setting.setting_value;
   });
   
+  const quizLimits = aiSettings.quiz_limits || { min_questions: 5, max_questions: 50, default_questions: 10 };
+  const tempSettings = aiSettings.quiz_generation_temperature || { temperature: 0.9 };
+  
   return {
-    quizLimits: aiSettings.quiz_limits || { min_questions: 5, max_questions: 50, default_questions: 10 },
+    quizLimits,
     quizModel: aiSettings.quiz_model?.model || "google/gemini-2.5-flash",
-    quizTemp: aiSettings.quiz_generation_temperature?.temperature || 0.7,
+    quizTemp: tempSettings.temperature || 0.9,
+    diversityBoost: tempSettings.diversity_boost || 1.5,
+    antiRepetition: tempSettings.anti_repetition !== false,
+    bufferMultiplier: quizLimits.buffer_multiplier || 2.0,
     systemPromptOverride: aiSettings.system_prompt?.ar || ""
   };
 }

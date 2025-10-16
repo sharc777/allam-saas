@@ -103,6 +103,63 @@ export type Database = {
           },
         ]
       }
+      ai_generation_analytics: {
+        Row: {
+          created_at: string | null
+          diversity_score: number | null
+          generation_time_ms: number | null
+          id: string
+          model_used: string | null
+          quality_score: number | null
+          questions_generated: number | null
+          questions_unique: number | null
+          skill_id: string | null
+          temperature: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          diversity_score?: number | null
+          generation_time_ms?: number | null
+          id?: string
+          model_used?: string | null
+          quality_score?: number | null
+          questions_generated?: number | null
+          questions_unique?: number | null
+          skill_id?: string | null
+          temperature?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          diversity_score?: number | null
+          generation_time_ms?: number | null
+          id?: string
+          model_used?: string | null
+          quality_score?: number | null
+          questions_generated?: number | null
+          questions_unique?: number | null
+          skill_id?: string | null
+          temperature?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_generation_analytics_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_generation_analytics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_settings: {
         Row: {
           created_at: string | null
@@ -626,6 +683,53 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skills_taxonomy: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          learning_order: number | null
+          parent_skill_id: string | null
+          skill_name: string
+          skill_name_en: string | null
+          sub_skills: Json | null
+          test_type: Database["public"]["Enums"]["test_type"]
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          learning_order?: number | null
+          parent_skill_id?: string | null
+          skill_name: string
+          skill_name_en?: string | null
+          sub_skills?: Json | null
+          test_type: Database["public"]["Enums"]["test_type"]
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          learning_order?: number | null
+          parent_skill_id?: string | null
+          skill_name?: string
+          skill_name_en?: string | null
+          sub_skills?: Json | null
+          test_type?: Database["public"]["Enums"]["test_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skills_taxonomy_parent_skill_id_fkey"
+            columns: ["parent_skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills_taxonomy"
             referencedColumns: ["id"]
           },
         ]
