@@ -3,14 +3,44 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Database, RefreshCw, Zap, TrendingUp } from "lucide-react";
+import { Loader2, Database, RefreshCw, Zap, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+// Critical configurations for comprehensive generation
+const CRITICAL_CONFIGS = [
+  // قدرات - لفظي - مفقود
+  { test_type: "قدرات", section: "لفظي", difficulty: "medium", track: "عام", count: 50 },
+  { test_type: "قدرات", section: "لفظي", difficulty: "hard", track: "عام", count: 50 },
+  
+  // تحصيلي - رياضيات
+  { test_type: "تحصيلي", section: "رياضيات", difficulty: "easy", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "رياضيات", difficulty: "medium", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "رياضيات", difficulty: "hard", track: "علمي", count: 30 },
+  
+  // تحصيلي - فيزياء
+  { test_type: "تحصيلي", section: "فيزياء", difficulty: "easy", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "فيزياء", difficulty: "medium", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "فيزياء", difficulty: "hard", track: "علمي", count: 30 },
+  
+  // تحصيلي - كيمياء
+  { test_type: "تحصيلي", section: "كيمياء", difficulty: "easy", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "كيمياء", difficulty: "medium", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "كيمياء", difficulty: "hard", track: "علمي", count: 30 },
+  
+  // تحصيلي - أحياء
+  { test_type: "تحصيلي", section: "أحياء", difficulty: "easy", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "أحياء", difficulty: "medium", track: "علمي", count: 50 },
+  { test_type: "تحصيلي", section: "أحياء", difficulty: "hard", track: "علمي", count: 30 },
+];
 
 export function CacheManager() {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<Record<string, number>>({});
   const [generating, setGenerating] = useState(false);
+  const [comprehensiveResults, setComprehensiveResults] = useState<Array<{ config: any; success: boolean; message: string }>>([]);
   const { toast } = useToast();
 
   const fetchStats = async () => {
@@ -80,8 +110,8 @@ export function CacheManager() {
       }
 
       toast({
-        title: "⏳ جاري التوليد...",
-        description: "هذا قد يستغرق عدة دقائق"
+        title: "⏳ جاري التوليد السريع...",
+        description: "توليد أسئلة قدرات (160 سؤال تقريباً)"
       });
 
       const { data, error } = await supabase.functions.invoke('pre-generate-questions', {
@@ -120,6 +150,103 @@ export function CacheManager() {
         title: "خطأ",
         description: `${message}${details ? " | " + details : ""}`,
         variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const generateComprehensive = async () => {
+    try {
+      setGenerating(true);
+      setComprehensiveResults([]);
+      
+      toast({
+        title: "🚀 بدء التوليد الشامل",
+        description: `سيتم إنشاء ${CRITICAL_CONFIGS.length} مجموعة (620 سؤال تقريباً)`,
+      });
+
+      const generationResults: Array<{ config: any; success: boolean; message: string }> = [];
+
+      // Process configurations one by one to avoid rate limits
+      for (const config of CRITICAL_CONFIGS) {
+        try {
+          console.log(`Generating for:`, config);
+          
+          const { data, error } = await supabase.functions.invoke('pre-generate-questions', {
+            body: {
+              action: 'generate',
+              configs: [config]
+            }
+          });
+
+          if (error) {
+            if (error.message?.includes('429')) {
+              generationResults.push({
+                config,
+                success: false,
+                message: 'تجاوز الحد - يرجى الانتظار'
+              });
+              toast({
+                title: "⏸️ توقف مؤقت",
+                description: "تم تجاوز الحد. يرجى الانتظار دقيقة ثم المتابعة.",
+                variant: "destructive",
+              });
+              break;
+            } else if (error.message?.includes('402')) {
+              generationResults.push({
+                config,
+                success: false,
+                message: 'يرجى إضافة رصيد'
+              });
+              toast({
+                title: "⚠️ رصيد غير كافٍ",
+                description: "يرجى إضافة رصيد إلى حساب Lovable AI.",
+                variant: "destructive",
+              });
+              break;
+            }
+            throw error;
+          }
+
+          generationResults.push({
+            config,
+            success: true,
+            message: `تم إنشاء ${data?.cached_count || 0} سؤال`
+          });
+
+          // Small delay between requests
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (err: any) {
+          console.error('Error generating questions:', err);
+          generationResults.push({
+            config,
+            success: false,
+            message: err.message || 'خطأ'
+          });
+        }
+      }
+
+      setComprehensiveResults(generationResults);
+
+      const successCount = generationResults.filter(r => r.success).length;
+      
+      toast({
+        title: successCount === CRITICAL_CONFIGS.length ? "✅ تم بنجاح!" : "⚠️ اكتمل جزئياً",
+        description: `تم إنشاء ${successCount} من ${CRITICAL_CONFIGS.length} مجموعة`,
+        variant: successCount === CRITICAL_CONFIGS.length ? "default" : "destructive",
+      });
+
+      // Refresh stats
+      await fetchStats();
+
+    } catch (error: any) {
+      console.error('Comprehensive generation error:', error);
+      toast({
+        title: "❌ خطأ",
+        description: error.message || "فشل التوليد الشامل",
+        variant: "destructive",
       });
     } finally {
       setGenerating(false);
@@ -189,47 +316,118 @@ export function CacheManager() {
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button 
-            onClick={generateQuestions} 
-            disabled={generating}
-            className="flex-1"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                جاري التوليد...
-              </>
-            ) : (
-              <>
-                <Zap className="ml-2 h-4 w-4" />
-                توليد أسئلة جديدة
-              </>
+        <Tabs defaultValue="quick" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="quick">توليد سريع</TabsTrigger>
+            <TabsTrigger value="comprehensive">توليد شامل</TabsTrigger>
+          </TabsList>
+
+          {/* Quick Generation Tab */}
+          <TabsContent value="quick" className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                توليد سريع لأسئلة قدرات فقط (كمي + لفظي) - حوالي 160 سؤال
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={generateQuestions} 
+                disabled={generating}
+                className="flex-1"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    جاري التوليد...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="ml-2 h-4 w-4" />
+                    توليد سريع
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                onClick={fetchStats} 
+                disabled={loading}
+                variant="outline"
+              >
+                {loading ? (
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="ml-2 h-4 w-4" />
+                )}
+                تحديث
+              </Button>
+              
+              <Button 
+                onClick={cleanCache}
+                disabled={loading}
+                variant="outline"
+              >
+                تنظيف
+              </Button>
+            </div>
+          </TabsContent>
+
+          {/* Comprehensive Generation Tab */}
+          <TabsContent value="comprehensive" className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                توليد شامل يغطي جميع الفئات الحرجة - حوالي {CRITICAL_CONFIGS.reduce((sum, c) => sum + c.count, 0)} سؤال.
+                قد تستغرق العملية عدة دقائق.
+              </AlertDescription>
+            </Alert>
+
+            <Button
+              onClick={generateComprehensive}
+              disabled={generating}
+              className="w-full"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                  جاري الإنشاء الشامل...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 ml-2" />
+                  ابدأ التوليد الشامل
+                </>
+              )}
+            </Button>
+
+            {comprehensiveResults.length > 0 && (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                <h4 className="font-semibold text-sm">النتائج:</h4>
+                {comprehensiveResults.map((result, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-start gap-2 p-3 rounded-lg border ${
+                      result.success ? 'bg-success/10 border-success' : 'bg-destructive/10 border-destructive'
+                    }`}
+                  >
+                    {result.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 text-sm">
+                      <div className="font-medium">
+                        {result.config.test_type} - {result.config.section} - {result.config.difficulty}
+                      </div>
+                      <div className="text-muted-foreground text-xs">{result.message}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </Button>
-          
-          <Button 
-            onClick={fetchStats} 
-            disabled={loading}
-            variant="outline"
-          >
-            {loading ? (
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="ml-2 h-4 w-4" />
-            )}
-            تحديث
-          </Button>
-          
-          <Button 
-            onClick={cleanCache}
-            disabled={loading}
-            variant="outline"
-          >
-            تنظيف
-          </Button>
-        </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Stats Grid */}
         {totalQuestions > 0 && (
