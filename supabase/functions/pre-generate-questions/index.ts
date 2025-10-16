@@ -191,21 +191,36 @@ serve(async (req) => {
   }
 
   try {
-    // Create Supabase client (JWT verification handled by verify_jwt = true)
+    // Extract JWT from Authorization header
+    const authHeader = req.headers.get('Authorization') || '';
+    const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+
+    if (!jwt) {
+      console.error('Missing JWT in Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Missing authentication token' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Create Supabase client with JWT in headers
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
           headers: {
-            Authorization: req.headers.get('Authorization')!
+            Authorization: `Bearer ${jwt}`
           }
         }
       }
     );
 
-    // Get current user (JWT already verified by Supabase)
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Verify authentication by passing JWT explicitly
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     
     if (authError || !user) {
       console.error('Auth error:', authError);
