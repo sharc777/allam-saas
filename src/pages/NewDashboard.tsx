@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, History, BookOpen, Trophy, Award, Target } from "lucide-react";
+import { Brain, History, BookOpen, Trophy, Award, Target, BarChart } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -249,10 +249,21 @@ const NewDashboard = () => {
             onClick={() => navigate("/weakness-analysis")}
             size="lg"
             variant="outline"
-            className="fixed bottom-40 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+            className="fixed bottom-56 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
             <Target className="w-6 h-6 ml-2" />
             <span className="text-lg font-semibold">نقاط القوة والضعف</span>
+          </Button>
+
+          {/* Progress Dashboard Button */}
+          <Button
+            onClick={() => navigate("/progress-dashboard")}
+            size="lg"
+            variant="outline"
+            className="fixed bottom-40 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+          >
+            <BarChart className="w-6 h-6 ml-2" />
+            <span className="text-lg font-semibold">لوحة التقدم الشاملة</span>
           </Button>
 
           {/* Exercise History Button */}

@@ -71,6 +71,35 @@ const CustomTestContent = () => {
     try {
       setLoading(true);
       
+      if (!profile?.id) {
+        throw new Error("يجب تسجيل الدخول أولاً");
+      }
+
+      // Check custom test limit
+      const { data: limitCheckRaw, error: limitError } = await supabase.rpc(
+        'check_custom_test_limit',
+        { p_user_id: profile.id }
+      );
+
+      if (limitError) {
+        console.error("Error checking limit:", limitError);
+        throw new Error("فشل التحقق من الحد اليومي");
+      }
+
+      const limitCheck = limitCheckRaw as any;
+
+      if (!limitCheck?.allowed) {
+        toast({
+          title: "تجاوزت الحد اليومي",
+          description: `لقد استخدمت ${limitCheck.current} من ${limitCheck.limit} اختبار مخصص اليوم. ${
+            !limitCheck.has_subscription ? 'قم بالاشتراك للحصول على المزيد!' : ''
+          }`,
+          variant: "destructive"
+        });
+        navigate("/dashboard");
+        return;
+      }
+      
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
         body: {
           mode: "practice",
@@ -79,7 +108,7 @@ const CustomTestContent = () => {
           difficulty: state.difficulty,
           sectionFilter: state.section,
           questionCount: state.questionCount,
-          topicFilter: state.topic, // Custom topic filter
+          topicFilter: state.topic,
         },
       });
 
@@ -103,6 +132,9 @@ const CustomTestContent = () => {
 
       setQuestions(data.questions);
       setSelectedAnswers(new Array(data.questions.length).fill(""));
+
+      // Increment custom test count
+      await supabase.rpc('increment_custom_test_count', { p_user_id: profile.id });
     } catch (error: any) {
       console.error("Error generating custom test:", error);
       toast({
@@ -166,7 +198,9 @@ const CustomTestContent = () => {
         .from("daily_exercises")
         .insert([{
           user_id: profile.id,
-          day_number: 0, // Custom tests use day 0
+          day_number: 0,
+          exercise_type: 'custom',
+          custom_topic: state.topic,
           section_type: state.section,
           test_type: profile?.test_type_preference || "قدرات",
           track: profile?.track_preference || "عام",
@@ -180,6 +214,16 @@ const CustomTestContent = () => {
       if (saveError) {
         throw new Error(`فشل حفظ الاختبار: ${saveError.message}`);
       }
+
+      // Log questions to prevent repetition
+      const questionLogs = questions.map(q => ({
+        user_id: profile.id,
+        day_number: 0,
+        question_hash: JSON.stringify(q.question_text + q.options.join('')),
+        question_data: JSON.parse(JSON.stringify(q))
+      }));
+
+      await supabase.from("generated_questions_log").insert(questionLogs);
 
       // Invalidate cache
       queryClient.invalidateQueries({ queryKey: ["exercise-history", profile.id] });
@@ -338,18 +382,18 @@ const CustomTestContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir="rtl">
       <Navbar />
       <div className="pt-24 pb-12 px-4">
         <div className="container mx-auto max-w-4xl">
           <Card className="border-2">
             <CardHeader>
-              <div className="flex items-center justify-between mb-4">
-                <Badge variant="outline" className="text-base px-3 py-1">
-                  اختبار مخصص: {state?.topic}
-                </Badge>
+              <div className="flex items-center justify-between mb-4" dir="rtl">
                 <Badge className="text-base px-3 py-1">
                   السؤال {currentQuestion + 1} من {questions.length}
+                </Badge>
+                <Badge variant="outline" className="text-base px-3 py-1">
+                  اختبار مخصص: {state?.topic}
                 </Badge>
               </div>
               <Progress value={progress} className="h-2" />
@@ -359,7 +403,7 @@ const CustomTestContent = () => {
               {currentQuestionData && (
                 <>
                   <div className="space-y-4" dir="rtl">
-                    <h3 className="text-xl font-bold leading-relaxed">
+                    <h3 className="text-xl font-bold leading-relaxed text-right">
                       {currentQuestionData.question_text}
                     </h3>
 
@@ -367,20 +411,22 @@ const CustomTestContent = () => {
                       value={selectedAnswers[currentQuestion]}
                       onValueChange={handleAnswerSelect}
                       className="space-y-3"
+                      dir="rtl"
                     >
                       {currentQuestionData.options?.map((option, index) => (
                         <div
                           key={index}
-                          className={`flex items-center space-x-2 space-x-reverse p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                          className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
                             selectedAnswers[currentQuestion] === option
                               ? "border-primary bg-primary/5"
                               : "border-border hover:border-primary/50"
                           }`}
+                          dir="rtl"
                         >
                           <RadioGroupItem value={option} id={`option-${index}`} />
                           <Label
                             htmlFor={`option-${index}`}
-                            className="flex-1 cursor-pointer text-base"
+                            className="flex-1 cursor-pointer text-base text-right"
                           >
                             {option}
                           </Label>
@@ -389,23 +435,23 @@ const CustomTestContent = () => {
                     </RadioGroup>
                   </div>
 
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex gap-3 pt-4" dir="rtl">
+                    <Button
+                      onClick={handleNext}
+                      disabled={!selectedAnswers[currentQuestion]}
+                      className="flex-1 gradient-primary text-primary-foreground"
+                    >
+                      <ArrowLeft className="w-4 h-4 ml-2" />
+                      {currentQuestion === questions.length - 1 ? "إنهاء الاختبار" : "التالي"}
+                    </Button>
                     <Button
                       onClick={handlePrevious}
                       disabled={currentQuestion === 0}
                       variant="outline"
                       className="flex-1"
                     >
-                      <ArrowRight className="w-4 h-4 ml-2" />
                       السابق
-                    </Button>
-                    <Button
-                      onClick={handleNext}
-                      disabled={!selectedAnswers[currentQuestion]}
-                      className="flex-1 gradient-primary text-primary-foreground"
-                    >
-                      {currentQuestion === questions.length - 1 ? "إنهاء الاختبار" : "التالي"}
-                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      <ArrowRight className="w-4 h-4 mr-2" />
                     </Button>
                   </div>
                 </>

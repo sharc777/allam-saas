@@ -101,6 +101,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_comprehensive_stats"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       ai_generation_analytics: {
@@ -157,6 +164,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_generation_analytics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_comprehensive_stats"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -308,7 +322,9 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
+          custom_topic: string | null
           day_number: number
+          exercise_type: string | null
           id: string
           questions: Json
           score: number
@@ -322,7 +338,9 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           created_at?: string
+          custom_topic?: string | null
           day_number: number
+          exercise_type?: string | null
           id?: string
           questions?: Json
           score?: number
@@ -336,7 +354,9 @@ export type Database = {
         Update: {
           completed_at?: string | null
           created_at?: string
+          custom_topic?: string | null
           day_number?: number
+          exercise_type?: string | null
           id?: string
           questions?: Json
           score?: number
@@ -427,6 +447,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "initial_assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_comprehensive_stats"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       knowledge_base: {
@@ -479,6 +506,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           current_day: number | null
+          daily_custom_tests_count: Json | null
           daily_exercises_count: Json | null
           daily_quiz_count: number | null
           full_name: string
@@ -503,6 +531,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           current_day?: number | null
+          daily_custom_tests_count?: Json | null
           daily_exercises_count?: Json | null
           daily_quiz_count?: number | null
           full_name: string
@@ -529,6 +558,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           current_day?: number | null
+          daily_custom_tests_count?: Json | null
           daily_exercises_count?: Json | null
           daily_quiz_count?: number | null
           full_name?: string
@@ -730,6 +760,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quiz_results_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_comprehensive_stats"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       skills_taxonomy: {
@@ -812,6 +849,70 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_achievements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_comprehensive_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      student_activities: {
+        Row: {
+          activity_date: string
+          activity_type: string
+          created_at: string
+          id: string
+          metadata: Json
+          score: number | null
+          strengths_identified: string[] | null
+          time_spent_minutes: number | null
+          topics_covered: string[] | null
+          user_id: string
+          weaknesses_identified: string[] | null
+        }
+        Insert: {
+          activity_date?: string
+          activity_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          score?: number | null
+          strengths_identified?: string[] | null
+          time_spent_minutes?: number | null
+          topics_covered?: string[] | null
+          user_id: string
+          weaknesses_identified?: string[] | null
+        }
+        Update: {
+          activity_date?: string
+          activity_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          score?: number | null
+          strengths_identified?: string[] | null
+          time_spent_minutes?: number | null
+          topics_covered?: string[] | null
+          user_id?: string
+          weaknesses_identified?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_comprehensive_stats"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -923,6 +1024,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "student_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_comprehensive_stats"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       subscription_packages: {
@@ -1008,9 +1116,35 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      student_comprehensive_stats: {
+        Row: {
+          achievements_unlocked: number | null
+          average_score: number | null
+          current_day: number | null
+          current_level: string | null
+          custom_tests_completed: number | null
+          daily_exercises_completed: number | null
+          full_name: string | null
+          improvement_rate: number | null
+          last_activity_date: string | null
+          streak_days: number | null
+          strengths: Json | null
+          subscription_active: boolean | null
+          total_points: number | null
+          total_time_spent: number | null
+          trial_days: number | null
+          user_id: string | null
+          weakness_practices_completed: number | null
+          weaknesses: Json | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      check_custom_test_limit: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       clean_expired_cache_reservations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1021,6 +1155,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_custom_test_count: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       increment_daily_count: {
         Args: { p_section: string; p_user_id: string }

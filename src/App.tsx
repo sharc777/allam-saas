@@ -18,6 +18,7 @@ import ExerciseHistory from "./pages/ExerciseHistory";
 import ExerciseDetails from "./pages/ExerciseDetails";
 import WeaknessAnalysis from "./pages/WeaknessAnalysis";
 import CustomTest from "./pages/CustomTest";
+import ProgressDashboard from "./pages/ProgressDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/exercise-details/:exerciseId" element={<ExerciseDetails />} />
             <Route path="/weakness-analysis" element={<WeaknessAnalysis />} />
             <Route path="/custom-test" element={<CustomTest />} />
+            <Route path="/progress-dashboard" element={<ProgressDashboard />} />
             <Route path="/admin" element={<Admin />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
