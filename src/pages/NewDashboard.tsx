@@ -2,8 +2,8 @@ import Navbar from "@/components/Navbar";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, History, BookOpen } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Brain, History, BookOpen, Trophy, Award } from "lucide-react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +16,7 @@ import { DashboardSkeleton } from "@/components/LoadingSkeleton";
 import { TrialCountdown } from "@/components/TrialCountdown";
 import { ManageSubscription } from "@/components/ManageSubscription";
 import { useAchievements } from "@/hooks/useAchievements";
-import { Trophy, Award } from "lucide-react";
+import { DashboardAnalytics } from "@/components/DashboardAnalytics";
 
 const NewDashboard = () => {
   const { loading: authLoading } = useAuth(true);
@@ -178,6 +178,9 @@ const NewDashboard = () => {
 
               {/* Manage Subscription */}
               <ManageSubscription />
+
+              {/* Dashboard Analytics */}
+              <DashboardAnalytics />
 
               {/* Latest Achievements */}
               {achievements && achievements.length > 0 && (

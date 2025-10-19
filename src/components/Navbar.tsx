@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationCenter } from "@/components/NotificationCenter";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,6 +40,7 @@ const Navbar = () => {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-6">
+            <NotificationCenter />
             <Link to="/" className="text-foreground hover:text-primary transition-smooth font-medium">
               الرئيسية
             </Link>
