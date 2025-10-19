@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +23,14 @@ import { useProfile } from "@/hooks/useProfile";
 import { WeaknessNavigationBar } from "@/components/WeaknessNavigationBar";
 import { BackToTopButton } from "@/components/BackToTopButton";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
+import { CustomTestDialog, TestParams } from "@/components/CustomTestDialog";
 
 const WeaknessAnalysis = () => {
   const [showAITutor, setShowAITutor] = useState(false);
+  const [showCustomTestDialog, setShowCustomTestDialog] = useState(false);
+  const [selectedWeaknessTopic, setSelectedWeaknessTopic] = useState("");
   const { data: profile } = useProfile();
+  const navigate = useNavigate();
 
   // Section IDs for navigation - MUST be defined before early return
   const sectionIds = ["summary", "strengths", "critical", "moderate", "repeated", "recommendations"];
@@ -217,8 +222,8 @@ const WeaknessAnalysis = () => {
                             variant="outline"
                             className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                             onClick={() => {
-                              setShowAITutor(true);
-                              // Could pass weakness.topic to CustomTestDialog here
+                              setSelectedWeaknessTopic(weakness.topic);
+                              setShowCustomTestDialog(true);
                             }}
                           >
                             🎯 اختبار مخصص
@@ -266,7 +271,10 @@ const WeaknessAnalysis = () => {
                             size="sm"
                             variant="outline"
                             className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                            onClick={() => setShowAITutor(true)}
+                            onClick={() => {
+                              setSelectedWeaknessTopic(weakness.topic);
+                              setShowCustomTestDialog(true);
+                            }}
                           >
                             🎯 اختبار مخصص
                           </Button>
@@ -378,6 +386,26 @@ const WeaknessAnalysis = () => {
         <AITutor
           onClose={() => setShowAITutor(false)}
           mode="general"
+        />
+      )}
+
+      {showCustomTestDialog && (
+        <CustomTestDialog
+          open={showCustomTestDialog}
+          onClose={() => {
+            setShowCustomTestDialog(false);
+            setSelectedWeaknessTopic("");
+          }}
+          onCreateTest={(params: TestParams) => {
+            setShowCustomTestDialog(false);
+            navigate("/custom-test", { 
+              state: { 
+                testParams: params,
+                fromWeakness: true 
+              } 
+            });
+          }}
+          initialTopic={selectedWeaknessTopic}
         />
       )}
 
