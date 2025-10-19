@@ -399,10 +399,7 @@ const WeaknessAnalysis = () => {
           onCreateTest={(params: TestParams) => {
             setShowCustomTestDialog(false);
             navigate("/custom-test", { 
-              state: { 
-                testParams: params,
-                fromWeakness: true 
-              } 
+              state: params
             });
           }}
           initialTopic={selectedWeaknessTopic}
