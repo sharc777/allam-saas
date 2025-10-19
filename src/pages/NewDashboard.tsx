@@ -15,6 +15,8 @@ import { PerformanceStats } from "@/components/PerformanceStats";
 import { DashboardSkeleton } from "@/components/LoadingSkeleton";
 import { TrialCountdown } from "@/components/TrialCountdown";
 import { ManageSubscription } from "@/components/ManageSubscription";
+import { useAchievements } from "@/hooks/useAchievements";
+import { Trophy, Award } from "lucide-react";
 
 const NewDashboard = () => {
   const { loading: authLoading } = useAuth(true);
@@ -22,6 +24,7 @@ const NewDashboard = () => {
   const navigate = useNavigate();
 
   const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: achievements, isLoading: achievementsLoading } = useAchievements();
 
   const testType = profile?.test_type_preference || "قدرات";
   const track = profile?.track_preference || "عام";
@@ -169,6 +172,53 @@ const NewDashboard = () => {
 
               {/* Manage Subscription */}
               <ManageSubscription />
+
+              {/* Latest Achievements */}
+              {achievements && achievements.length > 0 && (
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                      <Trophy className="w-6 h-6 text-yellow-500" />
+                      إنجازاتك الأخيرة
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {achievements.slice(0, 3).map((studentAchievement: any) => {
+                      const achievement = studentAchievement.achievement;
+                      if (!achievement) return null;
+                      
+                      return (
+                        <div
+                          key={studentAchievement.id}
+                          className="p-3 rounded-lg border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 hover:border-primary/40 transition-smooth"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="text-3xl flex-shrink-0">
+                              {achievement.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-sm mb-1">
+                                {achievement.name_ar}
+                              </h4>
+                              {achievement.description_ar && (
+                                <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                  {achievement.description_ar}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <Award className="w-3 h-3 text-success" />
+                                <span className="text-xs font-semibold text-success">
+                                  {achievement.points} نقاط
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Performance Stats */}
               {performance && (

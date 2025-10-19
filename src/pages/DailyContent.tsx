@@ -9,8 +9,9 @@ import { useProfile } from "@/hooks/useProfile";
 import { useDailyContent } from "@/hooks/useDailyContent";
 import { useStudentProgress } from "@/hooks/useStudentProgress";
 import Navbar from "@/components/Navbar";
-import { ChevronRight, ChevronLeft, Lock, CheckCircle2, BookOpen } from "lucide-react";
+import { ChevronRight, ChevronLeft, Lock, CheckCircle2, BookOpen, TrendingUp } from "lucide-react";
 import { SubscriptionGuard } from "@/components/SubscriptionGuard";
+import { Progress } from "@/components/ui/progress";
 
 const DailyContentPage = () => {
   return (
@@ -36,6 +37,12 @@ const DailyContentPageContent = () => {
   const days = Array.from({ length: 30 }, (_, i) => i + 1);
 
   const isDayLocked = (day: number) => day > currentDay;
+  
+  // Calculate overall progress
+  const completedDaysCount = Array.isArray(progressData) 
+    ? progressData.filter(p => p.content_completed).length 
+    : 0;
+  const progressPercentage = Math.round((completedDaysCount / 30) * 100);
   
   const isDayCompleted = (day: number) => {
     if (!Array.isArray(progressData)) return false;
@@ -83,6 +90,20 @@ const DailyContentPageContent = () => {
                   <BookOpen className="w-5 h-5" />
                   الأيام
                 </CardTitle>
+                {/* Progress Bar */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">التقدم الكلي</span>
+                    <span className="font-bold text-primary">
+                      {completedDaysCount}/30
+                    </span>
+                  </div>
+                  <Progress value={progressPercentage} className="h-2" />
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>{progressPercentage}% مكتمل</span>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[600px]">
