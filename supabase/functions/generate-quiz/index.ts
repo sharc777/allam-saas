@@ -946,9 +946,10 @@ serve(async (req) => {
     
     // 11. Final check
     finalQuestions = finalQuestions.slice(0, targetQuestions);
-    if (finalQuestions.length < targetQuestions) {
-      throw new Error(`عدد الأسئلة غير كافٍ (${finalQuestions.length}/${targetQuestions})`);
-    }
+    // بدل رمي خطأ 500، ارجع تحذيراً مع الأسئلة المتاحة لضمان تجربة سلسة في الواجهة
+    const warning = finalQuestions.length < targetQuestions
+      ? `عدد الأسئلة المتاحة أقل من المطلوب (${finalQuestions.length}/${targetQuestions}).`
+      : undefined;
     
     const generationTime = Date.now() - startTime;
     console.log(`✅ Success: ${finalQuestions.length}/${targetQuestions} questions in ${generationTime}ms`);
@@ -993,7 +994,8 @@ serve(async (req) => {
         track,
         fromCache: cachedQuestions.length > 0,
         cacheHitRate: Math.round((cachedQuestions.length / targetQuestions) * 100),
-        generationTime
+        generationTime,
+        warning
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
