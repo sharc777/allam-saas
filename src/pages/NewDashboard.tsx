@@ -32,6 +32,9 @@ const NewDashboard = () => {
   // Fetch daily exercises
   const { data: exercises, isLoading: exercisesLoading } = useQuery({
     queryKey: ["daily-exercises", profile?.id, testType],
+    staleTime: 1 * 60 * 1000, // 1 minute
+    gcTime: 3 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!profile?.id) return [];
       const { data, error } = await supabase
@@ -50,6 +53,9 @@ const NewDashboard = () => {
   // Fetch performance data
   const { data: performance, isLoading: performanceLoading } = useQuery({
     queryKey: ["student-performance", profile?.id, testType],
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!profile?.id) return null;
       const { data, error } = await supabase

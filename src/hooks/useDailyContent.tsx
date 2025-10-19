@@ -12,6 +12,9 @@ export const useDailyContent = (
 ) => {
   return useQuery({
     queryKey: ["daily-content", dayNumber, testType, track],
+    staleTime: 10 * 60 * 1000, // 10 minutes - content rarely changes
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("daily_content")

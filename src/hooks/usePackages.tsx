@@ -7,6 +7,9 @@ type SubscriptionPackage = Database["public"]["Tables"]["subscription_packages"]
 export const usePackages = (options?: { activeOnly?: boolean; featuredOnly?: boolean }) => {
   return useQuery({
     queryKey: ["subscription-packages", options],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("subscription_packages")

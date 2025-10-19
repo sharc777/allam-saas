@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 export const useAllProgress = () => {
   return useQuery({
     queryKey: ["all-progress"],
+    staleTime: 1 * 60 * 1000, // 1 minute
+    gcTime: 3 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");

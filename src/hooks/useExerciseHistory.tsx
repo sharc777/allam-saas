@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 export const useExerciseHistory = (userId?: string) => {
   return useQuery({
     queryKey: ["exercise-history", userId],
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!userId) return [];
       
@@ -23,6 +26,9 @@ export const useExerciseHistory = (userId?: string) => {
 export const useExerciseDetails = (exerciseId?: string) => {
   return useQuery({
     queryKey: ["exercise-details", exerciseId],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!exerciseId) return null;
       

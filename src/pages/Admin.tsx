@@ -95,6 +95,9 @@ const Admin = () => {
 
   const { data: questions, isLoading: questionsLoading } = useQuery({
     queryKey: ['questions-bank'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('questions_bank')
@@ -109,6 +112,9 @@ const Admin = () => {
 
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['all-users'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
@@ -123,6 +129,9 @@ const Admin = () => {
 
   const { data: adminsCount } = useQuery({
     queryKey: ['admins-count'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { count, error } = await supabase
         .from('user_roles')
