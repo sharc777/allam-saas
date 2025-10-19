@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle, Maximize2, Minimize2 } from "lucide-react";
+import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle, Maximize2, Minimize2, StopCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import QuickActions from "./QuickActions";
+import MessageContent from "./MessageContent";
 
 interface Message {
   role: "user" | "assistant";
@@ -36,8 +37,11 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
   const [isLoading, setIsLoading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [autoRequestSent, setAutoRequestSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState("🤔 أفكر في أفضل طريقة للشرح...");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch user profile for test type
   const { data: profile } = useQuery({
@@ -130,13 +134,27 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
     inputRef.current?.focus();
   }, []);
 
-  const streamChat = async (userMessage: string) => {
+  const streamChat = async (userMessage: string, retryCount = 0) => {
     const newMessages: Message[] = [...messages, { role: "user", content: userMessage }];
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
+    setError(null);
+
+    // Cycle through loading messages
+    const loadingMessages = [
+      "🤔 أفكر في أفضل طريقة للشرح...",
+      "📝 أقوم بإعداد أمثلة مشابهة...",
+      "✍️ أكتب الشرح بعناية...",
+    ];
+    let msgIndex = 0;
+    const loadingInterval = setInterval(() => {
+      setLoadingMessage(loadingMessages[msgIndex % loadingMessages.length]);
+      msgIndex++;
+    }, 3000);
 
     let assistantMessage = "";
+    abortControllerRef.current = new AbortController();
 
     try {
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-tutor`;
@@ -153,11 +171,20 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
           weaknessData,
           currentQuestion: initialQuestion
         }),
+        signal: abortControllerRef.current.signal,
       });
 
+      clearInterval(loadingInterval);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "فشل الاتصال بالمدرس الذكي");
+        if (response.status === 429) {
+          throw new Error("عدد الطلبات كثير جداً. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.");
+        } else if (response.status === 402) {
+          throw new Error("انتهى رصيد الخدمة. يرجى التواصل مع الإدارة لإضافة رصيد.");
+        } else {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || "فشل الاتصال بالمدرس الذكي");
+        }
       }
 
       if (!response.body) {
@@ -226,12 +253,50 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
         });
       }
 
-    } catch (error) {
+    } catch (error: any) {
+      clearInterval(loadingInterval);
       console.error("Error:", error);
-      toast.error(error instanceof Error ? error.message : "حدث خطأ أثناء التواصل مع المدرس الذكي");
-      setMessages((prev) => prev.slice(0, -1)); // Remove empty assistant message
+      
+      if (error.name === 'AbortError') {
+        toast.info("تم إيقاف الرد");
+        setMessages((prev) => prev.slice(0, -1));
+      } else if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+        setError("تحقق من اتصالك بالإنترنت وحاول مرة أخرى.");
+        toast.error("مشكلة في الاتصال بالإنترنت");
+        setMessages((prev) => prev.slice(0, -1));
+      } else if (retryCount < 2 && !error.message.includes("402")) {
+        // Retry with exponential backoff (except for payment errors)
+        const delay = Math.pow(2, retryCount) * 1000;
+        toast.info(`جاري إعادة المحاولة بعد ${delay / 1000} ثانية...`);
+        setTimeout(() => {
+          setMessages((prev) => prev.slice(0, -2)); // Remove user and assistant message
+          streamChat(userMessage, retryCount + 1);
+        }, delay);
+      } else {
+        setError(error instanceof Error ? error.message : "حدث خطأ أثناء التواصل مع المدرس الذكي");
+        toast.error(error instanceof Error ? error.message : "حدث خطأ أثناء التواصل مع المدرس الذكي");
+        setMessages((prev) => prev.slice(0, -1));
+      }
     } finally {
+      clearInterval(loadingInterval);
       setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
+  const retryLastMessage = () => {
+    if (messages.length > 0) {
+      const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+      if (lastUserMessage) {
+        setError(null);
+        streamChat(lastUserMessage.content);
+      }
     }
   };
 
@@ -371,7 +436,7 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
                       : "bg-muted"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <MessageContent content={message.content} role={message.role} />
                 </div>
                 {message.role === "user" && (
                   <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
@@ -381,12 +446,43 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
               </div>
             ))}
             {isLoading && (
-              <div className="flex gap-3 justify-start">
+              <div className="flex gap-3 justify-start items-start">
                 <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center flex-shrink-0">
                   <Brain className="w-5 h-5 text-primary-foreground" />
                 </div>
-                <div className="bg-muted rounded-lg p-4">
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                <div className="bg-muted rounded-lg p-4 flex-1 max-w-[80%]">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">{loadingMessage}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={stopGeneration}
+                    className="mt-2"
+                  >
+                    <StopCircle className="w-4 h-4 ml-2" />
+                    إيقاف
+                  </Button>
+                </div>
+              </div>
+            )}
+            {error && (
+              <div className="flex gap-3 justify-start items-start">
+                <div className="w-8 h-8 rounded-full bg-destructive flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-5 h-5 text-destructive-foreground" />
+                </div>
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex-1 max-w-[80%]">
+                  <p className="text-sm text-destructive mb-3">{error}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={retryLastMessage}
+                    className="border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <RotateCcw className="w-4 h-4 ml-2" />
+                    إعادة المحاولة
+                  </Button>
                 </div>
               </div>
             )}
