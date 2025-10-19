@@ -44,7 +44,7 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
     },
   });
 
-  // Fetch weakness data
+  // Fetch weakness data using supabase.functions.invoke
   const { data: weaknessData, isLoading: isLoadingWeakness } = useQuery({
     queryKey: ["weakness-data", profile?.test_type_preference],
     enabled: !!profile?.test_type_preference,
@@ -52,27 +52,19 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-weaknesses`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            userId: user.id,
-            testType: profile?.test_type_preference || "قدرات",
-          }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke("analyze-weaknesses", {
+        body: {
+          userId: user.id,
+          testType: profile?.test_type_preference || "قدرات",
+        },
+      });
 
-      if (!response.ok) {
-        console.error("Failed to fetch weakness data");
+      if (error) {
+        console.error("Failed to fetch weakness data:", error);
         return null;
       }
 
-      return await response.json();
+      return data;
     },
   });
 
