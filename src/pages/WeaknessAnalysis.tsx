@@ -19,6 +19,9 @@ import {
 } from "lucide-react";
 import AITutor from "@/components/AITutor";
 import { useProfile } from "@/hooks/useProfile";
+import { WeaknessNavigationBar } from "@/components/WeaknessNavigationBar";
+import { BackToTopButton } from "@/components/BackToTopButton";
+import { useScrollSpy } from "@/hooks/useScrollSpy";
 
 const WeaknessAnalysis = () => {
   const [showAITutor, setShowAITutor] = useState(false);
@@ -63,6 +66,18 @@ const WeaknessAnalysis = () => {
   const hasCritical = weaknessData?.weaknesses?.critical?.length > 0;
   const hasModerate = weaknessData?.weaknesses?.moderate?.length > 0;
 
+  // Section IDs for navigation
+  const sectionIds = ["summary", "strengths", "critical", "moderate", "repeated", "recommendations"];
+  const activeSection = useScrollSpy({ sectionIds, offset: 150 });
+
+  // Calculate counts for navigation badges
+  const counts = {
+    strengths: weaknessData?.weaknesses?.improving?.length || 0,
+    critical: weaknessData?.weaknesses?.critical?.length || 0,
+    moderate: weaknessData?.weaknesses?.moderate?.length || 0,
+    repeated: weaknessData?.repeatedMistakes?.length || 0,
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -77,8 +92,11 @@ const WeaknessAnalysis = () => {
             </p>
           </div>
 
+          {/* Navigation Bar */}
+          <WeaknessNavigationBar activeSection={activeSection} counts={counts} />
+
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div id="summary" className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -138,7 +156,7 @@ const WeaknessAnalysis = () => {
 
           {/* Strengths Section */}
           {hasStrengths && (
-            <Card className="mb-8 border-green-500/30">
+            <Card id="strengths" className="mb-8 border-green-500/30">
               <CardHeader className="bg-green-500/10">
                 <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
                   <CheckCircle2 className="w-6 h-6" />
@@ -166,7 +184,7 @@ const WeaknessAnalysis = () => {
 
           {/* Critical Weaknesses */}
           {hasCritical && (
-            <Card className="mb-8 border-red-600/50">
+            <Card id="critical" className="mb-8 border-red-600/50">
               <CardHeader className="bg-red-500/10">
                 <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
                   <AlertCircle className="w-6 h-6" />
@@ -203,7 +221,7 @@ const WeaknessAnalysis = () => {
 
           {/* Moderate Weaknesses */}
           {hasModerate && (
-            <Card className="mb-8 border-orange-500/30">
+            <Card id="moderate" className="mb-8 border-orange-500/30">
               <CardHeader className="bg-orange-500/10">
                 <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
                   <AlertTriangle className="w-6 h-6" />
@@ -240,7 +258,7 @@ const WeaknessAnalysis = () => {
 
           {/* Repeated Mistakes */}
           {weaknessData?.repeatedMistakes?.length > 0 && (
-            <Card className="mb-8 border-purple-500/30">
+            <Card id="repeated" className="mb-8 border-purple-500/30">
               <CardHeader className="bg-purple-500/10">
                 <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
                   <Target className="w-6 h-6" />
@@ -286,7 +304,7 @@ const WeaknessAnalysis = () => {
 
           {/* Recommendations */}
           {weaknessData?.recommendations?.length > 0 && (
-            <Card className="mb-8">
+            <Card id="recommendations" className="mb-8">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Brain className="w-6 h-6" />
@@ -339,6 +357,8 @@ const WeaknessAnalysis = () => {
           mode="general"
         />
       )}
+
+      <BackToTopButton />
     </div>
   );
 };
