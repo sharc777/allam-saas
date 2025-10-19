@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle } from "lucide-react";
+import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import QuickActions from "./QuickActions";
 
 interface Message {
   role: "user" | "assistant";
@@ -33,6 +34,8 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [autoRequestSent, setAutoRequestSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -103,6 +106,17 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
       setMessages([{ role: "assistant", content: welcomeMessage }]);
     }
   }, [mode, weaknessData, initialQuestion, messages.length]);
+
+  // Auto-send request in instant_help mode
+  useEffect(() => {
+    if (mode === "instant_help" && initialQuestion && !autoRequestSent && messages.length > 0 && !isLoading) {
+      setAutoRequestSent(true);
+      // Automatically request full explanation
+      setTimeout(() => {
+        streamChat("اشرح لي هذا السؤال بالتفصيل مع الأمثلة والأخطاء الشائعة");
+      }, 500);
+    }
+  }, [mode, initialQuestion, autoRequestSent, messages.length, isLoading]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -233,9 +247,15 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
     }
   };
 
+  const handleQuickAction = (message: string) => {
+    if (!isLoading) {
+      streamChat(message);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl h-[80vh] border-2 shadow-elegant flex flex-col">
+      <Card className={`w-full ${isFullscreen ? 'max-w-7xl h-[95vh]' : 'max-w-4xl h-[80vh]'} border-2 shadow-elegant flex flex-col transition-all duration-300`}>
         <CardHeader className="gradient-primary text-primary-foreground flex-shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -243,14 +263,25 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
               المدرس الذكي الشخصي
               <Sparkles className="w-5 h-5 animate-pulse" />
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-primary-foreground hover:bg-white/20"
-              onClick={onClose}
-            >
-              <X className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:bg-white/20"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                title={isFullscreen ? "تصغير" : "تكبير"}
+              >
+                {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:bg-white/20"
+                onClick={onClose}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
           
           {/* Mode Selector */}
@@ -361,6 +392,14 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Quick Actions */}
+          <QuickActions
+            mode={mode}
+            onActionClick={handleQuickAction}
+            weaknessData={weaknessData}
+            disabled={isLoading}
+          />
 
           {/* Input Area */}
           <div className="border-t p-4 flex-shrink-0" dir="rtl">
