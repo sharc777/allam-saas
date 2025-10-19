@@ -12,28 +12,28 @@ const QuickActions = ({ mode, onActionClick, weaknessData, disabled }: QuickActi
   // Quick actions for instant_help mode
   const instantHelpActions = [
     {
-      icon: BookOpen,
-      label: "اشرح السؤال خطوة بخطوة",
-      message: "اشرح لي هذا السؤال بالتفصيل خطوة بخطوة",
-      color: "bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300",
-    },
-    {
       icon: FileText,
-      label: "أعطني 3 أمثلة مشابهة",
-      message: "أريد 3 أمثلة مشابهة لهذا السؤال مع الحلول",
+      label: "📝 مثال مشابه",
+      message: "أريد مثالاً واحداً مشابهاً لهذا السؤال مع الحل",
       color: "bg-green-500/10 hover:bg-green-500/20 text-green-700 dark:text-green-300",
     },
     {
       icon: AlertTriangle,
-      label: "ما الأخطاء الشائعة؟",
+      label: "⚠️ الأخطاء الشائعة",
       message: "ما هي الأخطاء الشائعة في هذا النوع من الأسئلة؟",
       color: "bg-orange-500/10 hover:bg-orange-500/20 text-orange-700 dark:text-orange-300",
     },
     {
       icon: Dumbbell,
-      label: "أريد تمرين تطبيقي",
+      label: "💪 تمرين تطبيقي",
       message: "أعطني تمرين تطبيقي مشابه لأحل بنفسي",
       color: "bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300",
+    },
+    {
+      icon: BookOpen,
+      label: "🔄 شرح بطريقة أخرى",
+      message: "اشرح لي هذا السؤال بطريقة مختلفة أو بمثال من الحياة",
+      color: "bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300",
     },
   ];
 

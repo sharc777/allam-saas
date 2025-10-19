@@ -23,14 +23,15 @@ const MessageContent = ({ content, role }: MessageContentProps) => {
   };
 
   if (role === 'user') {
-    return <p className="whitespace-pre-wrap">{content}</p>;
+    return <p className="whitespace-pre-wrap break-words">{content}</p>;
   }
 
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        code({ className, children, ...props }) {
+    <div className="max-w-full overflow-x-auto break-words">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ className, children, ...props }) {
           const match = /language-(\w+)/.exec(className || '');
           const codeString = String(children).replace(/\n$/, '');
           const codeId = `code-${Math.random()}`;
@@ -115,9 +116,10 @@ const MessageContent = ({ content, role }: MessageContentProps) => {
           </a>
         ),
       }}
-    >
-      {content}
-    </ReactMarkdown>
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 };
 
