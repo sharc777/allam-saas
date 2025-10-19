@@ -27,6 +27,10 @@ const WeaknessAnalysis = () => {
   const [showAITutor, setShowAITutor] = useState(false);
   const { data: profile } = useProfile();
 
+  // Section IDs for navigation - MUST be defined before early return
+  const sectionIds = ["summary", "strengths", "critical", "moderate", "repeated", "recommendations"];
+  const activeSection = useScrollSpy({ sectionIds, offset: 150 });
+
   const { data: weaknessData, isLoading } = useQuery({
     queryKey: ["weakness-analysis", profile?.test_type_preference],
     enabled: !!profile?.test_type_preference,
@@ -65,10 +69,6 @@ const WeaknessAnalysis = () => {
   const hasStrengths = weaknessData?.weaknesses?.improving?.length > 0;
   const hasCritical = weaknessData?.weaknesses?.critical?.length > 0;
   const hasModerate = weaknessData?.weaknesses?.moderate?.length > 0;
-
-  // Section IDs for navigation
-  const sectionIds = ["summary", "strengths", "critical", "moderate", "repeated", "recommendations"];
-  const activeSection = useScrollSpy({ sectionIds, offset: 150 });
 
   // Calculate counts for navigation badges
   const counts = {
@@ -208,9 +208,22 @@ const WeaknessAnalysis = () => {
                             <span>نسبة النجاح: {weakness.successRate}%</span>
                           </div>
                         </div>
-                        <Badge variant="destructive" className="bg-red-600">
-                          حرج
-                        </Badge>
+                        <div className="flex gap-2">
+                          <Badge variant="destructive" className="bg-red-600">
+                            حرج
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => {
+                              setShowAITutor(true);
+                              // Could pass weakness.topic to CustomTestDialog here
+                            }}
+                          >
+                            🎯 اختبار مخصص
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -245,9 +258,19 @@ const WeaknessAnalysis = () => {
                             <span>نسبة النجاح: {weakness.successRate}%</span>
                           </div>
                         </div>
-                        <Badge className="bg-orange-500 text-white">
-                          متوسط
-                        </Badge>
+                        <div className="flex gap-2">
+                          <Badge className="bg-orange-500 text-white">
+                            متوسط
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => setShowAITutor(true)}
+                          >
+                            🎯 اختبار مخصص
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}

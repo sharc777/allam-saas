@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle, Maximize2, Minimize2, StopCircle, RotateCcw } from "lucide-react";
+import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle, Maximize2, Minimize2, StopCircle, RotateCcw, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import QuickActions from "./QuickActions";
 import MessageContent from "./MessageContent";
+import { CustomTestDialog, TestParams } from "./CustomTestDialog";
 
 interface Message {
   role: "user" | "assistant";
@@ -31,6 +33,7 @@ interface AITutorProps {
 }
 
 const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AITutorProps) => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"general" | "review_mistakes" | "focused_practice" | "instant_help">(initialMode);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -39,6 +42,8 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
   const [autoRequestSent, setAutoRequestSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("🤔 أفكر في أفضل طريقة للشرح...");
+  const [showCustomTestDialog, setShowCustomTestDialog] = useState(false);
+  const [isGeneratingTest, setIsGeneratingTest] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -318,6 +323,24 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
     }
   };
 
+  const handleCreateCustomTest = (params: TestParams) => {
+    setIsGeneratingTest(true);
+    setShowCustomTestDialog(false);
+    
+    // Navigate to custom test page with parameters
+    navigate("/custom-test", {
+      state: {
+        topic: params.topic,
+        questionCount: params.questionCount,
+        difficulty: params.difficulty,
+        section: params.section
+      }
+    });
+    
+    // Close AI Tutor
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className={`w-full ${isFullscreen ? 'max-w-7xl h-[95vh]' : 'max-w-4xl h-[80vh]'} border-2 shadow-elegant flex flex-col transition-all duration-300`}>
@@ -383,6 +406,15 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
             >
               <Target className="w-4 h-4 ml-2" />
               تدريب مركز
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-primary-foreground/80 hover:bg-white/10"
+              onClick={() => setShowCustomTestDialog(true)}
+            >
+              <FileText className="w-4 h-4 ml-2" />
+              اختبار مخصص
             </Button>
             {initialQuestion && (
               <Button
@@ -525,6 +557,14 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Test Dialog */}
+      <CustomTestDialog
+        open={showCustomTestDialog}
+        onClose={() => setShowCustomTestDialog(false)}
+        onCreateTest={handleCreateCustomTest}
+        isGenerating={isGeneratingTest}
+      />
     </div>
   );
 };
