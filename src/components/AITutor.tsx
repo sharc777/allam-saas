@@ -117,7 +117,7 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
       setAutoRequestSent(true);
       // Automatically request full explanation
       setTimeout(() => {
-        streamChat("اشرح لي هذا السؤال بالتفصيل مع الأمثلة والأخطاء الشائعة");
+        streamChat("اشرح لي هذا السؤال بطريقة بسيطة وواضحة");
       }, 500);
     }
   }, [mode, initialQuestion, autoRequestSent, messages.length, isLoading]);
