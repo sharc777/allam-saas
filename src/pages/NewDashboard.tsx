@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, History, BookOpen, Trophy, Award } from "lucide-react";
+import { Brain, History, BookOpen, Trophy, Award, Target } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -243,15 +243,16 @@ const NewDashboard = () => {
             </div>
           </div>
 
-          {/* Daily Content Button */}
+
+          {/* Weakness Analysis Button */}
           <Button
-            onClick={() => navigate("/daily-content")}
+            onClick={() => navigate("/weakness-analysis")}
             size="lg"
             variant="outline"
-            className="fixed bottom-24 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+            className="fixed bottom-40 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
-            <BookOpen className="w-6 h-6 ml-2" />
-            <span className="text-lg font-semibold">المحتوى اليومي</span>
+            <Target className="w-6 h-6 ml-2" />
+            <span className="text-lg font-semibold">نقاط القوة والضعف</span>
           </Button>
 
           {/* Exercise History Button */}
@@ -259,10 +260,21 @@ const NewDashboard = () => {
             onClick={() => navigate("/exercise-history")}
             size="lg"
             variant="outline"
-            className="fixed bottom-8 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+            className="fixed bottom-24 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
             <History className="w-6 h-6 ml-2" />
             <span className="text-lg font-semibold">سجل التمارين</span>
+          </Button>
+
+          {/* Daily Content Button */}
+          <Button
+            onClick={() => navigate("/daily-content")}
+            size="lg"
+            variant="outline"
+            className="fixed bottom-8 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+          >
+            <BookOpen className="w-6 h-6 ml-2" />
+            <span className="text-lg font-semibold">المحتوى اليومي</span>
           </Button>
 
           {/* AI Tutor Button */}

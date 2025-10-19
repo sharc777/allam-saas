@@ -49,6 +49,12 @@ const Navbar = () => {
                 <Link to="/dashboard" className="text-foreground hover:text-primary transition-smooth font-medium">
                   لوحة التحكم
                 </Link>
+                <Link to="/exercise-history" className="text-foreground hover:text-primary transition-smooth font-medium">
+                  سجل التمارين
+                </Link>
+                <Link to="/weakness-analysis" className="text-foreground hover:text-primary transition-smooth font-medium">
+                  نقاط القوة والضعف
+                </Link>
                 {isAdmin && (
                   <Link to="/admin" className="text-foreground hover:text-primary transition-smooth font-medium">
                     الإدارة
@@ -93,6 +99,20 @@ const Navbar = () => {
                   onClick={() => setIsOpen(false)}
                 >
                   لوحة التحكم
+                </Link>
+                <Link
+                  to="/exercise-history"
+                  className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
+                  onClick={() => setIsOpen(false)}
+                >
+                  سجل التمارين
+                </Link>
+                <Link
+                  to="/weakness-analysis"
+                  className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
+                  onClick={() => setIsOpen(false)}
+                >
+                  نقاط القوة والضعف
                 </Link>
                 {isAdmin && (
                   <Link

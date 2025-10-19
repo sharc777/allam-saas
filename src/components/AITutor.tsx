@@ -12,10 +12,20 @@ interface Message {
   content: string;
 }
 
+interface Question {
+  question_text: string;
+  options?: string[];
+  correct_answer?: string;
+  explanation?: string;
+  section?: string;
+  subject?: string;
+  user_answer?: string;
+}
+
 interface AITutorProps {
   onClose: () => void;
   mode?: "general" | "review_mistakes" | "focused_practice" | "instant_help";
-  initialQuestion?: any;
+  initialQuestion?: Question;
 }
 
 const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AITutorProps) => {
@@ -85,7 +95,7 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
           welcomeMessage += "كيف يمكنني مساعدتك اليوم؟";
         }
       } else if (mode === "instant_help" && initialQuestion) {
-        welcomeMessage = `دعني أساعدك في حل هذا السؤال:\n\n${initialQuestion.question_text}\n\nلنبدأ معاً. ماذا تلاحظ في السؤال؟`;
+        welcomeMessage = `جاري تحليل السؤال وإعداد شرح شامل له... 🎯\n\nسأقدم لك:\n✅ شرح مفصل خطوة بخطوة\n✅ 2-3 أمثلة مشابهة\n✅ شرح للأخطاء الشائعة\n✅ تمرين تطبيقي\n\nيرجى الانتظار قليلاً...`;
       } else {
         welcomeMessage = "مرحباً! جاهز لمساعدتك. كيف يمكنني مساعدتك؟";
       }

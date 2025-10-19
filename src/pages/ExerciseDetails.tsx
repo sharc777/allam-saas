@@ -26,7 +26,7 @@ const ExerciseDetails = () => {
   const navigate = useNavigate();
   const { data: exercise, isLoading } = useExerciseDetails(exerciseId);
   const [showAITutor, setShowAITutor] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
 
   // Function to format explanation into steps
   const formatExplanation = (text: string) => {
@@ -109,8 +109,8 @@ const ExerciseDetails = () => {
   const correctCount = questions.filter(q => q.user_answer === q.correct_answer).length;
   const incorrectCount = questions.length - correctCount;
 
-  const handleAskAI = (questionText: string) => {
-    setSelectedQuestion(questionText);
+  const handleAskAI = (question: Question) => {
+    setSelectedQuestion(question);
     setShowAITutor(true);
   };
 
@@ -273,7 +273,7 @@ const ExerciseDetails = () => {
 
                     <Button
                       variant="outline"
-                      onClick={() => handleAskAI(question.question_text)}
+                      onClick={() => handleAskAI(question)}
                       className="w-full"
                     >
                       <Brain className="w-4 h-4 ml-2" />
@@ -293,6 +293,8 @@ const ExerciseDetails = () => {
             setShowAITutor(false);
             setSelectedQuestion(null);
           }}
+          mode="instant_help"
+          initialQuestion={selectedQuestion || undefined}
         />
       )}
     </div>
