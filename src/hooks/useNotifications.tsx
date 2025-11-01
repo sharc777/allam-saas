@@ -1,102 +1,98 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "./useProfile";
-
-export interface Notification {
-  id: string;
-  type: "achievement" | "trial" | "exercise" | "subscription";
-  title: string;
-  message: string;
-  icon: string;
-  createdAt: Date;
-  read: boolean;
-}
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 export const useNotifications = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
 
-  // Check for trial expiration
-  useEffect(() => {
-    if (!profile) return;
+  // Fetch notifications
+  const { data: notifications, isLoading } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
 
-    const trialDays = profile.trial_days || 0;
-    const isSubscribed = profile.subscription_active;
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    if (!isSubscribed && trialDays <= 3 && trialDays > 0) {
-      const trialNotification: Notification = {
-        id: `trial-${Date.now()}`,
-        type: "trial",
-        title: "⏰ الفترة التجريبية تنتهي قريباً",
-        message: `تبقى ${trialDays} أيام من الفترة التجريبية. اشترك الآن للاستمرار!`,
-        icon: "⏰",
-        createdAt: new Date(),
-        read: false,
-      };
+      if (error) throw error;
+      return data;
+    },
+  });
 
-      setNotifications((prev) => {
-        // Don't add duplicate trial notifications
-        const hasTrialNotification = prev.some((n) => n.type === "trial");
-        if (hasTrialNotification) return prev;
-        return [trialNotification, ...prev];
+  // Mark as read mutation
+  const markAsRead = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase.rpc("mark_notification_read", {
+        p_notification_id: notificationId,
       });
-    }
-  }, [profile]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
 
-  // Check for daily exercise reminder
+  // Setup realtime subscription
   useEffect(() => {
-    if (!profile) return;
+    const channel = supabase
+      .channel('notifications-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
-    const exerciseData = profile.daily_exercises_count as any;
-    const lastExerciseDate = exerciseData?.last_reset;
-    const now = new Date();
-    const lastDate = lastExerciseDate ? new Date(lastExerciseDate as string) : null;
+          // Show browser notification if permitted
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(payload.new.title, {
+              body: payload.new.message,
+              icon: payload.new.icon || '/icon-192.png',
+              badge: '/badge-72.png',
+              tag: payload.new.id,
+            });
+          }
 
-    // If no exercise today
-    if (!lastDate || now.getDate() !== lastDate.getDate()) {
-      const exerciseNotification: Notification = {
-        id: `exercise-${Date.now()}`,
-        type: "exercise",
-        title: "📚 وقت التمرين اليومي!",
-        message: "لم تحل تمارينك اليومية بعد. ابدأ الآن!",
-        icon: "📚",
-        createdAt: new Date(),
-        read: false,
-      };
+          // Show toast
+          toast.success(payload.new.title, {
+            description: payload.new.message,
+          });
+        }
+      )
+      .subscribe();
 
-      setNotifications((prev) => {
-        const hasExerciseNotification = prev.some(
-          (n) => n.type === "exercise" && 
-          new Date(n.createdAt).getDate() === now.getDate()
-        );
-        if (hasExerciseNotification) return prev;
-        return [exerciseNotification, ...prev];
-      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  // Request notification permission
+  const requestPermission = async () => {
+    if (!('Notification' in window)) {
+      toast.error('المتصفح لا يدعم الإشعارات');
+      return false;
     }
-  }, [profile]);
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications?.filter(n => !n.read).length || 0;
 
   return {
     notifications,
+    isLoading,
     unreadCount,
     markAsRead,
-    markAllAsRead,
-    removeNotification,
+    requestPermission,
   };
 };
