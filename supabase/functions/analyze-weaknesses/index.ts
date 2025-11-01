@@ -33,6 +33,7 @@ interface WeaknessAnalysis {
     totalMistakes: number;
     improvementRate: number;
     recentPerformance: number;
+    avgTime: number | string;
   };
   weaknesses: {
     critical: Array<{ topic: string; errorCount: number; successRate: number }>;
@@ -85,33 +86,53 @@ serve(async (req) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - timeRange);
 
-    // Fetch all exercises for the user
-    const { data: exercises, error: exercisesError } = await supabase
-      .from("daily_exercises")
-      .select("*")
-      .eq("user_id", targetUserId)
-      .eq("test_type", testType)
-      .gte("created_at", startDate.toISOString())
-      .order("created_at", { ascending: false });
+    // Fetch data from multiple sources
+    const [performanceHistory, weaknessProfile, exercises] = await Promise.all([
+      supabase
+        .from("user_performance_history")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("user_weakness_profile")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .order("weakness_score", { ascending: false }),
+      supabase
+        .from("daily_exercises")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .eq("test_type", testType)
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: false }),
+    ]);
 
-    if (exercisesError) throw exercisesError;
+    if (performanceHistory.error) throw performanceHistory.error;
+    if (weaknessProfile.error) throw weaknessProfile.error;
+    if (exercises.error) throw exercises.error;
 
-    if (!exercises || exercises.length === 0) {
+    const performanceData = performanceHistory.data || [];
+    const weaknessData = weaknessProfile.data || [];
+    const exerciseData = exercises.data || [];
+
+    if (performanceData.length === 0 && exerciseData.length === 0) {
       return new Response(
         JSON.stringify({
-          summary: { totalExercises: 0, totalMistakes: 0, improvementRate: 0, recentPerformance: 0 },
+          summary: { totalExercises: 0, totalMistakes: 0, improvementRate: 0, recentPerformance: 0, avgTime: 0 },
           weaknesses: { critical: [], moderate: [], improving: [] },
           repeatedMistakes: [],
           recommendations: ["ابدأ بحل التمارين لتحليل نقاط ضعفك"],
+          weaknessProfile: [],
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Analyze exercises
-    const analysis = analyzeExercises(exercises as Exercise[]);
+    // Analyze using both data sources
+    const analysis = analyzeComprehensively(exerciseData as Exercise[], performanceData, weaknessData);
 
-    console.log(`✅ Analysis complete: ${analysis.summary.totalMistakes} mistakes found`);
+    console.log(`✅ Analysis complete: ${analysis.summary.totalMistakes} mistakes, ${performanceData.length} performance records`);
 
     return new Response(JSON.stringify(analysis), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -126,18 +147,62 @@ serve(async (req) => {
   }
 });
 
-function analyzeExercises(exercises: Exercise[]): WeaknessAnalysis {
-  const topicStats: Record<string, { correct: number; incorrect: number; mistakes: Array<{
-    question: string;
-    wrongAnswer: string;
-    correctAnswer: string;
-    explanation: string;
-  }> }> = {};
+function analyzeComprehensively(
+  exercises: Exercise[], 
+  performanceHistory: any[], 
+  weaknessProfile: any[]
+): WeaknessAnalysis & { weaknessProfile: any[] } {
+  const topicStats: Record<string, { 
+    correct: number; 
+    incorrect: number; 
+    totalTime: number;
+    attempts: number;
+    mistakes: Array<{
+      question: string;
+      wrongAnswer: string;
+      correctAnswer: string;
+      explanation: string;
+    }> 
+  }> = {};
 
   let totalMistakes = 0;
   let recentScores: number[] = [];
+  let totalTimeSpent = 0;
 
-  // Process each exercise
+  // Process performance history (primary source)
+  performanceHistory.forEach((record) => {
+    const topic = record.topic || "غير محدد";
+    
+    if (!topicStats[topic]) {
+      topicStats[topic] = { correct: 0, incorrect: 0, totalTime: 0, attempts: 0, mistakes: [] };
+    }
+
+    topicStats[topic].attempts++;
+    topicStats[topic].totalTime += record.time_spent_seconds || 0;
+    totalTimeSpent += record.time_spent_seconds || 0;
+
+    if (record.is_correct) {
+      topicStats[topic].correct++;
+    } else {
+      topicStats[topic].incorrect++;
+      totalMistakes++;
+      
+      if (topicStats[topic].mistakes.length < 3) {
+        topicStats[topic].mistakes.push({
+          question: record.question_text || "سؤال غير متوفر",
+          wrongAnswer: record.user_answer || "غير محدد",
+          correctAnswer: record.correct_answer || "غير محدد",
+          explanation: record.explanation || "يرجى مراجعة المفهوم",
+        });
+      }
+    }
+
+    // Calculate score for recent performance
+    const score = record.is_correct ? 100 : 0;
+    recentScores.push(score);
+  });
+
+  // Process each exercise (supplementary source)
   exercises.forEach((exercise, index) => {
     const exerciseScore = (exercise.score / exercise.total_questions) * 100;
     recentScores.push(exerciseScore);
@@ -148,8 +213,10 @@ function analyzeExercises(exercises: Exercise[]): WeaknessAnalysis {
         const topic = question.topic || question.subject || exercise.section_type || "غير محدد";
         
         if (!topicStats[topic]) {
-          topicStats[topic] = { correct: 0, incorrect: 0, mistakes: [] };
+          topicStats[topic] = { correct: 0, incorrect: 0, totalTime: 0, attempts: 0, mistakes: [] };
         }
+
+        topicStats[topic].attempts++;
 
         if (question.is_correct === false || 
             (question.user_answer && question.user_answer !== question.correct_answer)) {
@@ -173,10 +240,14 @@ function analyzeExercises(exercises: Exercise[]): WeaknessAnalysis {
     }
   });
 
-  // Calculate improvement rate
+  // Calculate improvement rate and performance metrics
   const improvementRate = calculateImprovementRate(recentScores);
   const recentPerformance = recentScores.length > 0 
     ? recentScores.slice(0, 5).reduce((a, b) => a + b, 0) / Math.min(5, recentScores.length)
+    : 0;
+  
+  const avgTime = totalTimeSpent > 0 && performanceHistory.length > 0
+    ? (totalTimeSpent / performanceHistory.length).toFixed(1)
     : 0;
 
   // Categorize weaknesses
@@ -190,8 +261,15 @@ function analyzeExercises(exercises: Exercise[]): WeaknessAnalysis {
 
     const successRate = (stats.correct / total) * 100;
     const errorCount = stats.incorrect;
+    const avgTopicTime = stats.attempts > 0 ? (stats.totalTime / stats.attempts).toFixed(1) : 0;
 
-    const topicData = { topic, errorCount, successRate };
+    const topicData = { 
+      topic, 
+      errorCount, 
+      successRate, 
+      avgTime: avgTopicTime,
+      attempts: stats.attempts 
+    };
 
     if (successRate < 40) {
       critical.push(topicData);
@@ -221,12 +299,27 @@ function analyzeExercises(exercises: Exercise[]): WeaknessAnalysis {
   // Generate recommendations
   const recommendations = generateRecommendations(critical, moderate, improving, improvementRate);
 
+  // Enrich with weakness profile data
+  const enrichedWeaknessProfile = weaknessProfile.map(w => ({
+    topic: w.topic,
+    section: w.section,
+    weaknessScore: w.weakness_score,
+    totalAttempts: w.total_attempts,
+    correctAttempts: w.correct_attempts,
+    incorrectAttempts: w.incorrect_attempts,
+    avgTime: w.average_time_seconds,
+    lastAttempt: w.last_attempt_date,
+    trend: w.improvement_trend,
+    aiRecommendations: w.ai_recommendations,
+  }));
+
   return {
     summary: {
-      totalExercises: exercises.length,
+      totalExercises: exercises.length + performanceHistory.length,
       totalMistakes,
       improvementRate,
       recentPerformance,
+      avgTime: avgTime,
     },
     weaknesses: {
       critical: critical.slice(0, 5),
@@ -235,6 +328,7 @@ function analyzeExercises(exercises: Exercise[]): WeaknessAnalysis {
     },
     repeatedMistakes: repeatedMistakes.slice(0, 10),
     recommendations,
+    weaknessProfile: enrichedWeaknessProfile,
   };
 }
 

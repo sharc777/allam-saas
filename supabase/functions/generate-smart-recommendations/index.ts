@@ -31,8 +31,8 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    // Fetch user stats
-    const [quizResults, progress, weaknesses] = await Promise.all([
+    // Fetch user stats from multiple sources
+    const [quizResults, progress, weaknessProfile, performanceHistory] = await Promise.all([
       supabaseClient
         .from("quiz_results")
         .select("*")
@@ -44,19 +44,44 @@ serve(async (req) => {
         .select("*")
         .eq("user_id", user.id),
       supabaseClient
-        .from("student_weaknesses")
+        .from("user_weakness_profile")
         .select("*")
         .eq("user_id", user.id)
         .order("weakness_score", { ascending: false })
         .limit(5),
+      supabaseClient
+        .from("user_performance_history")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
+
+    // Calculate comprehensive stats
+    const recentPerformance = performanceHistory.data || [];
+    const avgTimePerQuestion = recentPerformance.length > 0
+      ? recentPerformance.reduce((sum, p) => sum + (p.time_spent_seconds || 0), 0) / recentPerformance.length
+      : 0;
+    
+    const topWeaknesses = (weaknessProfile.data || []).map(w => ({
+      topic: w.topic,
+      section: w.section,
+      weaknessScore: w.weakness_score,
+      errorRate: ((w.incorrect_attempts / Math.max(w.total_attempts, 1)) * 100).toFixed(1),
+      avgTime: w.average_time_seconds,
+      trend: w.improvement_trend,
+      aiRecommendations: w.ai_recommendations,
+    }));
 
     const stats = {
       recentQuizzes: quizResults.data || [],
       progress: progress.data || [],
-      topWeaknesses: weaknesses.data || [],
+      topWeaknesses: topWeaknesses,
+      recentPerformance: recentPerformance.slice(0, 10),
       avgScore: quizResults.data?.reduce((acc, q) => acc + (q.score || 0), 0) / (quizResults.data?.length || 1) || 0,
       completedLessons: progress.data?.filter(p => p.content_completed).length || 0,
+      avgTimePerQuestion: avgTimePerQuestion.toFixed(1),
+      totalAttempts: recentPerformance.length,
     };
 
     // Call Lovable AI for recommendations
@@ -87,13 +112,31 @@ serve(async (req) => {
           },
           {
             role: "user",
-            content: `بيانات الطالب:
-            - متوسط الدرجات: ${stats.avgScore.toFixed(1)}%
-            - الدروس المكتملة: ${stats.completedLessons}
-            - عدد الاختبارات الأخيرة: ${stats.recentQuizzes.length}
-            - أبرز نقاط الضعف: ${stats.topWeaknesses.map(w => w.section_name).join('، ')}
+            content: `بيانات الطالب التفصيلية:
             
-            قدم توصيات ذكية ومخصصة بصيغة JSON`
+📊 الأداء العام:
+- متوسط الدرجات: ${stats.avgScore.toFixed(1)}%
+- الدروس المكتملة: ${stats.completedLessons}
+- عدد الاختبارات الأخيرة: ${stats.recentQuizzes.length}
+- إجمالي المحاولات: ${stats.totalAttempts}
+- متوسط الوقت للسؤال: ${stats.avgTimePerQuestion} ثانية
+
+🎯 نقاط الضعف الرئيسية:
+${stats.topWeaknesses.map((w, i) => `${i + 1}. ${w.topic} (${w.section})
+   - معدل الخطأ: ${w.errorRate}%
+   - درجة الضعف: ${w.weaknessScore.toFixed(2)}
+   - متوسط الوقت: ${w.avgTime}ث
+   - الاتجاه: ${w.trend || 'stable'}
+   ${w.aiRecommendations ? `- توصية سابقة: ${w.aiRecommendations}` : ''}`).join('\n\n')}
+
+📈 الأداء الأخير (آخر 10 أسئلة):
+${stats.recentPerformance.map((p, i) => `${i + 1}. ${p.topic} - ${p.is_correct ? '✅' : '❌'} (${p.time_spent_seconds}ث)`).join('\n')}
+
+قدم 3-5 توصيات ذكية ومخصصة بصيغة JSON بناءً على:
+1. نقاط الضعف المستمرة
+2. أنماط الأخطاء
+3. الوقت المستغرق
+4. اتجاه التحسن`
           }
         ],
         response_format: { type: "json_object" }
