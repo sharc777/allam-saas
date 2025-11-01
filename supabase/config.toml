@@ -1,5 +1,8 @@
 project_id = "pwjoxhvadzwabozxrkpc"
 
+[functions.create-package-checkout]
+verify_jwt = true
+
 [functions.award-achievements]
 verify_jwt = true
 

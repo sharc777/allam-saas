@@ -33,17 +33,8 @@ const Subscription = () => {
     }
   }, [toast]);
 
-  const handleSubscribe = async (priceId: string | null, packageName: string) => {
+  const handleSubscribe = async (packageId: string, packageName: string, billingPeriod: "monthly" | "yearly") => {
     try {
-      if (!priceId) {
-        toast({
-          title: "⚠️ خطأ في معرف السعر",
-          description: "هذه الباقة لا تحتوي على معرف Stripe صحيح. يرجى التواصل مع الإدارة.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       setLoadingPlan(packageName);
 
       // التحقق من تسجيل الدخول
@@ -58,9 +49,12 @@ const Subscription = () => {
         return;
       }
 
-      // إنشاء جلسة الدفع
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId },
+      // إنشاء جلسة الدفع - الـ Edge Function ستجلب Stripe ID من الجدول الخاص
+      const { data, error } = await supabase.functions.invoke("create-package-checkout", {
+        body: { 
+          packageId,
+          billingPeriod 
+        },
       });
 
       if (error) {
@@ -69,14 +63,8 @@ const Subscription = () => {
       }
 
       if (data?.url) {
-        // فتح صفحة الدفع في نافذة جديدة
-        window.open(data.url, "_blank");
-        
-        toast({
-          title: "✅ تم التوجيه بنجاح",
-          description: "تم فتح صفحة الدفع. بعد إتمام الدفع، سيتم تحديث اشتراكك تلقائياً خلال ثوانٍ.",
-          duration: 5000,
-        });
+        // التوجيه لصفحة الدفع في نفس النافذة
+        window.location.href = data.url;
       } else {
         throw new Error("لم يتم إرجاع رابط الدفع");
       }
@@ -91,7 +79,6 @@ const Subscription = () => {
         variant: "destructive",
         duration: 6000,
       });
-    } finally {
       setLoadingPlan(null);
     }
   };
@@ -178,10 +165,6 @@ const Subscription = () => {
               const price = billingPeriod === "monthly" 
                 ? Number(pkg.price_monthly) || 0
                 : Number(pkg.price_yearly) || 0;
-              
-              const priceId = billingPeriod === "monthly"
-                ? pkg.stripe_price_id_monthly
-                : pkg.stripe_price_id_yearly;
 
               const isFree = price === 0;
               const isPopular = pkg.is_featured;
@@ -273,8 +256,8 @@ const Subscription = () => {
                       className="w-full"
                       variant={isPopular ? "default" : "outline"}
                       size="lg"
-                      disabled={loadingPlan === pkg.name_ar || isCurrentPlan || !priceId}
-                      onClick={() => handleSubscribe(priceId, pkg.name_ar)}
+                      disabled={loadingPlan === pkg.name_ar || isCurrentPlan || isFree}
+                      onClick={() => handleSubscribe(pkg.id, pkg.name_ar, billingPeriod)}
                     >
                       {loadingPlan === pkg.name_ar ? (
                         <>
@@ -285,8 +268,6 @@ const Subscription = () => {
                         "باقتك الحالية"
                       ) : isFree ? (
                         "ابدأ مجاناً"
-                      ) : !priceId ? (
-                        "غير متاح"
                       ) : (
                         "اشترك الآن"
                       )}

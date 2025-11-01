@@ -1093,6 +1093,41 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_packages_private: {
+        Row: {
+          created_at: string | null
+          id: string
+          stripe_price_id_monthly: string | null
+          stripe_price_id_yearly: string | null
+          stripe_product_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_packages_private_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "subscription_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1141,14 +1176,9 @@ export type Database = {
       }
     }
     Functions: {
-      check_custom_test_limit: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      clean_expired_cache_reservations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      check_custom_test_limit: { Args: { p_user_id: string }; Returns: Json }
+      clean_expired_cache_reservations: { Args: never; Returns: undefined }
+      has_active_access: { Args: { p_user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1164,10 +1194,7 @@ export type Database = {
         Args: { p_section: string; p_user_id: string }
         Returns: undefined
       }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
       academic_track: "عام" | "علمي" | "نظري"
