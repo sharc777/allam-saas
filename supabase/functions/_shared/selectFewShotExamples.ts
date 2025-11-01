@@ -11,7 +11,7 @@ export interface FewShotExample {
   section?: string;
 }
 
-// Phase 2: Advanced Few-Shot Selection with Quality Scoring
+// Phase 3: Advanced Few-Shot Selection with Weakness Profile Integration
 export async function selectFewShotExamples(
   supabase: SupabaseClient,
   params: {
@@ -21,7 +21,10 @@ export async function selectFewShotExamples(
     difficulty?: string;
     count?: number;
     useQualityScoring?: boolean;
-    diversityMode?: 'balanced' | 'topic-focused' | 'difficulty-spread';
+    diversityMode?: 'balanced' | 'topic-focused' | 'difficulty-spread' | 'weakness-focused';
+    userId?: string;
+    weakTopics?: string[];
+    studentLevel?: string;
   }
 ): Promise<FewShotExample[]> {
   const { 
@@ -31,12 +34,18 @@ export async function selectFewShotExamples(
     difficulty, 
     count = 3,
     useQualityScoring = true,
-    diversityMode = 'balanced'
+    diversityMode = 'balanced',
+    userId,
+    weakTopics = [],
+    studentLevel = 'متوسط'
   } = params;
   
-  console.log(`🎓 Phase 2: Advanced few-shot selection for ${test_type}/${section}`, {
-    topic, difficulty, count, useQualityScoring, diversityMode
+  console.log(`🎓 Phase 3: Weakness-aware few-shot selection for ${test_type}/${section}`, {
+    topic, difficulty, count, useQualityScoring, diversityMode, weakTopics: weakTopics.length, studentLevel
   });
+  
+  // Phase 3: Adjust quality threshold based on student level
+  const minQuality = studentLevel === 'مبتدئ' ? 4 : 3;
   
   let query = supabase
     .from("ai_training_examples")
@@ -44,11 +53,11 @@ export async function selectFewShotExamples(
     .eq("section", section)
     .eq("test_type", test_type);
   
-  // Phase 2: Quality-first ordering
+  // Phase 3: Quality-first ordering with dynamic threshold
   if (useQualityScoring) {
     query = query
       .order("quality_score", { ascending: false, nullsFirst: false })
-      .gte("quality_score", 3); // Only use quality >= 3
+      .gte("quality_score", minQuality);
   }
   
   // Fetch larger pool for diversity
@@ -67,10 +76,42 @@ export async function selectFewShotExamples(
     return [];
   }
   
-  // Phase 2: Apply diversity strategy
+  // Phase 3: Apply diversity strategy with weakness awareness
   let selected: any[] = [];
   
   switch (diversityMode) {
+    case 'weakness-focused':
+      // Phase 3: Prioritize examples from weak topics
+      const weaknessExamples = data.filter((ex: any) => 
+        weakTopics.includes(ex.subject)
+      );
+      const otherExamples = data.filter((ex: any) => 
+        !weakTopics.includes(ex.subject)
+      );
+      
+      // For beginners with weaknesses: easier examples from weak topics
+      if (studentLevel === 'مبتدئ' && weaknessExamples.length > 0) {
+        const easyWeak = weaknessExamples.filter((ex: any) => 
+          ['easy', 'medium'].includes(ex.difficulty)
+        );
+        const hardWeak = weaknessExamples.filter((ex: any) => 
+          ex.difficulty === 'hard'
+        );
+        
+        selected = [
+          ...easyWeak.slice(0, Math.ceil(count * 0.6)),
+          ...hardWeak.slice(0, Math.floor(count * 0.2)),
+          ...otherExamples.slice(0, Math.floor(count * 0.2))
+        ];
+      } else {
+        // Regular weakness-focused distribution
+        selected = [
+          ...weaknessExamples.slice(0, Math.ceil(count * 0.7)),
+          ...otherExamples.slice(0, Math.floor(count * 0.3))
+        ];
+      }
+      break;
+      
     case 'topic-focused':
       const topicMatches = topic ? data.filter((ex: any) => ex.subject === topic) : [];
       const others = topic ? data.filter((ex: any) => ex.subject !== topic) : data;
@@ -106,7 +147,7 @@ export async function selectFewShotExamples(
       break;
   }
   
-  console.log(`✅ Phase 2: Selected ${selected.length} examples (${diversityMode} strategy)`);
+  console.log(`✅ Phase 3: Selected ${selected.length} examples (${diversityMode} strategy, weakTopics: ${weakTopics.length})`);
   return selected.slice(0, count);
 }
 

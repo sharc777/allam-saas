@@ -943,19 +943,42 @@ serve(async (req) => {
     const dynamicTemperature = calculateDynamicTemperature(studentLevel, testContext as any);
     console.log(`🌡️ Using dynamic temperature: ${dynamicTemperature}`);
     
-    // ============= LOAD FEW-SHOT EXAMPLES =============
-    console.log("🎓 Loading few-shot examples...");
+    // ============= LOAD FEW-SHOT EXAMPLES WITH WEAKNESS INTEGRATION =============
+    console.log("🎓 Phase 3: Loading few-shot examples with weakness awareness...");
+    
+    // Determine diversityMode based on context
+    let diversityMode: 'balanced' | 'topic-focused' | 'difficulty-spread' | 'weakness-focused' = 'balanced';
+    
+    if (mode === 'practice' || mode === 'weakness_practice') {
+      // If student has clear weaknesses, focus on them
+      if (weaknesses.length >= 3) {
+        diversityMode = 'weakness-focused';
+      } else {
+        diversityMode = 'balanced';
+      }
+    } else if (mode === 'initial_assessment') {
+      diversityMode = 'difficulty-spread'; // Variety in difficulty
+    } else {
+      diversityMode = 'topic-focused'; // Focus on daily topic
+    }
     
     const fewShotCount = studentLevel.level === 'struggling' ? 5 : 3;
+    const weakTopics = weaknesses.slice(0, 5).map(w => w.topic_name);
+    
     const fewShotExamples = await selectFewShotExamples(supabase, {
       topic: weaknesses.length > 0 ? weaknesses[0].topic_name : undefined,
       section: sectionFilter || 'كمي',
       test_type: testType,
       difficulty: difficulty,
-      count: fewShotCount
+      count: fewShotCount,
+      useQualityScoring: true,
+      diversityMode,
+      userId,
+      weakTopics,
+      studentLevel: studentLevel.level
     });
     
-    console.log(`✅ Selected ${fewShotExamples.length} few-shot examples`);
+    console.log(`✅ Phase 3: Selected ${fewShotExamples.length} examples (${diversityMode} mode, ${weakTopics.length} weak topics)`);
     
     // ============= BUILD DYNAMIC SYSTEM PROMPT =============
     console.log("🔨 Building dynamic system prompt...");
@@ -978,9 +1001,17 @@ serve(async (req) => {
       sectionFilter, isInitialAssessment, knowledgeData 
     });
     
-    const userPrompt = injectFewShotExamples(baseUserPrompt, fewShotExamples);
+    // Add weakness information to prompt if in practice mode
+    let enhancedUserPrompt = baseUserPrompt;
+    if (weakTopics.length > 0 && (mode === 'weakness_practice' || mode === 'practice')) {
+      enhancedUserPrompt += `\n\n🎯 **التركيز على نقاط الضعف:**
+المتعلم يحتاج تحسين في: ${weakTopics.slice(0, 3).join('، ')}
+قم بتوليد أسئلة مركزة على هذه المواضيع مع شرح تفصيلي وواضح.\n`;
+    }
     
-    console.log("✅ Prompts enriched and ready");
+    const userPrompt = injectFewShotExamples(enhancedUserPrompt, fewShotExamples);
+    
+    console.log("✅ Phase 3: Prompts enriched with Few-Shot examples and weakness data");
     
     // 8. Generate questions with AI (using dynamic temperature)
     let allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, dynamicTemperature);

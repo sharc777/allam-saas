@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, History, BookOpen, Trophy, Award, Target, BarChart } from "lucide-react";
+import { Brain, History, BookOpen, Trophy, Award, Target, BarChart, LineChart } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -243,6 +243,17 @@ const NewDashboard = () => {
             </div>
           </div>
 
+
+          {/* Performance Analytics Button */}
+          <Button
+            onClick={() => navigate("/performance-analytics")}
+            size="lg"
+            variant="outline"
+            className="fixed bottom-72 right-8 shadow-elegant z-40 h-14 px-6 border-2"
+          >
+            <LineChart className="w-6 h-6 ml-2" />
+            <span className="text-lg font-semibold">تحليل الأداء التفصيلي</span>
+          </Button>
 
           {/* Weakness Analysis Button */}
           <Button

@@ -19,6 +19,7 @@ import ExerciseDetails from "./pages/ExerciseDetails";
 import WeaknessAnalysis from "./pages/WeaknessAnalysis";
 import CustomTest from "./pages/CustomTest";
 import ProgressDashboard from "./pages/ProgressDashboard";
+import PerformanceAnalytics from "./pages/PerformanceAnalytics";
 import Support from "./pages/Support";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/weakness-analysis" element={<WeaknessAnalysis />} />
             <Route path="/custom-test" element={<CustomTest />} />
             <Route path="/progress-dashboard" element={<ProgressDashboard />} />
+            <Route path="/performance-analytics" element={<PerformanceAnalytics />} />
             <Route path="/support" element={<Support />} />
             <Route path="/admin" element={<Admin />} />
             
