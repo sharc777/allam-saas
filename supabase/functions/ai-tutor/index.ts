@@ -29,20 +29,27 @@ serve(async (req) => {
     // Authenticate user and get user ID for rate limiting
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      console.error("No authorization header");
       return new Response(
         JSON.stringify({ error: "غير مصرح" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
-    const token = authHeader.replace("Bearer ", "");
+    // Create authenticated Supabase client
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
     );
     
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !userData.user) {
+      console.error("Auth error:", userError);
       return new Response(
         JSON.stringify({ error: "غير مصرح" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -50,6 +57,7 @@ serve(async (req) => {
     }
     
     const userId = userData.user.id;
+    console.log("User authenticated:", userId);
     
     // Rate limiting check - 20 requests per minute
     if (!rateLimiter.check(userId, 20, 60000)) {
