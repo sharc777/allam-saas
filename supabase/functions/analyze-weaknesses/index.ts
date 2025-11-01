@@ -88,7 +88,7 @@ serve(async (req) => {
     const { userId, testType, timeRange = 30 } = await req.json();
     const targetUserId = userId || user.id;
 
-    console.log(`📊 [Analyze Weaknesses] Analyzing for user: ${targetUserId}, timeRange: ${timeRange} days`);
+    console.log(`📊 [Analyze Weaknesses] Analyzing for user: ${targetUserId}, testType: ${testType || 'all'}, timeRange: ${timeRange} days`);
 
     // Calculate date range
     const startDate = new Date();
@@ -107,13 +107,22 @@ serve(async (req) => {
         .select("*")
         .eq("user_id", targetUserId)
         .order("weakness_score", { ascending: false }),
-      supabase
-        .from("daily_exercises")
-        .select("*")
-        .eq("user_id", targetUserId)
-        .eq("test_type", testType)
-        .gte("created_at", startDate.toISOString())
-        .order("created_at", { ascending: false }),
+      // Only filter by test_type if provided
+      testType ? 
+        supabase
+          .from("daily_exercises")
+          .select("*")
+          .eq("user_id", targetUserId)
+          .eq("test_type", testType)
+          .gte("created_at", startDate.toISOString())
+          .order("created_at", { ascending: false })
+        :
+        supabase
+          .from("daily_exercises")
+          .select("*")
+          .eq("user_id", targetUserId)
+          .gte("created_at", startDate.toISOString())
+          .order("created_at", { ascending: false }),
     ]);
 
     if (performanceHistory.error) throw performanceHistory.error;
@@ -329,11 +338,11 @@ function analyzeComprehensively(
     weaknessScore: w.weakness_score,
     totalAttempts: w.total_attempts,
     correctAttempts: w.correct_attempts,
-    incorrectAttempts: w.incorrect_attempts,
-    avgTime: w.average_time_seconds,
-    lastAttempt: w.last_attempt_date,
-    trend: w.improvement_trend,
-    aiRecommendations: w.ai_recommendations,
+    incorrectAttempts: w.total_attempts - w.correct_attempts,
+    avgTime: w.avg_time_seconds,
+    lastAttempt: w.last_attempt,
+    trend: w.trend,
+    priority: w.priority,
   }));
 
   return {
