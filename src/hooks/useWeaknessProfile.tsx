@@ -36,33 +36,50 @@ export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) =
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000,
     enabled: !!userId,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     queryFn: async () => {
-      const targetUserId = userId || (await supabase.auth.getUser()).data.user?.id;
-      if (!targetUserId) throw new Error("User not authenticated");
+      try {
+        console.log('🎯 [Weakness Profile] Fetching data...', { userId, filters });
+        
+        const targetUserId = userId || (await supabase.auth.getUser()).data.user?.id;
+        if (!targetUserId) {
+          console.error('❌ [Weakness Profile] User not authenticated');
+          throw new Error("المستخدم غير مصادق عليه. يرجى تسجيل الدخول مرة أخرى.");
+        }
 
-      let query = supabase
-        .from("user_weakness_profile" as any)
-        .select("*")
-        .eq("user_id", targetUserId)
-        .order("weakness_score", { ascending: false });
+        let query = supabase
+          .from("user_weakness_profile" as any)
+          .select("*")
+          .eq("user_id", targetUserId)
+          .order("weakness_score", { ascending: false });
 
-      if (filters?.section) {
-        query = query.eq("section", filters.section);
-      }
-      if (filters?.test_type) {
-        query = query.eq("test_type", filters.test_type);
-      }
-      if (filters?.priority) {
-        query = query.eq("priority", filters.priority);
-      }
-      if (filters?.limit) {
-        query = query.limit(filters.limit);
-      }
+        if (filters?.section) {
+          query = query.eq("section", filters.section);
+        }
+        if (filters?.test_type) {
+          query = query.eq("test_type", filters.test_type);
+        }
+        if (filters?.priority) {
+          query = query.eq("priority", filters.priority);
+        }
+        if (filters?.limit) {
+          query = query.limit(filters.limit);
+        }
 
-      const { data, error } = await query;
+        const { data, error } = await query;
 
-      if (error) throw error;
-      return (data as any) as WeaknessProfile[];
+        if (error) {
+          console.error('❌ [Weakness Profile] Database error:', error);
+          throw new Error(`فشل في تحميل ملف نقاط الضعف: ${error.message}`);
+        }
+
+        console.log(`✅ [Weakness Profile] Loaded ${data?.length || 0} weaknesses`);
+        return (data as any) as WeaknessProfile[];
+      } catch (err) {
+        console.error('❌ [Weakness Profile] Fetch error:', err);
+        throw err;
+      }
     },
   });
 

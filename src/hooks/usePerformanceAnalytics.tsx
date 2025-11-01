@@ -60,20 +60,37 @@ export const usePerformanceAnalytics = (
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     enabled: !!userId,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     queryFn: async () => {
-      const targetUserId = userId || (await supabase.auth.getUser()).data.user?.id;
-      if (!targetUserId) throw new Error("User not authenticated");
+      try {
+        console.log('📊 [Performance Analytics] Fetching data...', { userId, range });
+        
+        const targetUserId = userId || (await supabase.auth.getUser()).data.user?.id;
+        if (!targetUserId) {
+          console.error('❌ [Performance Analytics] User not authenticated');
+          throw new Error("المستخدم غير مصادق عليه. يرجى تسجيل الدخول مرة أخرى.");
+        }
 
-      const { data, error } = await supabase
-        .from("user_performance_history" as any)
-        .select("*")
-        .eq("user_id", targetUserId)
-        .gte("created_at", startOfDay(range.from).toISOString())
-        .lte("created_at", endOfDay(range.to).toISOString())
-        .order("created_at", { ascending: true });
+        const { data, error } = await supabase
+          .from("user_performance_history" as any)
+          .select("*")
+          .eq("user_id", targetUserId)
+          .gte("created_at", startOfDay(range.from).toISOString())
+          .lte("created_at", endOfDay(range.to).toISOString())
+          .order("created_at", { ascending: true });
 
-      if (error) throw error;
-      return (data as any) as PerformanceData[];
+        if (error) {
+          console.error('❌ [Performance Analytics] Database error:', error);
+          throw new Error(`فشل في تحميل بيانات الأداء: ${error.message}`);
+        }
+
+        console.log(`✅ [Performance Analytics] Loaded ${data?.length || 0} records`);
+        return (data as any) as PerformanceData[];
+      } catch (err) {
+        console.error('❌ [Performance Analytics] Fetch error:', err);
+        throw err;
+      }
     },
   });
 

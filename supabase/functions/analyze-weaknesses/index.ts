@@ -55,11 +55,15 @@ interface WeaknessAnalysis {
 }
 
 serve(async (req) => {
+  const startTime = Date.now();
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('🔍 [Analyze Weaknesses] Function started');
+    
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -67,20 +71,24 @@ serve(async (req) => {
     // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error("No authorization header");
+      console.error('❌ [Analyze Weaknesses] Missing authorization header');
+      throw new Error("Missing authorization header");
     }
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
+      console.error('❌ [Analyze Weaknesses] Authentication failed:', authError);
       throw new Error("Authentication failed");
     }
+
+    console.log(`✅ [Analyze Weaknesses] User authenticated: ${user.email}`);
 
     const { userId, testType, timeRange = 30 } = await req.json();
     const targetUserId = userId || user.id;
 
-    console.log(`📊 Analyzing weaknesses for user: ${targetUserId}`);
+    console.log(`📊 [Analyze Weaknesses] Analyzing for user: ${targetUserId}, timeRange: ${timeRange} days`);
 
     // Calculate date range
     const startDate = new Date();
@@ -132,18 +140,33 @@ serve(async (req) => {
     // Analyze using both data sources
     const analysis = analyzeComprehensively(exerciseData as Exercise[], performanceData, weaknessData);
 
-    console.log(`✅ Analysis complete: ${analysis.summary.totalMistakes} mistakes, ${performanceData.length} performance records`);
+    const duration = Date.now() - startTime;
+    console.log(`✅ [Analyze Weaknesses] Analysis complete in ${duration}ms:`, {
+      totalMistakes: analysis.summary.totalMistakes,
+      performanceRecords: performanceData.length,
+      weaknessRecords: weaknessData.length,
+      criticalWeaknesses: analysis.weaknesses.critical.length,
+      moderateWeaknesses: analysis.weaknesses.moderate.length,
+    });
 
     return new Response(JSON.stringify(analysis), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("❌ Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const duration = Date.now() - startTime;
+    console.error(`❌ [Analyze Weaknesses] Error after ${duration}ms:`, error);
+    const errorMessage = error instanceof Error ? error.message : "حدث خطأ غير متوقع";
+    return new Response(
+      JSON.stringify({ 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
 

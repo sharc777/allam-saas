@@ -7,11 +7,15 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  const startTime = Date.now();
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('🤖 [Smart Recommendations] Function started');
+    
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
@@ -20,6 +24,7 @@ serve(async (req) => {
     // Get user from auth header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      console.error('❌ [Smart Recommendations] Missing authorization header');
       throw new Error("Missing authorization header");
     }
 
@@ -28,8 +33,11 @@ serve(async (req) => {
     );
 
     if (authError || !user) {
+      console.error('❌ [Smart Recommendations] Auth failed:', authError);
       throw new Error("Unauthorized");
     }
+
+    console.log(`✅ [Smart Recommendations] User authenticated: ${user.email}`);
 
     // Fetch user stats from multiple sources
     const [quizResults, progress, weaknessProfile, performanceHistory] = await Promise.all([
@@ -84,12 +92,22 @@ serve(async (req) => {
       totalAttempts: recentPerformance.length,
     };
 
+    console.log('📊 [Smart Recommendations] Stats calculated:', {
+      avgScore: stats.avgScore.toFixed(1),
+      totalAttempts: stats.totalAttempts,
+      topWeaknesses: stats.topWeaknesses.length,
+    });
+
     // Call Lovable AI for recommendations
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
+      console.error('❌ [Smart Recommendations] LOVABLE_API_KEY not configured');
       throw new Error("LOVABLE_API_KEY not configured");
     }
+
+    console.log('🤖 [Smart Recommendations] Calling AI...');
+    const aiStartTime = Date.now();
 
     const aiResponse = await fetch("https://api.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -144,31 +162,49 @@ ${stats.recentPerformance.map((p, i) => `${i + 1}. ${p.topic} - ${p.is_correct ?
     });
 
     if (!aiResponse.ok) {
-      throw new Error("AI API request failed");
+      const errorText = await aiResponse.text();
+      console.error('❌ [Smart Recommendations] AI API failed:', errorText);
+      throw new Error(`AI API request failed: ${aiResponse.status}`);
     }
+
+    const aiDuration = Date.now() - aiStartTime;
+    console.log(`✅ [Smart Recommendations] AI responded in ${aiDuration}ms`);
 
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content;
     
     if (!content) {
+      console.error('❌ [Smart Recommendations] No content in AI response');
       throw new Error("No recommendations generated");
     }
 
     const recommendations = JSON.parse(content);
+    const totalDuration = Date.now() - startTime;
+    
+    console.log(`✅ [Smart Recommendations] Complete in ${totalDuration}ms, generated ${recommendations.recommendations?.length || 0} recommendations`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         recommendations: recommendations.recommendations || [],
-        stats 
+        stats,
+        performance: {
+          totalDuration,
+          aiDuration,
+        }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error) {
-    console.error("Smart recommendations error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const totalDuration = Date.now() - startTime;
+    console.error(`❌ [Smart Recommendations] Error after ${totalDuration}ms:`, error);
+    const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع أثناء توليد التوصيات";
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ 
+        error: message,
+        details: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
