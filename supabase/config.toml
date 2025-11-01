@@ -1,5 +1,14 @@
 project_id = "pwjoxhvadzwabozxrkpc"
 
+[functions.send-push-notification]
+verify_jwt = true
+
+[functions.send-email-notification]
+verify_jwt = true
+
+[functions.generate-smart-recommendations]
+verify_jwt = true
+
 [functions.create-package-checkout]
 verify_jwt = true
 

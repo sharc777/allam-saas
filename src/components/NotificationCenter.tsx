@@ -44,7 +44,7 @@ export const NotificationCenter = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={markAllAsRead}
+                onClick={() => markAllAsRead.mutate()}
                 className="text-xs"
               >
                 <CheckCheck className="w-4 h-4 ml-1" />
@@ -68,11 +68,11 @@ export const NotificationCenter = () => {
                   className={`p-4 cursor-pointer transition-all hover:border-primary/30 ${
                     notification.read ? "opacity-60" : "border-primary/20"
                   }`}
-                  onClick={() => !notification.read && markAsRead(notification.id)}
+                  onClick={() => !notification.read && markAsRead.mutate(notification.id)}
                 >
                   <div className="flex items-start gap-3">
                     <div className="text-2xl flex-shrink-0">
-                      {notification.icon}
+                      {notification.icon || "🔔"}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
@@ -85,7 +85,7 @@ export const NotificationCenter = () => {
                           className="h-6 w-6 flex-shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            removeNotification(notification.id);
+                            removeNotification.mutate(notification.id);
                           }}
                         >
                           <X className="w-3 h-3" />
@@ -95,7 +95,7 @@ export const NotificationCenter = () => {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground/70 mt-2">
-                        {formatDistanceToNow(notification.createdAt, {
+                        {formatDistanceToNow(new Date(notification.created_at), {
                           addSuffix: true,
                           locale: ar,
                         })}

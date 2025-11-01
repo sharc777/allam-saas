@@ -3,10 +3,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { ComprehensiveStats } from "@/components/ComprehensiveStats";
+import { ActivityTimeline } from "@/components/ActivityTimeline";
+import { PerformanceLineChart } from "@/components/charts/PerformanceLineChart";
+import { SkillsRadarChart } from "@/components/charts/SkillsRadarChart";
+import { SmartRecommendations } from "@/components/SmartRecommendations";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
 const ProgressDashboard = () => {
@@ -74,13 +77,26 @@ const ProgressDashboard = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
               <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+              <TabsTrigger value="charts">الرسوم البيانية</TabsTrigger>
+              <TabsTrigger value="recommendations">التوصيات الذكية</TabsTrigger>
               <TabsTrigger value="timeline">الخط الزمني</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
               <ComprehensiveStats stats={stats} />
+            </TabsContent>
+
+            <TabsContent value="charts" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <PerformanceLineChart data={[]} />
+                <SkillsRadarChart data={[]} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="recommendations" className="space-y-6">
+              <SmartRecommendations />
             </TabsContent>
 
             <TabsContent value="timeline" className="space-y-6">

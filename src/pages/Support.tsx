@@ -56,7 +56,7 @@ const Support = () => {
           subject: subject.trim(),
           description: description.trim(),
           category,
-        })
+        } as any)
         .select()
         .single();
 

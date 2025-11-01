@@ -38,6 +38,40 @@ export const useNotifications = () => {
     },
   });
 
+  // Mark all as read mutation
+  const markAllAsRead = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true, read_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .eq("read", false);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  // Remove notification mutation
+  const removeNotification = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", notificationId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
   // Setup realtime subscription
   useEffect(() => {
     const channel = supabase
@@ -93,6 +127,8 @@ export const useNotifications = () => {
     isLoading,
     unreadCount,
     markAsRead,
+    markAllAsRead,
+    removeNotification,
     requestPermission,
   };
 };
