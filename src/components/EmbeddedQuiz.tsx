@@ -89,17 +89,17 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
       
       trackPerformance.mutate({
         questionHash: generateQuestionHash(question.question_text, question.options),
-        questionText: question.question_text,
-        topicName: question.topic || 'عام',
+        topic: question.topic || 'عام',
         section: question.section || 'كمي',
-        testType: profile?.test_type_preference || "قدرات",
-        difficulty: question.difficulty || 'medium',
-        testTypeCategory: 'quiz',
-        userAnswer: answer,
-        correctAnswer: question.correct_answer,
+        difficulty: (question.difficulty as 'easy' | 'medium' | 'hard') || 'medium',
         isCorrect: answer === question.correct_answer,
         timeSpentSeconds: timeSpent,
         metadata: {
+          questionText: question.question_text,
+          testType: profile?.test_type_preference || "قدرات",
+          testTypeCategory: 'quiz',
+          userAnswer: answer,
+          correctAnswer: question.correct_answer,
           day_number: parseInt(dayNumber),
           content_id: contentId,
           question_index: currentQuestionIndex

@@ -1418,6 +1418,48 @@ export type Database = {
           },
         ]
       }
+      user_performance_history: {
+        Row: {
+          attempted_at: string
+          created_at: string
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          id: string
+          is_correct: boolean
+          metadata: Json | null
+          question_hash: string
+          section: string
+          time_spent_seconds: number | null
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          created_at?: string
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          id?: string
+          is_correct: boolean
+          metadata?: Json | null
+          question_hash: string
+          section: string
+          time_spent_seconds?: number | null
+          topic: string
+          user_id: string
+        }
+        Update: {
+          attempted_at?: string
+          created_at?: string
+          difficulty?: Database["public"]["Enums"]["difficulty_level"]
+          id?: string
+          is_correct?: boolean
+          metadata?: Json | null
+          question_hash?: string
+          section?: string
+          time_spent_seconds?: number | null
+          topic?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1436,6 +1478,54 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_weakness_profile: {
+        Row: {
+          avg_time_seconds: number | null
+          correct_attempts: number
+          created_at: string
+          id: string
+          last_attempt: string | null
+          priority: string
+          section: string
+          topic: string
+          total_attempts: number
+          trend: string
+          updated_at: string
+          user_id: string
+          weakness_score: number
+        }
+        Insert: {
+          avg_time_seconds?: number | null
+          correct_attempts?: number
+          created_at?: string
+          id?: string
+          last_attempt?: string | null
+          priority?: string
+          section: string
+          topic: string
+          total_attempts?: number
+          trend?: string
+          updated_at?: string
+          user_id: string
+          weakness_score?: number
+        }
+        Update: {
+          avg_time_seconds?: number | null
+          correct_attempts?: number
+          created_at?: string
+          id?: string
+          last_attempt?: string | null
+          priority?: string
+          section?: string
+          topic?: string
+          total_attempts?: number
+          trend?: string
+          updated_at?: string
+          user_id?: string
+          weakness_score?: number
         }
         Relationships: []
       }

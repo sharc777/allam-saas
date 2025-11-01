@@ -164,17 +164,17 @@ const CustomTestContent = () => {
     
     trackPerformance.mutate({
       questionHash: generateQuestionHash(question.question_text, question.options),
-      questionText: question.question_text,
-      topicName: question.topic || state.topic,
+      topic: question.topic || state.topic,
       section: state.section,
-      testType: profile?.test_type_preference || "قدرات",
-      difficulty: state.difficulty,
-      testTypeCategory: 'custom_test',
-      userAnswer: answer,
-      correctAnswer: question.correct_answer,
+      difficulty: state.difficulty as 'easy' | 'medium' | 'hard',
       isCorrect: answer === question.correct_answer,
       timeSpentSeconds: timeSpent,
       metadata: {
+        questionText: question.question_text,
+        testType: profile?.test_type_preference || "قدرات",
+        testTypeCategory: 'custom_test',
+        userAnswer: answer,
+        correctAnswer: question.correct_answer,
         custom_topic: state.topic,
         question_index: currentQuestion
       }

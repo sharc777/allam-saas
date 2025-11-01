@@ -3,18 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface PerformanceData {
   questionHash: string;
-  questionText: string;
-  topicName: string;
+  topic: string;
   section: string;
-  testType: string;
-  difficulty: string;
-  testId?: string;
-  testTypeCategory: 'daily_exercise' | 'custom_test' | 'weakness_practice' | 'quiz';
-  userAnswer: string;
-  correctAnswer: string;
+  difficulty: 'easy' | 'medium' | 'hard';
   isCorrect: boolean;
   timeSpentSeconds: number;
-  confidenceLevel?: number;
   metadata?: any;
 }
 
@@ -22,25 +15,25 @@ export const usePerformanceTracking = () => {
   return useMutation({
     mutationFn: async (data: PerformanceData) => {
       console.log('📝 Tracking performance:', data);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
       
       const { data: result, error } = await supabase
-        .from("user_performance_history" as any)
+        .from("user_performance_history")
         .insert({
+          user_id: user.id,
           question_hash: data.questionHash,
-          question_text: data.questionText,
-          topic_name: data.topicName,
+          topic: data.topic,
           section: data.section,
-          test_type: data.testType,
           difficulty: data.difficulty,
-          test_id: data.testId,
-          test_type_category: data.testTypeCategory,
-          user_answer: data.userAnswer,
-          correct_answer: data.correctAnswer,
           is_correct: data.isCorrect,
           time_spent_seconds: data.timeSpentSeconds,
-          confidence_level: data.confidenceLevel,
+          attempted_at: new Date().toISOString(),
           metadata: data.metadata || {}
-        } as any);
+        });
 
       if (error) {
         console.error('❌ Performance tracking error:', error);

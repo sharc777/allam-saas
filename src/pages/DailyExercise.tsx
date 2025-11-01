@@ -141,17 +141,17 @@ const DailyExerciseContent = () => {
     
     trackPerformance.mutate({
       questionHash: generateQuestionHash(question.question_text, question.options),
-      questionText: question.question_text,
-      topicName: question.topic || 'عام',
+      topic: question.topic || 'عام',
       section: sectionType,
-      testType: testType as any,
-      difficulty: selectedDifficulty,
-      testTypeCategory: 'daily_exercise',
-      userAnswer: answer,
-      correctAnswer: question.correct_answer,
+      difficulty: selectedDifficulty as 'easy' | 'medium' | 'hard',
       isCorrect: answer === question.correct_answer,
       timeSpentSeconds: timeSpent,
       metadata: {
+        questionText: question.question_text,
+        testType: testType as any,
+        testTypeCategory: 'daily_exercise',
+        userAnswer: answer,
+        correctAnswer: question.correct_answer,
         day_number: dayNumber,
         question_index: currentQuestion
       }
