@@ -117,30 +117,59 @@ export class IntegrationTestSuite {
         throw new Error('User not authenticated');
       }
 
-      // Create weakness data
-      console.log('  📝 Creating weakness data for Algebra...');
-      const weaknessData = {
-        user_id: this.userId,
-        topic: 'الجبر',
-        section: 'كمي',
-        weakness_score: 75,
-        total_attempts: 10,
-        correct_attempts: 3,
-        priority: 'high',
-        trend: 'worsening'
-      };
+      // Create 3 weakness areas for realistic testing
+      console.log('  📝 Creating 3 weakness areas...');
+      const weaknesses = [
+        {
+          user_id: this.userId,
+          topic: 'الجبر',
+          section: 'كمي',
+          weakness_score: 75,
+          total_attempts: 15,
+          correct_attempts: 4,
+          priority: 'high',
+          trend: 'worsening'
+        },
+        {
+          user_id: this.userId,
+          topic: 'الهندسة',
+          section: 'كمي',
+          weakness_score: 65,
+          total_attempts: 12,
+          correct_attempts: 5,
+          priority: 'medium',
+          trend: 'stable'
+        },
+        {
+          user_id: this.userId,
+          topic: 'الإحصاء',
+          section: 'كمي',
+          weakness_score: 60,
+          total_attempts: 10,
+          correct_attempts: 5,
+          priority: 'medium',
+          trend: 'improving'
+        }
+      ];
 
-      await supabase
-        .from('user_weakness_profile')
-        .upsert(weaknessData, { onConflict: 'user_id,topic,section' });
+      // Insert all weaknesses
+      for (const w of weaknesses) {
+        await supabase
+          .from('user_weakness_profile')
+          .upsert(w, { onConflict: 'user_id,topic,section' });
+      }
 
-      // Generate quiz and check few-shot examples
-      console.log('  🎯 Generating quiz with few-shot...');
+      // Wait for DB commit
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Generate quiz with weakness_practice mode and topicFilter
+      console.log('  🎯 Generating quiz focused on Algebra...');
       const { data: quizData, error: quizError } = await supabase.functions
         .invoke('generate-quiz', {
           body: {
-            mode: 'practice',
+            mode: 'weakness_practice',
             section: 'كمي',
+            topicFilter: 'الجبر',
             difficulty: 'medium',
             questionCount: 5,
             testType: 'قدرات'
@@ -149,23 +178,32 @@ export class IntegrationTestSuite {
 
       if (quizError) throw quizError;
 
-      // Check if questions are relevant to weakness
-      const algebraQuestions = quizData?.questions?.filter((q: any) => 
-        q.topic?.includes('جبر') || q.topic?.includes('معادلات')
-      );
+      // Check if questions are relevant to Algebra
+      const algebraQuestions = quizData?.questions?.filter((q: any) => {
+        const topicLower = (q.topic || '').toLowerCase();
+        const subjectLower = (q.subject || '').toLowerCase();
+        return topicLower.includes('جبر') || 
+               topicLower.includes('معادل') ||
+               subjectLower.includes('جبر') ||
+               subjectLower.includes('معادل');
+      });
 
       const duration = Date.now() - startTime;
       const relevanceRate = (algebraQuestions?.length || 0) / (quizData?.questions?.length || 1);
 
+      // Expect at least 40% relevance
+      const passed = relevanceRate >= 0.4;
+
       return {
         test: 'Few-Shot Integration Test',
-        status: relevanceRate > 0.3 ? 'PASS' : 'WARNING',
+        status: passed ? 'PASS' : 'WARNING',
         duration,
-        details: `${relevanceRate > 0.3 ? '✅' : '⚠️'} Generated ${quizData?.questions?.length || 0} questions, ${algebraQuestions?.length || 0} related to weakness (${(relevanceRate * 100).toFixed(0)}% relevance)`,
+        details: `${passed ? '✅' : '⚠️'} Generated ${quizData?.questions?.length || 0} questions, ${algebraQuestions?.length || 0} related to Algebra (${(relevanceRate * 100).toFixed(0)}% relevance)`,
         metrics: {
           totalQuestions: quizData?.questions?.length || 0,
           algebraQuestions: algebraQuestions?.length || 0,
-          relevanceRate: relevanceRate
+          relevanceRate: parseFloat(relevanceRate.toFixed(2)),
+          weaknessAreasCreated: 3
         }
       };
     } catch (error: any) {
