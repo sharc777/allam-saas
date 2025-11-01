@@ -1,3 +1,4 @@
+// Force types.ts rebuild for Phase 2 integration
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { selectFewShotExamples, injectFewShotExamples } from "../_shared/selectFewShotExamples.ts";

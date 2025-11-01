@@ -6,8 +6,12 @@ export interface FewShotExample {
   correct_answer: string;
   explanation: string;
   quality_score: number;
+  subject?: string;
+  difficulty?: string;
+  section?: string;
 }
 
+// Phase 2: Advanced Few-Shot Selection with Quality Scoring
 export async function selectFewShotExamples(
   supabase: SupabaseClient,
   params: {
@@ -16,28 +20,40 @@ export async function selectFewShotExamples(
     test_type: string;
     difficulty?: string;
     count?: number;
+    useQualityScoring?: boolean;
+    diversityMode?: 'balanced' | 'topic-focused' | 'difficulty-spread';
   }
 ): Promise<FewShotExample[]> {
-  const { topic, section, test_type, difficulty, count = 3 } = params;
+  const { 
+    topic, 
+    section, 
+    test_type, 
+    difficulty, 
+    count = 3,
+    useQualityScoring = true,
+    diversityMode = 'balanced'
+  } = params;
   
-  console.log(`🎓 Selecting ${count} few-shot examples for ${test_type}/${section}`);
+  console.log(`🎓 Phase 2: Advanced few-shot selection for ${test_type}/${section}`, {
+    topic, difficulty, count, useQualityScoring, diversityMode
+  });
   
   let query = supabase
     .from("ai_training_examples")
-    .select("question_text, options, correct_answer, explanation, quality_score")
+    .select("*")
     .eq("section", section)
-    .eq("test_type", test_type)
-    .order("quality_score", { ascending: false });
+    .eq("test_type", test_type);
   
-  if (topic) {
-    query = query.eq("subject", topic);
+  // Phase 2: Quality-first ordering
+  if (useQualityScoring) {
+    query = query
+      .order("quality_score", { ascending: false, nullsFirst: false })
+      .gte("quality_score", 3); // Only use quality >= 3
   }
   
-  if (difficulty) {
-    query = query.eq("difficulty", difficulty);
-  }
-  
-  query = query.limit(count * 2); // Get more to ensure diversity
+  // Fetch larger pool for diversity
+  const fetchCount = Math.min(count * 4, 30);
+  query = query.limit(fetchCount);
   
   const { data, error } = await query;
   
@@ -51,12 +67,47 @@ export async function selectFewShotExamples(
     return [];
   }
   
-  // Shuffle and select
-  const shuffled = data.sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, count);
+  // Phase 2: Apply diversity strategy
+  let selected: any[] = [];
   
-  console.log(`✅ Selected ${selected.length} few-shot examples`);
-  return selected;
+  switch (diversityMode) {
+    case 'topic-focused':
+      const topicMatches = topic ? data.filter((ex: any) => ex.subject === topic) : [];
+      const others = topic ? data.filter((ex: any) => ex.subject !== topic) : data;
+      selected = [
+        ...topicMatches.slice(0, Math.ceil(count * 0.7)),
+        ...others.slice(0, Math.floor(count * 0.3))
+      ];
+      break;
+      
+    case 'difficulty-spread':
+      const byDifficulty: Record<string, any[]> = { easy: [], medium: [], hard: [] };
+      data.forEach((ex: any) => {
+        const diff = ex.difficulty || 'medium';
+        if (byDifficulty[diff]) byDifficulty[diff].push(ex);
+      });
+      
+      const perLevel = Math.ceil(count / 3);
+      selected = [
+        ...byDifficulty.easy.slice(0, perLevel),
+        ...byDifficulty.medium.slice(0, perLevel),
+        ...byDifficulty.hard.slice(0, perLevel)
+      ];
+      break;
+      
+    case 'balanced':
+    default:
+      const topicRelevant = topic ? data.filter((ex: any) => ex.subject === topic) : [];
+      const highQuality = data.filter((ex: any) => (ex.quality_score || 0) >= 4);
+      const random = data.sort(() => Math.random() - 0.5);
+      
+      const pool = Array.from(new Set([...topicRelevant, ...highQuality, ...random]));
+      selected = pool.slice(0, count);
+      break;
+  }
+  
+  console.log(`✅ Phase 2: Selected ${selected.length} examples (${diversityMode} strategy)`);
+  return selected.slice(0, count);
 }
 
 export function injectFewShotExamples(

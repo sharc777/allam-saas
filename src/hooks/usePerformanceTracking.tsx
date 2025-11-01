@@ -24,7 +24,7 @@ export const usePerformanceTracking = () => {
       console.log('📝 Tracking performance:', data);
       
       const { data: result, error } = await supabase
-        .from("user_performance_history")
+        .from("user_performance_history" as any)
         .insert({
           question_hash: data.questionHash,
           question_text: data.questionText,
@@ -40,7 +40,7 @@ export const usePerformanceTracking = () => {
           time_spent_seconds: data.timeSpentSeconds,
           confidence_level: data.confidenceLevel,
           metadata: data.metadata || {}
-        });
+        } as any);
 
       if (error) {
         console.error('❌ Performance tracking error:', error);
