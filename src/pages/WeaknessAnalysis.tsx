@@ -42,7 +42,7 @@ const WeaknessAnalysis = () => {
   const activeSection = useScrollSpy({ sectionIds, offset: 150 });
 
   const { data: weaknessData, isLoading, error: weaknessError } = useQuery({
-    queryKey: ["weakness-analysis", profile?.test_type_preference],
+    queryKey: ["weakness-analysis", profile?.test_type_preference, profile?.track_preference],
     enabled: !!profile?.test_type_preference,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
@@ -53,6 +53,8 @@ const WeaknessAnalysis = () => {
         body: {
           userId: user.id,
           testType: profile?.test_type_preference || "قدرات",
+          track: profile?.track_preference,
+          timeRange: 30,
         },
       });
 
@@ -93,6 +95,7 @@ const WeaknessAnalysis = () => {
   const hasStrengths = weaknessData?.weaknesses?.improving?.length > 0;
   const hasCritical = weaknessData?.weaknesses?.critical?.length > 0;
   const hasModerate = weaknessData?.weaknesses?.moderate?.length > 0;
+  const isEmpty = weaknessData?.isEmpty || false;
 
   // Calculate counts for navigation badges
   const counts = {
@@ -101,6 +104,55 @@ const WeaknessAnalysis = () => {
     moderate: weaknessData?.weaknesses?.moderate?.length || 0,
     repeated: weaknessData?.repeatedMistakes?.length || 0,
   };
+
+  // Show empty state if no data
+  if (isEmpty || (weaknessData && !hasStrengths && !hasCritical && !hasModerate)) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-24 pb-12 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold mb-2 gradient-text">تحليل نقاط القوة والضعف</h1>
+              <p className="text-muted-foreground text-lg">
+                تحليل شامل لأدائك وتحديد المجالات التي تحتاج تركيزاً
+              </p>
+            </div>
+
+            <Card className="border-2">
+              <CardContent className="text-center py-16">
+                <AlertCircle className="w-20 h-20 mx-auto mb-6 text-muted-foreground opacity-50" />
+                <h2 className="text-2xl font-bold mb-3">لا توجد بيانات كافية للتحليل</h2>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  {profile?.test_type_preference === "تحصيلي" 
+                    ? "قم بإكمال بعض تمارين التحصيلي في المواد العلمية لنتمكن من تحليل نقاط قوتك وضعفك"
+                    : "قم بإكمال بعض التمارين اليومية لنتمكن من تحليل نقاط قوتك وضعفك وتقديم توصيات مخصصة"
+                  }
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    onClick={() => navigate('/daily-content')}
+                    size="lg"
+                    className="gradient-primary text-primary-foreground"
+                  >
+                    <Target className="w-5 h-5 ml-2" />
+                    ابدأ التدريب الآن
+                  </Button>
+                  <Button 
+                    onClick={() => navigate('/dashboard')}
+                    size="lg"
+                    variant="outline"
+                  >
+                    العودة للوحة التحكم
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

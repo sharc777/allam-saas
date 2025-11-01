@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 // Force types.ts rebuild for Phase 2 integration
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
@@ -8,6 +9,7 @@ import {
   calculateDynamicTemperature,
   buildDynamicSystemPrompt 
 } from "../_shared/dynamicPrompt.ts";
+import { TEST_STRUCTURE, getSections, getTopics, validateSectionAndTopic } from "../_shared/testStructure.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

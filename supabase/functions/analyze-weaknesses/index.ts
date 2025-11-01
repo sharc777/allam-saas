@@ -85,10 +85,10 @@ serve(async (req) => {
 
     console.log(`✅ [Analyze Weaknesses] User authenticated: ${user.email}`);
 
-    const { userId, testType, timeRange = 30 } = await req.json();
+    const { userId, testType, track, timeRange = 30 } = await req.json();
     const targetUserId = userId || user.id;
 
-    console.log(`📊 [Analyze Weaknesses] Analyzing for user: ${targetUserId}, testType: ${testType || 'all'}, timeRange: ${timeRange} days`);
+    console.log(`📊 [Analyze Weaknesses] Analyzing for user: ${targetUserId}, testType: ${testType || 'all'}, track: ${track || 'all'}, timeRange: ${timeRange} days`);
 
     // Calculate date range
     const startDate = new Date();
@@ -100,22 +100,34 @@ serve(async (req) => {
         .from("user_performance_history")
         .select("*")
         .eq("user_id", targetUserId)
-        .gte("created_at", startDate.toISOString())
-        .order("created_at", { ascending: false }),
+        .gte("attempted_at", startDate.toISOString())
+        .order("attempted_at", { ascending: false }),
       supabase
         .from("user_weakness_profile")
         .select("*")
         .eq("user_id", targetUserId)
+        .eq("test_type", testType || "قدرات")
         .order("weakness_score", { ascending: false }),
-      // Only filter by test_type if provided
+      // Filter by test_type and optionally track
       testType ? 
-        supabase
-          .from("daily_exercises")
-          .select("*")
-          .eq("user_id", targetUserId)
-          .eq("test_type", testType)
-          .gte("created_at", startDate.toISOString())
-          .order("created_at", { ascending: false })
+        (track ?
+          supabase
+            .from("daily_exercises")
+            .select("*")
+            .eq("user_id", targetUserId)
+            .eq("test_type", testType)
+            .eq("track", track)
+            .gte("created_at", startDate.toISOString())
+            .order("created_at", { ascending: false })
+          :
+          supabase
+            .from("daily_exercises")
+            .select("*")
+            .eq("user_id", targetUserId)
+            .eq("test_type", testType)
+            .gte("created_at", startDate.toISOString())
+            .order("created_at", { ascending: false })
+        )
         :
         supabase
           .from("daily_exercises")
@@ -134,13 +146,26 @@ serve(async (req) => {
     const exerciseData = exercises.data || [];
 
     if (performanceData.length === 0 && exerciseData.length === 0) {
+      console.log('⚠️ [Analyze Weaknesses] No data found for analysis');
       return new Response(
         JSON.stringify({
-          summary: { totalExercises: 0, totalMistakes: 0, improvementRate: 0, recentPerformance: 0, avgTime: 0 },
+          summary: { 
+            totalExercises: 0, 
+            totalMistakes: 0, 
+            improvementRate: 0, 
+            recentPerformance: 0, 
+            avgTime: 0 
+          },
           weaknesses: { critical: [], moderate: [], improving: [] },
+          strengths: [],
           repeatedMistakes: [],
-          recommendations: ["ابدأ بحل التمارين لتحليل نقاط ضعفك"],
+          recommendations: [
+            testType === "تحصيلي" 
+              ? "ابدأ بحل تمارين التحصيلي لتحليل نقاط قوتك وضعفك في المواد العلمية" 
+              : "ابدأ بحل التمارين اليومية لتحليل نقاط قوتك وضعفك"
+          ],
           weaknessProfile: [],
+          isEmpty: true,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

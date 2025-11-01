@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useProfile } from "@/hooks/useProfile";
 
 interface WeaknessProfile {
   id: string;
@@ -28,13 +29,14 @@ interface WeaknessFilters {
 export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
 
   // Fetch weakness profile
   const { data: weaknessProfile, isLoading, error, refetch } = useQuery({
-    queryKey: ["weakness-profile", userId, filters],
+    queryKey: ["weakness-profile", userId, filters, profile?.test_type_preference],
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000,
-    enabled: !!userId,
+    enabled: !!userId || !!profile?.id,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     queryFn: async () => {
@@ -50,9 +52,14 @@ export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) =
         let query = supabase
           .from("user_weakness_profile" as any)
           .select("*")
-          .eq("user_id", targetUserId)
-          .order("weakness_score", { ascending: false });
+          .eq("user_id", targetUserId);
 
+        // Filter by test_type from profile
+        if (profile?.test_type_preference) {
+          query = query.eq("test_type", profile.test_type_preference);
+        }
+
+        // Apply additional filters
         if (filters?.section) {
           query = query.eq("section", filters.section);
         }
@@ -62,6 +69,9 @@ export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) =
         if (filters?.priority) {
           query = query.eq("priority", filters.priority);
         }
+
+        query = query.order("weakness_score", { ascending: false });
+
         if (filters?.limit) {
           query = query.limit(filters.limit);
         }

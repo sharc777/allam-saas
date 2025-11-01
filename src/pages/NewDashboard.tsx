@@ -20,6 +20,7 @@ import { DashboardAnalytics } from "@/components/DashboardAnalytics";
 import { useWeaknessProfile } from "@/hooks/useWeaknessProfile";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useTestStructure } from "@/hooks/useTestStructure";
 
 const NewDashboard = () => {
   const { loading: authLoading } = useAuth(true);
@@ -31,6 +32,9 @@ const NewDashboard = () => {
 
   const testType = profile?.test_type_preference || "قدرات";
   const track = profile?.track_preference || "عام";
+
+  // استخدام الهيكل الديناميكي
+  const { sections: dynamicSections } = useTestStructure();
 
   // Fetch daily exercises
   const { data: exercises, isLoading: exercisesLoading } = useQuery({
@@ -85,18 +89,12 @@ const NewDashboard = () => {
     return <DashboardSkeleton />;
   }
 
-  // Determine sections based on test type
-  const sections = testType === "قدرات" 
-    ? [
-        { type: "كمي", nameAr: "الكمي", icon: "🔢" },
-        { type: "لفظي", nameAr: "اللفظي", icon: "📝" }
-      ]
-    : [
-        { type: "رياضيات", nameAr: "الرياضيات", icon: "➗" },
-        { type: "فيزياء", nameAr: "الفيزياء", icon: "⚡" },
-        { type: "كيمياء", nameAr: "الكيمياء", icon: "🧪" },
-        { type: "أحياء", nameAr: "الأحياء", icon: "🧬" }
-      ];
+  // استخدام الأقسام من الهيكل الديناميكي
+  const sections = dynamicSections.map(section => ({
+    type: section.id,
+    nameAr: section.nameAr,
+    icon: section.icon,
+  }));
 
   // Calculate stats for each section
   const sectionStats = sections.map(section => {

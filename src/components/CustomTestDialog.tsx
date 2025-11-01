@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { customTestSchema } from "@/lib/validation";
 import { toast } from "sonner";
+import { useTestStructure } from "@/hooks/useTestStructure";
 
 interface CustomTestDialogProps {
   open: boolean;
@@ -30,10 +31,11 @@ export const CustomTestDialog = ({
   initialTopic = "",
   isGenerating = false
 }: CustomTestDialogProps) => {
+  const { sections } = useTestStructure();
   const [topic, setTopic] = useState(initialTopic);
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
-  const [section, setSection] = useState("كمي");
+  const [section, setSection] = useState(sections[0]?.id || "كمي");
 
   // Update topic when initialTopic changes
   useEffect(() => {
@@ -101,8 +103,11 @@ export const CustomTestDialog = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="كمي">كمي</SelectItem>
-                <SelectItem value="لفظي">لفظي</SelectItem>
+                {sections.map((sec) => (
+                  <SelectItem key={sec.id} value={sec.id}>
+                    {sec.icon} {sec.nameAr}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
