@@ -139,11 +139,11 @@ export class IntegrationTestSuite {
       const { data: quizData, error: quizError } = await supabase.functions
         .invoke('generate-quiz', {
           body: {
+            mode: 'practice',
             section: 'كمي',
             difficulty: 'medium',
-            count: 5,
-            testType: 'قدرات',
-            userId: this.userId
+            questionCount: 5,
+            testType: 'قدرات'
           }
         });
 
@@ -155,7 +155,7 @@ export class IntegrationTestSuite {
       );
 
       const duration = Date.now() - startTime;
-      const relevanceRate = algebraQuestions?.length || 0 / (quizData?.questions?.length || 1);
+      const relevanceRate = (algebraQuestions?.length || 0) / (quizData?.questions?.length || 1);
 
       return {
         test: 'Few-Shot Integration Test',

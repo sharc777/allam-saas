@@ -75,10 +75,9 @@ serve(async (req) => {
       topic: w.topic,
       section: w.section,
       weaknessScore: w.weakness_score,
-      errorRate: ((w.incorrect_attempts / Math.max(w.total_attempts, 1)) * 100).toFixed(1),
-      avgTime: w.average_time_seconds,
-      trend: w.improvement_trend,
-      aiRecommendations: w.ai_recommendations,
+      errorRate: (((w.total_attempts - w.correct_attempts) / Math.max(w.total_attempts, 1)) * 100).toFixed(1),
+      avgTime: w.avg_time_seconds,
+      trend: w.trend,
     }));
 
     const stats = {
@@ -109,7 +108,7 @@ serve(async (req) => {
     console.log('🤖 [Smart Recommendations] Calling AI...');
     const aiStartTime = Date.now();
 
-    const aiResponse = await fetch("https://api.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${LOVABLE_API_KEY}`,
@@ -144,8 +143,7 @@ ${stats.topWeaknesses.map((w, i) => `${i + 1}. ${w.topic} (${w.section})
    - معدل الخطأ: ${w.errorRate}%
    - درجة الضعف: ${w.weaknessScore.toFixed(2)}
    - متوسط الوقت: ${w.avgTime}ث
-   - الاتجاه: ${w.trend || 'stable'}
-   ${w.aiRecommendations ? `- توصية سابقة: ${w.aiRecommendations}` : ''}`).join('\n\n')}
+   - الاتجاه: ${w.trend || 'stable'}`).join('\n\n')}
 
 📈 الأداء الأخير (آخر 10 أسئلة):
 ${stats.recentPerformance.map((p, i) => `${i + 1}. ${p.topic} - ${p.is_correct ? '✅' : '❌'} (${p.time_spent_seconds}ث)`).join('\n')}
