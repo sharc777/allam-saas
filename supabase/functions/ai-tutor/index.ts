@@ -1,9 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { rateLimiter } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Message validation helper
+function validateMessages(messages: any[]): boolean {
+  if (!Array.isArray(messages)) return false;
+  if (messages.length === 0 || messages.length > 50) return false;
+  
+  return messages.every(msg => 
+    msg.role && ['user', 'assistant'].includes(msg.role) &&
+    msg.content && typeof msg.content === 'string' &&
+    msg.content.length > 0 &&
+    msg.content.length <= 1000
+  );
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -11,7 +26,49 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user and get user ID for rate limiting
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "غير مصرح" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    if (userError || !userData.user) {
+      return new Response(
+        JSON.stringify({ error: "غير مصرح" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    const userId = userData.user.id;
+    
+    // Rate limiting check - 20 requests per minute
+    if (!rateLimiter.check(userId, 20, 60000)) {
+      return new Response(
+        JSON.stringify({ error: "تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار دقيقة." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const { messages, mode = "general", weaknessData = null, currentQuestion = null } = await req.json();
+    
+    // Validate messages
+    if (!validateMessages(messages)) {
+      return new Response(
+        JSON.stringify({ error: "رسائل غير صالحة" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {

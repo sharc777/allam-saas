@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import QuickActions from "./QuickActions";
 import MessageContent from "./MessageContent";
 import { CustomTestDialog, TestParams } from "./CustomTestDialog";
+import { aiMessageSchema } from "@/lib/validation";
+import { useRateLimit } from "@/hooks/useRateLimit";
 
 interface Message {
   role: "user" | "assistant";
@@ -47,6 +49,12 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  const { checkLimit: checkMessageLimit } = useRateLimit({
+    maxRequests: 10,
+    windowMs: 60000, // 10 messages per minute
+    message: "تم إرسال عدد كبير من الرسائل. يرجى الانتظار دقيقة."
+  });
 
   // Fetch user profile for test type
   const { data: profile } = useQuery({
@@ -307,7 +315,20 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
-    streamChat(input);
+    
+    // Validate message
+    const result = aiMessageSchema.safeParse({ message: input });
+    if (!result.success) {
+      toast.error(result.error.flatten().fieldErrors.message?.[0] || "رسالة غير صالحة");
+      return;
+    }
+    
+    // Check rate limit
+    if (!checkMessageLimit()) {
+      return;
+    }
+    
+    streamChat(result.data.message);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

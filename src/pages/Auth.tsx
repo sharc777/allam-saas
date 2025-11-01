@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { signUpSchema, loginSchema } from "@/lib/validation";
+import { useRateLimit } from "@/hooks/useRateLimit";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,6 +17,12 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  
+  const { checkLimit: checkLoginLimit } = useRateLimit({
+    maxRequests: 5,
+    windowMs: 300000, // 5 attempts per 5 minutes
+    message: "تم تجاوز عدد محاولات تسجيل الدخول. يرجى الانتظار 5 دقائق."
+  });
 
   useEffect(() => {
     // Check if user is already logged in
@@ -36,6 +44,34 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Rate limiting check
+    if (!checkLoginLimit()) {
+      return;
+    }
+    
+    // Validate inputs
+    if (!isLogin) {
+      const result = signUpSchema.safeParse({ email, password, fullName });
+      if (!result.success) {
+        const errors = result.error.flatten().fieldErrors;
+        toast.error(
+          errors.email?.[0] || 
+          errors.password?.[0] || 
+          errors.fullName?.[0] || 
+          "بيانات غير صالحة"
+        );
+        return;
+      }
+    } else {
+      const result = loginSchema.safeParse({ email, password });
+      if (!result.success) {
+        const errors = result.error.flatten().fieldErrors;
+        toast.error(errors.email?.[0] || errors.password?.[0] || "بيانات غير صالحة");
+        return;
+      }
+    }
+    
     setLoading(true);
 
     try {

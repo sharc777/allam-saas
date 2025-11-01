@@ -19,6 +19,25 @@ function simpleHash(text: string): string {
   return Math.abs(hash).toString(36);
 }
 
+// Input sanitization helper
+function sanitizeTopicFilter(topic: string | undefined): string | undefined {
+  if (!topic) return undefined;
+  
+  // Remove potential SQL injection or XSS
+  const sanitized = topic
+    .replace(/[<>\"'`;()]/g, '')
+    .trim()
+    .substring(0, 100);
+  
+  return sanitized.length >= 3 ? sanitized : undefined;
+}
+
+// Question count validation
+function validateQuestionCount(count: number | undefined, defaults: any): number {
+  if (!count) return defaults.default_questions;
+  return Math.min(Math.max(count, defaults.min_questions), defaults.max_questions);
+}
+
 // ============= CACHE FUNCTIONS =============
 
 async function fetchFromCache(
@@ -782,7 +801,11 @@ serve(async (req) => {
 
   try {
     const params = await req.json();
-    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", mode, questionCount, sectionFilter } = params;
+    
+    // Sanitize and validate inputs
+    const topicFilter = sanitizeTopicFilter(params.topicFilter);
+    const sectionFilter = params.sectionFilter;
+    const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", mode } = params;
     
     // 1. Authenticate
     const { user, supabase } = await authenticateUser(req);
@@ -791,7 +814,7 @@ serve(async (req) => {
     // 2. Load content, KB, and AI settings in parallel
     const [content, kbResult, aiSettings, prevHashesData] = await Promise.all([
       loadContent(supabase, params),
-      loadKnowledgeBase(supabase, { ...params, testType, track }),
+      loadKnowledgeBase(supabase, { ...params, testType, track, topicFilter }),
       loadAISettings(supabase),
       supabase
         .from("generated_questions_log")
@@ -809,9 +832,10 @@ serve(async (req) => {
     
     const usedHashes = new Set(prevHashesData.data?.map(p => p.question_hash) || []);
     
-    // 3. Calculate question counts
+    // 3. Calculate question counts with validation
     const isPractice = mode === 'practice';
     const isInitialAssessment = mode === 'initial_assessment';
+    const questionCount = validateQuestionCount(params.questionCount, quizLimits);
     const baseQuestions = questionCount || (isInitialAssessment ? 25 : quizLimits.default_questions);
     const targetQuestions = Math.max(quizLimits.min_questions, Math.min(quizLimits.max_questions, baseQuestions));
     const bufferQuestions = Math.ceil(targetQuestions * 1.5);

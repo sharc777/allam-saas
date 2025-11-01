@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
+import { customTestSchema } from "@/lib/validation";
+import { toast } from "sonner";
 
 interface CustomTestDialogProps {
   open: boolean;
@@ -41,13 +43,32 @@ export const CustomTestDialog = ({
   }, [initialTopic]);
 
   const handleCreate = () => {
-    if (!topic.trim()) return;
-    
-    onCreateTest({
-      topic: topic.trim(),
+    // Validate inputs
+    const result = customTestSchema.safeParse({
+      topic,
       questionCount,
       difficulty,
       section
+    });
+    
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors;
+      toast.error(
+        errors.topic?.[0] || 
+        errors.questionCount?.[0] || 
+        errors.difficulty?.[0] || 
+        errors.section?.[0] || 
+        "بيانات غير صالحة"
+      );
+      return;
+    }
+    
+    // result.data is guaranteed to have all properties after successful validation
+    onCreateTest({
+      topic: result.data.topic,
+      questionCount: result.data.questionCount,
+      difficulty: result.data.difficulty,
+      section: result.data.section
     });
   };
 
