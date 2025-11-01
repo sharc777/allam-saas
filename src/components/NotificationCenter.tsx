@@ -15,11 +15,14 @@ import { ar } from "date-fns/locale";
 export const NotificationCenter = () => {
   const {
     notifications,
+    isLoading,
     unreadCount,
     markAsRead,
     markAllAsRead,
     removeNotification,
   } = useNotifications();
+
+  const items = notifications ?? [];
 
   return (
     <Popover>
@@ -55,14 +58,19 @@ export const NotificationCenter = () => {
         </div>
 
         <ScrollArea className="h-[400px]">
-          {notifications.length === 0 ? (
+          {isLoading ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <Bell className="w-12 h-12 mx-auto mb-3 opacity-50 animate-pulse" />
+              <p>جاري التحميل...</p>
+            </div>
+          ) : items.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>لا توجد إشعارات</p>
             </div>
           ) : (
             <div className="p-2 space-y-2">
-              {notifications.map((notification) => (
+              {items.map((notification) => (
                 <Card
                   key={notification.id}
                   className={`p-4 cursor-pointer transition-all hover:border-primary/30 ${

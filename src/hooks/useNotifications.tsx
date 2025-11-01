@@ -23,6 +23,7 @@ export const useNotifications = () => {
       if (error) throw error;
       return data;
     },
+    initialData: [] as any[],
   });
 
   // Mark as read mutation
@@ -120,7 +121,7 @@ export const useNotifications = () => {
     return permission === 'granted';
   };
 
-  const unreadCount = notifications?.filter(n => !n.read).length || 0;
+  const unreadCount = (notifications?.filter(n => !n.read)?.length) ?? 0;
 
   return {
     notifications,
