@@ -23,6 +23,7 @@ import { UnifiedFileManager } from "@/components/admin/UnifiedFileManager";
 import { PackageManager } from "@/components/admin/PackageManager";
 import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
 import { CacheManager } from "@/components/admin/CacheManager";
+import AIQualityDashboard from "@/components/admin/AIQualityDashboard";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -271,11 +272,12 @@ const Admin = () => {
 
           {/* Main Content Tabs */}
           <Tabs defaultValue="content" className="space-y-6" dir="rtl">
-            <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-6 lg:w-auto">
               <TabsTrigger value="content">📚 المحتوى</TabsTrigger>
               <TabsTrigger value="files">📁 الملفات</TabsTrigger>
               <TabsTrigger value="ai">🤖 AI</TabsTrigger>
               <TabsTrigger value="cache">⚡ ذاكرة الأسئلة</TabsTrigger>
+              <TabsTrigger value="quality">🎯 جودة AI</TabsTrigger>
               <TabsTrigger value="packages">💳 الباقات</TabsTrigger>
               <TabsTrigger value="users">👥 المستخدمين</TabsTrigger>
             </TabsList>
@@ -299,6 +301,11 @@ const Admin = () => {
           <TabsContent value="cache" className="space-y-6">
             <CacheManager />
           </TabsContent>
+
+            {/* AI Quality Dashboard */}
+            <TabsContent value="quality" className="space-y-6">
+              <AIQualityDashboard />
+            </TabsContent>
 
             {/* Packages Management */}
             <TabsContent value="packages" className="space-y-6">
