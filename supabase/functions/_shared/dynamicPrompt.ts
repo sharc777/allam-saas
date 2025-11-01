@@ -1,11 +1,12 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 export interface UserWeakness {
-  topic_name: string;
-  success_rate: number;
-  priority_score: number;
+  topic: string;
+  weakness_score: number;
+  total_attempts: number;
+  correct_attempts: number;
+  priority: string;
   trend: string;
-  attempt_count: number;
 }
 
 export interface StudentLevel {
@@ -24,11 +25,10 @@ export async function loadUserWeaknesses(
   
   const { data, error } = await supabase
     .from("user_weakness_profile")
-    .select("topic_name, success_rate, priority_score, trend, attempt_count")
+    .select("topic, weakness_score, total_attempts, correct_attempts, priority, trend")
     .eq("user_id", userId)
     .eq("section", section)
-    .eq("test_type", testType)
-    .order("priority_score", { ascending: false })
+    .order("weakness_score", { ascending: false })
     .limit(5);
   
   if (error) {
@@ -51,7 +51,7 @@ export async function calculateStudentLevel(
     .from("user_performance_history")
     .select("is_correct")
     .eq("user_id", userId)
-    .order("answered_at", { ascending: false })
+    .order("attempted_at", { ascending: false })
     .limit(20);
   
   if (error || !data || data.length === 0) {
@@ -125,9 +125,11 @@ export function buildDynamicSystemPrompt(
   
   // Add weakness targeting section
   if (weaknesses.length > 0) {
-    const weakTopics = weaknesses.map(w => 
-      `- **${w.topic_name}** (معدل النجاح: ${(w.success_rate * 100).toFixed(0)}%, أولوية: ${(w.priority_score * 100).toFixed(0)}%, اتجاه: ${w.trend})`
-    ).join('\n');
+    const weakTopics = weaknesses.map(w => {
+      const successRate = w.total_attempts > 0 ? (w.correct_attempts / w.total_attempts) : 0;
+      const priorityScore = w.priority === 'critical' ? 100 : w.priority === 'high' ? 80 : w.priority === 'medium' ? 50 : 30;
+      return `- **${w.topic}** (معدل النجاح: ${(successRate * 100).toFixed(0)}%, أولوية: ${priorityScore}%, اتجاه: ${w.trend})`;
+    }).join('\n');
     
     dynamicAdditions += `
 

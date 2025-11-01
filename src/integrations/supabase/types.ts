@@ -209,6 +209,7 @@ export type Database = {
           explanation: string | null
           id: string
           options: Json
+          quality_score: number | null
           question_text: string
           section: string
           subject: string | null
@@ -222,6 +223,7 @@ export type Database = {
           explanation?: string | null
           id?: string
           options: Json
+          quality_score?: number | null
           question_text: string
           section: string
           subject?: string | null
@@ -235,6 +237,7 @@ export type Database = {
           explanation?: string | null
           id?: string
           options?: Json
+          quality_score?: number | null
           question_text?: string
           section?: string
           subject?: string | null

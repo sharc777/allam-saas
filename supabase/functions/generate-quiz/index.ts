@@ -972,10 +972,10 @@ serve(async (req) => {
     }
     
     const fewShotCount = studentLevel.level === 'struggling' ? 5 : 3;
-    const weakTopics = weaknesses.slice(0, 5).map(w => w.topic_name);
+    const weakTopics = weaknesses.slice(0, 5).map(w => w.topic);
     
     const fewShotExamples = await selectFewShotExamples(supabase, {
-      topic: weaknesses.length > 0 ? weaknesses[0].topic_name : undefined,
+      topic: weaknesses.length > 0 ? weaknesses[0].topic : undefined,
       section: sectionFilter || 'كمي',
       test_type: testType,
       difficulty: difficulty,
@@ -1022,9 +1022,23 @@ serve(async (req) => {
     
     console.log("✅ Phase 3: Prompts enriched with Few-Shot examples and weakness data");
     
-    // 8. Generate questions with AI (using dynamic temperature)
-    let allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, dynamicTemperature);
-    console.log(`🤖 AI generated: ${allQuestions.length} questions`);
+    // 8. Generate questions with AI with timeout (Phase 3: Performance)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    
+    let allQuestions;
+    try {
+      allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, dynamicTemperature);
+      console.log(`🤖 AI generated: ${allQuestions.length} questions`);
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.error('⏱️ AI generation timeout after 30s');
+        throw new Error('AI generation timeout - please try again');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
     
     // 9. Calculate hashes and filter duplicates
     const questionsWithHash = calculateQuestionHashes(allQuestions);
@@ -1096,6 +1110,46 @@ serve(async (req) => {
     const generationTime = Date.now() - startTime;
     console.log(`✅ Success: ${finalQuestions.length}/${targetQuestions} questions in ${generationTime}ms`);
     
+    // Phase 2: Score and cache high-quality questions
+    console.log('🎯 Phase 2: Scoring questions for quality and caching...');
+    try {
+      const questionsToScore = finalQuestions.slice(0, Math.min(10, finalQuestions.length));
+      const { data: scoredData, error: scoreError } = await supabase.functions.invoke('quality-score-questions', {
+        body: { questions: questionsToScore, mode: 'auto' }
+      });
+      
+      if (!scoreError && scoredData?.questions) {
+        const highQualityQuestions = scoredData.questions
+          .filter((q: any) => q.overall_score >= 0.7 && q.approved)
+          .slice(0, 3)
+          .map((q: any) => ({
+            section: sectionFilter || 'كمي',
+            test_type: testType,
+            question_text: q.question,
+            options: q.options,
+            correct_answer: q.correctAnswer,
+            explanation: q.explanation,
+            subject: q.topic || q.subject || 'عام',
+            difficulty: q.difficulty || difficulty || 'medium',
+            quality_score: Math.round(q.overall_score * 5)
+          }));
+        
+        if (highQualityQuestions.length > 0) {
+          const { error: cacheError } = await supabase
+            .from('ai_training_examples')
+            .insert(highQualityQuestions);
+          
+          if (!cacheError) {
+            console.log(`✅ Cached ${highQualityQuestions.length} high-quality questions for future use`);
+          } else {
+            console.log('⚠️ Cache insert failed:', cacheError.message);
+          }
+        }
+      }
+    } catch (cacheError) {
+      console.log('⚠️ Question caching skipped:', cacheError);
+    }
+    
     // 12. Calculate analytics metrics
     const uniqueCount = new Set(finalQuestions.map(q => q.question_hash)).size;
     const diversityScore = (uniqueCount / finalQuestions.length) * 100;
@@ -1116,7 +1170,7 @@ serve(async (req) => {
         generation_temperature: dynamicTemperature,
         model_used: quizModel,
         student_level: studentLevel.level,
-        weaknesses_targeted: weaknesses.map(w => w.topic_name)
+        weaknesses_targeted: weaknesses.map(w => w.topic)
       }),
       logGenerationAnalytics(supabase, {
         userId: user.id,
