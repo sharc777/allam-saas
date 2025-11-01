@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Label } from "./ui/label";
 import { Loader2, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { usePerformanceTracking, generateQuestionHash } from "@/hooks/usePerformanceTracking";
 
 interface EmbeddedQuizProps {
   contentId: string;
@@ -21,7 +22,10 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
   const [showResults, setShowResults] = useState(false);
   const [showEarlyFinish, setShowEarlyFinish] = useState(false);
   const [wrongQuestions, setWrongQuestions] = useState<any[]>([]);
+  const [questionStartTimes, setQuestionStartTimes] = useState<Record<number, number>>({});
   const queryClient = useQueryClient();
+  
+  const trackPerformance = usePerformanceTracking();
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ["embedded-quiz", contentId],
@@ -68,8 +72,40 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
     },
   });
 
-  const handleAnswerSelect = (answer: string) => {
+  const handleAnswerSelect = async (answer: string) => {
     setSelectedAnswers({ ...selectedAnswers, [currentQuestionIndex]: answer });
+    
+    // Track performance for this question
+    const question = questions?.[currentQuestionIndex];
+    if (question) {
+      const questionStartTime = questionStartTimes[currentQuestionIndex] || Date.now();
+      const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+      
+      // Get profile for test type
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("test_type_preference")
+        .single();
+      
+      trackPerformance.mutate({
+        questionHash: generateQuestionHash(question.question_text, question.options),
+        questionText: question.question_text,
+        topicName: question.topic || 'عام',
+        section: question.section || 'كمي',
+        testType: profile?.test_type_preference || "قدرات",
+        difficulty: question.difficulty || 'medium',
+        testTypeCategory: 'quiz',
+        userAnswer: answer,
+        correctAnswer: question.correct_answer,
+        isCorrect: answer === question.correct_answer,
+        timeSpentSeconds: timeSpent,
+        metadata: {
+          day_number: parseInt(dayNumber),
+          content_id: contentId,
+          question_index: currentQuestionIndex
+        }
+      });
+    }
     
     // Show early finish option after answering 50% of questions
     const answeredCount = Object.keys(selectedAnswers).length + 1;
@@ -80,7 +116,13 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
 
   const handleNext = () => {
     if (currentQuestionIndex < (questions?.length || 0) - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      const nextQuestion = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextQuestion);
+      // Start timer for next question
+      setQuestionStartTimes(prev => ({
+        ...prev,
+        [nextQuestion]: Date.now()
+      }));
     }
   };
 

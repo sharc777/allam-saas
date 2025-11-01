@@ -13,6 +13,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import { SubscriptionGuard } from "@/components/SubscriptionGuard";
+import { usePerformanceTracking, generateQuestionHash } from "@/hooks/usePerformanceTracking";
 
 interface Question {
   question_text: string;
@@ -52,6 +53,9 @@ const CustomTestContent = () => {
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [startTime] = useState(Date.now());
+  const [questionStartTimes, setQuestionStartTimes] = useState<Record<number, number>>({});
+  
+  const trackPerformance = usePerformanceTracking();
 
   useEffect(() => {
     if (!state?.topic) {
@@ -152,11 +156,40 @@ const CustomTestContent = () => {
     const newAnswers = [...selectedAnswers];
     newAnswers[currentQuestion] = answer;
     setSelectedAnswers(newAnswers);
+    
+    // Track performance for this question
+    const question = questions[currentQuestion];
+    const questionStartTime = questionStartTimes[currentQuestion] || Date.now();
+    const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+    
+    trackPerformance.mutate({
+      questionHash: generateQuestionHash(question.question_text, question.options),
+      questionText: question.question_text,
+      topicName: question.topic || state.topic,
+      section: state.section,
+      testType: profile?.test_type_preference || "قدرات",
+      difficulty: state.difficulty,
+      testTypeCategory: 'custom_test',
+      userAnswer: answer,
+      correctAnswer: question.correct_answer,
+      isCorrect: answer === question.correct_answer,
+      timeSpentSeconds: timeSpent,
+      metadata: {
+        custom_topic: state.topic,
+        question_index: currentQuestion
+      }
+    });
   };
 
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+      const nextQuestion = currentQuestion + 1;
+      setCurrentQuestion(nextQuestion);
+      // Start timer for next question
+      setQuestionStartTimes(prev => ({
+        ...prev,
+        [nextQuestion]: Date.now()
+      }));
     } else {
       submitTest();
     }

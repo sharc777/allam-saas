@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { selectFewShotExamples, injectFewShotExamples } from "../_shared/selectFewShotExamples.ts";
+import { 
+  loadUserWeaknesses, 
+  calculateStudentLevel, 
+  calculateDynamicTemperature,
+  buildDynamicSystemPrompt 
+} from "../_shared/dynamicPrompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -779,17 +786,36 @@ ${availableTopics.length > 0 ? `- المواضيع: ${availableTopics.slice(0, 5
   }
 }
 
-async function logQuestions(supabase: any, userId: string, questions: any[], dayNumber: number) {
+async function logQuestions(
+  supabase: any, 
+  userId: string, 
+  questions: any[], 
+  dayNumber: number,
+  metadata?: {
+    generation_source?: string,
+    generation_temperature?: number,
+    model_used?: string,
+    student_level?: string,
+    weaknesses_targeted?: string[]
+  }
+) {
   const questionsToLog = questions.map((q: any) => ({
     user_id: userId,
     question_hash: q.question_hash,
     question_data: q,
     day_number: dayNumber || 0,
+    topic_name: q.topic || 'عام',
+    section: q.section || 'كمي',
+    test_type: q.test_type || 'قدرات',
+    difficulty: q.difficulty || 'medium',
+    generation_source: metadata?.generation_source || 'ai_generated',
+    generation_temperature: metadata?.generation_temperature,
+    model_used: metadata?.model_used,
   }));
   
   const { error } = await supabase.from("generated_questions_log").insert(questionsToLog);
   if (error) console.warn("Failed to log questions:", error);
-  else console.log(`✅ Logged ${questionsToLog.length} questions`);
+  else console.log(`✅ Logged ${questionsToLog.length} questions with metadata`);
 }
 
 // ============= MAIN HANDLER =============
@@ -810,6 +836,8 @@ serve(async (req) => {
     // 1. Authenticate
     const { user, supabase } = await authenticateUser(req);
     console.log("✅ User authenticated:", user.id);
+    
+    const userId = user.id;
     
     // 2. Load content, KB, and AI settings in parallel
     const [content, kbResult, aiSettings, prevHashesData] = await Promise.all([
@@ -895,17 +923,66 @@ serve(async (req) => {
     // 7. Build prompts for AI generation
     console.log(`🤖 Cache insufficient (${cachedQuestions.length}/${targetQuestions}), generating with AI...`);
     
-    const systemPrompt = buildSystemPrompt({ 
+    // ============= LOAD STUDENT DATA FOR PERSONALIZATION =============
+    console.log("📊 Loading student weaknesses and performance level...");
+    
+    const [weaknesses, studentLevel] = await Promise.all([
+      loadUserWeaknesses(supabase, userId, sectionFilter || 'كمي', testType),
+      calculateStudentLevel(supabase, userId)
+    ]);
+    
+    console.log(`Student level: ${studentLevel.level} (${(studentLevel.overall_success_rate * 100).toFixed(0)}% success from ${studentLevel.total_attempts} attempts)`);
+    console.log(`Found ${weaknesses.length} weakness areas`);
+    
+    // ============= DETERMINE TEST CONTEXT =============
+    const testContext = topicFilter ? 'weakness_targeting' : 'daily_practice';
+    console.log(`Test context: ${testContext}`);
+    
+    // ============= CALCULATE DYNAMIC TEMPERATURE =============
+    const dynamicTemperature = calculateDynamicTemperature(studentLevel, testContext as any);
+    console.log(`🌡️ Using dynamic temperature: ${dynamicTemperature}`);
+    
+    // ============= LOAD FEW-SHOT EXAMPLES =============
+    console.log("🎓 Loading few-shot examples...");
+    
+    const fewShotCount = studentLevel.level === 'struggling' ? 5 : 3;
+    const fewShotExamples = await selectFewShotExamples(supabase, {
+      topic: weaknesses.length > 0 ? weaknesses[0].topic_name : undefined,
+      section: sectionFilter || 'كمي',
+      test_type: testType,
+      difficulty: difficulty,
+      count: fewShotCount
+    });
+    
+    console.log(`✅ Selected ${fewShotExamples.length} few-shot examples`);
+    
+    // ============= BUILD DYNAMIC SYSTEM PROMPT =============
+    console.log("🔨 Building dynamic system prompt...");
+    
+    const baseSystemPrompt = buildSystemPrompt({ 
       testType, sectionFilter, targetQuestions, difficulty, 
       availableTopics, allRelatedTopics, systemPromptOverride, isPractice 
     });
-    const userPrompt = buildUserPrompt({ 
+    
+    const systemPrompt = buildDynamicSystemPrompt(
+      baseSystemPrompt,
+      weaknesses,
+      studentLevel,
+      testContext
+    );
+    
+    // ============= BUILD USER PROMPT WITH FEW-SHOT EXAMPLES =============
+    const baseUserPrompt = buildUserPrompt({ 
       mode, testType, targetQuestions, content, additionalKnowledge, 
       sectionFilter, isInitialAssessment, knowledgeData 
     });
     
-    // 8. Generate questions with AI
-    let allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, quizTemp);
+    const userPrompt = injectFewShotExamples(baseUserPrompt, fewShotExamples);
+    
+    console.log("✅ Prompts enriched and ready");
+    
+    // 8. Generate questions with AI (using dynamic temperature)
+    let allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, dynamicTemperature);
     console.log(`🤖 AI generated: ${allQuestions.length} questions`);
     
     // 9. Calculate hashes and filter duplicates
@@ -993,7 +1070,13 @@ serve(async (req) => {
     
     // 14. Log questions and analytics
     await Promise.all([
-      logQuestions(supabase, user.id, finalQuestions, dayNumber),
+      logQuestions(supabase, user.id, finalQuestions, dayNumber, {
+        generation_source: cachedQuestions.length > 0 ? 'cache' : 'ai_generated',
+        generation_temperature: dynamicTemperature,
+        model_used: quizModel,
+        student_level: studentLevel.level,
+        weaknesses_targeted: weaknesses.map(w => w.topic_name)
+      }),
       logGenerationAnalytics(supabase, {
         userId: user.id,
         questionsGenerated: allQuestions.length,
@@ -1002,7 +1085,7 @@ serve(async (req) => {
         qualityScore: Math.round(qualityScore),
         generationTime,
         model: quizModel,
-        temperature: quizTemp
+        temperature: dynamicTemperature
       })
     ]);
     

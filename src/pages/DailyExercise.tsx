@@ -15,6 +15,7 @@ import Navbar from "@/components/Navbar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SubscriptionGuard } from "@/components/SubscriptionGuard";
+import { usePerformanceTracking, generateQuestionHash } from "@/hooks/usePerformanceTracking";
 
 interface Question {
   question_text: string;
@@ -53,6 +54,9 @@ const DailyExerciseContent = () => {
   const [showEarlyEndDialog, setShowEarlyEndDialog] = useState(false);
   const [selectedQuestionCount, setSelectedQuestionCount] = useState(10);
   const [selectedDifficulty, setSelectedDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [questionStartTimes, setQuestionStartTimes] = useState<Record<number, number>>({});
+  
+  const trackPerformance = usePerformanceTracking();
 
   const generateExercise = async () => {
     // Check daily limits first
@@ -129,11 +133,40 @@ const DailyExerciseContent = () => {
     const newAnswers = [...selectedAnswers];
     newAnswers[currentQuestion] = answer;
     setSelectedAnswers(newAnswers);
+    
+    // Track performance for this question
+    const question = questions[currentQuestion];
+    const questionStartTime = questionStartTimes[currentQuestion] || Date.now();
+    const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+    
+    trackPerformance.mutate({
+      questionHash: generateQuestionHash(question.question_text, question.options),
+      questionText: question.question_text,
+      topicName: question.topic || 'عام',
+      section: sectionType,
+      testType: testType as any,
+      difficulty: selectedDifficulty,
+      testTypeCategory: 'daily_exercise',
+      userAnswer: answer,
+      correctAnswer: question.correct_answer,
+      isCorrect: answer === question.correct_answer,
+      timeSpentSeconds: timeSpent,
+      metadata: {
+        day_number: dayNumber,
+        question_index: currentQuestion
+      }
+    });
   };
 
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+      const nextQuestion = currentQuestion + 1;
+      setCurrentQuestion(nextQuestion);
+      // Start timer for next question
+      setQuestionStartTimes(prev => ({
+        ...prev,
+        [nextQuestion]: Date.now()
+      }));
     } else {
       submitExercise();
     }
