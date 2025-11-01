@@ -197,6 +197,15 @@ async function loadContent(supabase: any, params: any) {
     };
   }
   
+  if (mode === "weakness_practice") {
+    return {
+      title: "تدريب على نقاط الضعف",
+      description: "اختبار مخصص لتقوية نقاط ضعفك",
+      content_text: "",
+      topics: null
+    };
+  }
+  
   if (mode === "initial_assessment") {
     return {
       title: "التقييم الأولي",
@@ -212,7 +221,7 @@ async function loadContent(supabase: any, params: any) {
   else throw new Error("يجب تحديد contentId أو dayNumber أو mode");
   
   const { data, error } = await query.single();
-  if (error && mode !== "practice") throw new Error("المحتوى غير موجود");
+  if (error && mode !== "practice" && mode !== "weakness_practice") throw new Error("المحتوى غير موجود");
   
   return data;
 }
