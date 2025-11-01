@@ -4,13 +4,13 @@ import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
 interface PerformanceData {
   id: string;
-  topic_name: string;
+  topic: string;
   section: string;
   test_type: string;
   difficulty: string;
   is_correct: boolean;
   time_spent_seconds: number;
-  created_at: string;
+  attempted_at: string;
   question_text: string;
   confidence_level?: number;
 }
@@ -76,9 +76,9 @@ export const usePerformanceAnalytics = (
           .from("user_performance_history" as any)
           .select("*")
           .eq("user_id", targetUserId)
-          .gte("created_at", startOfDay(range.from).toISOString())
-          .lte("created_at", endOfDay(range.to).toISOString())
-          .order("created_at", { ascending: true });
+          .gte("attempted_at", startOfDay(range.from).toISOString())
+          .lte("attempted_at", endOfDay(range.to).toISOString())
+          .order("attempted_at", { ascending: true });
 
         if (error) {
           console.error('❌ [Performance Analytics] Database error:', error);
@@ -101,7 +101,8 @@ export const usePerformanceAnalytics = (
     const topicMap = new Map<string, PerformanceData[]>();
 
     performanceData.forEach((record) => {
-      const topic = record.topic_name;
+      const topic = record.topic;
+      if (!topic) return; // Skip records without topic
       if (!topicMap.has(topic)) {
         topicMap.set(topic, []);
       }
@@ -147,7 +148,7 @@ export const usePerformanceAnalytics = (
     const trendMap = new Map<string, PerformanceData[]>();
 
     performanceData.forEach((record) => {
-      const date = format(new Date(record.created_at), groupBy === 'day' ? 'yyyy-MM-dd' : 'yyyy-ww');
+      const date = format(new Date(record.attempted_at), groupBy === 'day' ? 'yyyy-MM-dd' : 'yyyy-ww');
       if (!trendMap.has(date)) {
         trendMap.set(date, []);
       }
@@ -202,8 +203,8 @@ export const usePerformanceAnalytics = (
     ];
 
     const rows = performanceData.map((record) => [
-      format(new Date(record.created_at), "yyyy-MM-dd HH:mm"),
-      record.topic_name,
+      format(new Date(record.attempted_at), "yyyy-MM-dd HH:mm"),
+      record.topic,
       record.section,
       record.test_type,
       record.difficulty,

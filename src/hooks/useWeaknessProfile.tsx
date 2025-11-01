@@ -119,11 +119,11 @@ export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) =
       // Fetch recent performance for this topic
       const { data: recentPerformance, error } = await supabase
         .from("user_performance_history" as any)
-        .select("is_correct, time_spent_seconds, created_at")
+        .select("is_correct, time_spent_seconds, attempted_at")
         .eq("user_id", targetUserId)
-        .eq("topic_name", topic)
+        .eq("topic", topic)
         .eq("section", section)
-        .order("created_at", { ascending: false })
+        .order("attempted_at", { ascending: false })
         .limit(10);
 
       if (error) throw error;

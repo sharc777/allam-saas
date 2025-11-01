@@ -815,15 +815,21 @@ async function logQuestions(
   const questionsToLog = questions.map((q: any) => ({
     user_id: userId,
     question_hash: q.question_hash,
-    question_data: q,
-    day_number: dayNumber || 0,
-    topic_name: q.topic || 'عام',
-    section: q.section || 'كمي',
-    test_type: q.test_type || 'قدرات',
-    difficulty: q.difficulty || 'medium',
-    generation_source: metadata?.generation_source || 'ai_generated',
-    generation_temperature: metadata?.generation_temperature,
-    model_used: metadata?.model_used,
+    question_data: {
+      ...q,
+      metadata: {
+        topic: q.topic || 'عام',
+        section: q.section || 'كمي',
+        test_type: q.test_type || 'قدرات',
+        difficulty: q.difficulty || 'medium',
+        generation_source: metadata?.generation_source || 'ai_generated',
+        generation_temperature: metadata?.generation_temperature,
+        model_used: metadata?.model_used,
+        student_level: metadata?.student_level,
+        weaknesses_targeted: metadata?.weaknesses_targeted
+      }
+    },
+    day_number: dayNumber || 0
   }));
   
   const { error } = await supabase.from("generated_questions_log").insert(questionsToLog);

@@ -41,7 +41,7 @@ const WeaknessAnalysis = () => {
   const sectionIds = ["summary", "strengths", "critical", "moderate", "repeated", "recommendations"];
   const activeSection = useScrollSpy({ sectionIds, offset: 150 });
 
-  const { data: weaknessData, isLoading } = useQuery({
+  const { data: weaknessData, isLoading, error: weaknessError } = useQuery({
     queryKey: ["weakness-analysis", profile?.test_type_preference],
     enabled: !!profile?.test_type_preference,
     staleTime: 2 * 60 * 1000,
@@ -56,7 +56,10 @@ const WeaknessAnalysis = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching weakness analysis:', error);
+        throw error;
+      }
       return data;
     },
   });
