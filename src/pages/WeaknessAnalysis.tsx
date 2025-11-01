@@ -344,7 +344,7 @@ const WeaknessAnalysis = () => {
                 <div className="space-y-3">
                   {calculateSuccessRateByTopic().slice(0, 10).map((topic, index) => {
                     const weaknessScore = weaknessProfile?.find(
-                      w => w.topic_name === topic.topic
+                      w => w.topic === topic.topic
                     )?.weakness_score || 0;
                     
                     return (

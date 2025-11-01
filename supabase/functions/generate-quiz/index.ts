@@ -18,9 +18,12 @@ const corsHeaders = {
 
 // Simple hash function (faster than SHA-256)
 function simpleHash(text: string): string {
+  // Improved hash with salt to avoid collisions
+  const salt = text.length.toString();
+  const combined = `${text}|${salt}`;
   let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    const char = text.charCodeAt(i);
+  for (let i = 0; i < combined.length; i++) {
+    const char = combined.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
@@ -850,15 +853,19 @@ serve(async (req) => {
     const userId = user.id;
     
     // 2. Load content, KB, and AI settings in parallel
-    const [content, kbResult, aiSettings, prevHashesData] = await Promise.all([
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const [content, kbResult, aiSettings, recentPerformanceData] = await Promise.all([
       loadContent(supabase, params),
       loadKnowledgeBase(supabase, { ...params, testType, track, topicFilter }),
       loadAISettings(supabase),
       supabase
-        .from("generated_questions_log")
+        .from("user_performance_history")
         .select("question_hash")
         .eq("user_id", user.id)
-        .limit(500)
+        .gte("attempted_at", sevenDaysAgo.toISOString())
+        .limit(200)
     ]);
     
     const { knowledgeData, availableTopics, allRelatedTopics, additionalKnowledge } = kbResult;
@@ -868,7 +875,8 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
     
-    const usedHashes = new Set(prevHashesData.data?.map(p => p.question_hash) || []);
+    const usedHashes = new Set(recentPerformanceData.data?.map(p => p.question_hash) || []);
+    console.log(`🔍 Preventing repetition: ${usedHashes.size} questions from last 7 days`);
     
     // 3. Calculate question counts with validation
     const isPractice = mode === 'practice';
@@ -1110,45 +1118,54 @@ serve(async (req) => {
     const generationTime = Date.now() - startTime;
     console.log(`✅ Success: ${finalQuestions.length}/${targetQuestions} questions in ${generationTime}ms`);
     
-    // Phase 2: Score and cache high-quality questions
-    console.log('🎯 Phase 2: Scoring questions for quality and caching...');
-    try {
-      const questionsToScore = finalQuestions.slice(0, Math.min(10, finalQuestions.length));
-      const { data: scoredData, error: scoreError } = await supabase.functions.invoke('quality-score-questions', {
-        body: { questions: questionsToScore, mode: 'auto' }
-      });
-      
-      if (!scoreError && scoredData?.questions) {
-        const highQualityQuestions = scoredData.questions
-          .filter((q: any) => q.overall_score >= 0.7 && q.approved)
-          .slice(0, 3)
-          .map((q: any) => ({
-            section: sectionFilter || 'كمي',
-            test_type: testType,
-            question_text: q.question,
-            options: q.options,
-            correct_answer: q.correctAnswer,
-            explanation: q.explanation,
-            subject: q.topic || q.subject || 'عام',
-            difficulty: q.difficulty || difficulty || 'medium',
-            quality_score: Math.round(q.overall_score * 5)
-          }));
-        
-        if (highQualityQuestions.length > 0) {
-          const { error: cacheError } = await supabase
-            .from('ai_training_examples')
-            .insert(highQualityQuestions);
-          
-          if (!cacheError) {
-            console.log(`✅ Cached ${highQualityQuestions.length} high-quality questions for future use`);
-          } else {
-            console.log('⚠️ Cache insert failed:', cacheError.message);
-          }
-        }
+    // 11. Quality scoring and caching for training (fire-and-forget, async in background)
+    console.log('💎 Starting background quality scoring...');
+    const questionsToScore = finalQuestions.slice(0, Math.min(5, finalQuestions.length)).map(q => ({
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation,
+      difficulty: q.difficulty,
+      topic: q.topic,
+      section: q.section,
+      testType
+    }));
+    
+    // Fire-and-forget: don't await this
+    supabase.functions.invoke('quality-score-questions', {
+      body: { questions: questionsToScore, mode: 'auto' }
+    }).then(({ data: scoredData, error: scoreError }) => {
+      if (scoreError || !scoredData?.questions) {
+        console.log('⚠️ Background scoring skipped:', scoreError?.message);
+        return;
       }
-    } catch (cacheError) {
-      console.log('⚠️ Question caching skipped:', cacheError);
-    }
+      
+      const highQualityQuestions = scoredData.questions
+        .filter((q: any) => q.overall_score >= 0.7 && q.approved)
+        .slice(0, 3)
+        .map((q: any) => ({
+          section: sectionFilter || 'كمي',
+          test_type: testType,
+          question_text: q.question,
+          options: q.options,
+          correct_answer: q.correctAnswer,
+          explanation: q.explanation,
+          subject: q.topic || q.subject || 'عام',
+          difficulty: q.difficulty || difficulty || 'medium',
+          quality_score: Math.round(q.overall_score * 5)
+        }));
+      
+      if (highQualityQuestions.length > 0) {
+        supabase
+          .from('ai_training_examples')
+          .insert(highQualityQuestions)
+          .then(({ error: cacheError }) => {
+            if (!cacheError) {
+              console.log(`✅ Cached ${highQualityQuestions.length} high-quality questions in background`);
+            }
+          });
+      }
+    }).catch(err => console.log('⚠️ Background scoring error:', err.message));
     
     // 12. Calculate analytics metrics
     const uniqueCount = new Set(finalQuestions.map(q => q.question_hash)).size;

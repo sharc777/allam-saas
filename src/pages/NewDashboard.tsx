@@ -199,7 +199,7 @@ const NewDashboard = () => {
                     {topWeaknesses.map((weakness, index) => (
                       <div key={index} className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold">{weakness.topic_name}</span>
+                          <span className="text-sm font-semibold">{weakness.topic}</span>
                           <Badge 
                             variant={weakness.weakness_score > 7 ? "destructive" : "default"}
                             className="text-xs"
@@ -212,9 +212,9 @@ const NewDashboard = () => {
                           className="h-1.5"
                         />
                         <p className="text-xs text-muted-foreground">
-                          نسبة النجاح: {weakness.success_rate}% | الاتجاه: {
-                            weakness.improvement_trend === 'improving' ? '📈 تحسن' :
-                            weakness.improvement_trend === 'declining' ? '📉 تراجع' : '➡️ مستقر'
+                          نسبة النجاح: {weakness.total_attempts > 0 ? ((weakness.correct_attempts / weakness.total_attempts) * 100).toFixed(1) : 0}% | الاتجاه: {
+                            weakness.trend === 'improving' ? '📈 تحسن' :
+                            weakness.trend === 'declining' ? '📉 تراجع' : '➡️ مستقر'
                           }
                         </p>
                       </div>

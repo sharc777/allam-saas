@@ -4,17 +4,16 @@ import { useToast } from "@/hooks/use-toast";
 
 interface WeaknessProfile {
   id: string;
-  topic_name: string;
+  topic: string;
   section: string;
-  test_type: string;
+  user_id: string;
   weakness_score: number;
-  success_rate: number;
-  attempts_count: number;
-  avg_time_seconds: number;
-  last_attempt_date: string;
-  improvement_trend: string;
+  total_attempts: number;
+  correct_attempts: number;
+  avg_time_seconds: number | null;
+  last_attempt: string | null;
   priority: string;
-  ai_recommendations: any;
+  trend: string;
   created_at: string;
   updated_at: string;
 }
@@ -95,7 +94,7 @@ export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) =
   const getImprovingTopics = (): WeaknessProfile[] => {
     if (!weaknessProfile) return [];
     return weaknessProfile.filter(
-      (w) => w.improvement_trend === 'improving' || w.improvement_trend === 'stable_good'
+      (w) => w.trend === 'improving' || w.trend === 'stable_good'
     );
   };
 
