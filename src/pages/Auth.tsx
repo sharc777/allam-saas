@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import { signUpSchema, loginSchema } from "@/lib/validation";
 import { useRateLimit } from "@/hooks/useRateLimit";
 
+// Auth component with security features
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
