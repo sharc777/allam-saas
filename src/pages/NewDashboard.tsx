@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, History, BookOpen, Trophy, Award, Target, BarChart, LineChart } from "lucide-react";
+import { Brain, History, BookOpen, Trophy, Award, Target, BarChart, LineChart, AlertTriangle, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,9 @@ import { TrialCountdown } from "@/components/TrialCountdown";
 import { ManageSubscription } from "@/components/ManageSubscription";
 import { useAchievements } from "@/hooks/useAchievements";
 import { DashboardAnalytics } from "@/components/DashboardAnalytics";
+import { useWeaknessProfile } from "@/hooks/useWeaknessProfile";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const NewDashboard = () => {
   const { loading: authLoading } = useAuth(true);
@@ -70,6 +73,11 @@ const NewDashboard = () => {
     },
     enabled: !!profile?.id,
   });
+
+  // Get weakness profile
+  const { weaknessProfile, getTopWeaknesses, getCriticalWeaknesses } = useWeaknessProfile(profile?.id);
+  const topWeaknesses = getTopWeaknesses(3);
+  const criticalCount = getCriticalWeaknesses().length;
 
   const isLoading = authLoading || profileLoading || exercisesLoading || performanceLoading;
 
@@ -173,6 +181,96 @@ const NewDashboard = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Weakness Profile Summary */}
+              {topWeaknesses.length > 0 && (
+                <Card className="border-2 border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-red-500/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <AlertTriangle className="w-5 h-5 text-orange-500" />
+                      نقاط الضعف الحرجة
+                      {criticalCount > 0 && (
+                        <Badge variant="destructive" className="mr-2">
+                          {criticalCount}
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {topWeaknesses.map((weakness, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold">{weakness.topic_name}</span>
+                          <Badge 
+                            variant={weakness.weakness_score > 7 ? "destructive" : "default"}
+                            className="text-xs"
+                          >
+                            {weakness.weakness_score.toFixed(1)}
+                          </Badge>
+                        </div>
+                        <Progress 
+                          value={100 - (weakness.weakness_score * 10)} 
+                          className="h-1.5"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          نسبة النجاح: {weakness.success_rate}% | الاتجاه: {
+                            weakness.improvement_trend === 'improving' ? '📈 تحسن' :
+                            weakness.improvement_trend === 'declining' ? '📉 تراجع' : '➡️ مستقر'
+                          }
+                        </p>
+                      </div>
+                    ))}
+                    <Button
+                      onClick={() => navigate("/weakness-analysis")}
+                      variant="outline"
+                      className="w-full mt-2"
+                    >
+                      <Target className="w-4 h-4 ml-2" />
+                      عرض التحليل الكامل
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Performance Widget */}
+              {performance && (
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                      الأداء الأخير
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">المستوى الحالي</span>
+                      <Badge variant="secondary">{performance.current_level}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">معدل النجاح</span>
+                      <span className="text-lg font-bold text-primary">
+                        {performance.average_score}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">معدل التحسن</span>
+                      <span className={`text-lg font-bold ${
+                        performance.improvement_rate > 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {performance.improvement_rate > 0 ? '+' : ''}{performance.improvement_rate}%
+                      </span>
+                    </div>
+                    <Button
+                      onClick={() => navigate("/performance-analytics")}
+                      variant="outline"
+                      className="w-full mt-2"
+                    >
+                      <LineChart className="w-4 h-4 ml-2" />
+                      التحليلات التفصيلية
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Trial Countdown */}
               <TrialCountdown />
 

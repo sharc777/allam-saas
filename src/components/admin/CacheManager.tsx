@@ -39,6 +39,13 @@ const CRITICAL_CONFIGS = [
 export function CacheManager() {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<Record<string, number>>({});
+  const [qualityStats, setQualityStats] = useState({
+    excellent: 0,
+    good: 0,
+    acceptable: 0,
+    low: 0,
+    unknown: 0
+  });
   const [generating, setGenerating] = useState(false);
   const [comprehensiveResults, setComprehensiveResults] = useState<Array<{ config: any; success: boolean; message: string }>>([]);
   const { toast } = useToast();
@@ -67,6 +74,13 @@ export function CacheManager() {
         throw error;
       }
       setStats(data.stats || {});
+      setQualityStats(data.qualityStats || {
+        excellent: 0,
+        good: 0,
+        acceptable: 0,
+        low: 0,
+        unknown: 0
+      });
       
       toast({
         title: "✅ تم تحديث الإحصائيات",
@@ -127,6 +141,13 @@ export function CacheManager() {
       const totalGenerated = data.results?.reduce((sum: number, r: any) => sum + (r.cached || 0), 0) || 0;
       
       setStats(data.stats || {});
+      setQualityStats(data.qualityStats || {
+        excellent: 0,
+        good: 0,
+        acceptable: 0,
+        low: 0,
+        unknown: 0
+      });
       
       toast({
         title: "✅ تم التوليد بنجاح",
@@ -438,6 +459,50 @@ export function CacheManager() {
                 <TrendingUp className="h-3 w-3 ml-1" />
                 {Math.round((totalQuestions / (categories.length * targetPerCategory)) * 100)}%
               </Badge>
+            </div>
+
+            {/* Quality Distribution */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+              <Card className="bg-green-500/10 border-green-500/20">
+                <CardContent className="pt-4 pb-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{qualityStats.excellent}</div>
+                    <div className="text-xs text-muted-foreground">ممتاز (≥4.5)</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-500/10 border-blue-500/20">
+                <CardContent className="pt-4 pb-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{qualityStats.good}</div>
+                    <div className="text-xs text-muted-foreground">جيد (≥4)</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-yellow-500/10 border-yellow-500/20">
+                <CardContent className="pt-4 pb-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">{qualityStats.acceptable}</div>
+                    <div className="text-xs text-muted-foreground">مقبول (≥3)</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-red-500/10 border-red-500/20">
+                <CardContent className="pt-4 pb-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{qualityStats.low}</div>
+                    <div className="text-xs text-muted-foreground">ضعيف (&lt;3)</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-muted/10 border-muted/20">
+                <CardContent className="pt-4 pb-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-muted-foreground">{qualityStats.unknown}</div>
+                    <div className="text-xs text-muted-foreground">غير محدد</div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             <div className="space-y-3">

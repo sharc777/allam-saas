@@ -169,6 +169,40 @@ ${knowledgeContext}`;
   }
 }
 
+async function scoreQuestionsQuality(
+  supabase: any,
+  questions: any[],
+  jwt: string
+): Promise<any[]> {
+  try {
+    const response = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/functions/v1/quality-score-questions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${jwt}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          questions,
+          mode: 'auto' // Use fast heuristic scoring
+        })
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Quality scoring failed:', response.status);
+      return questions.map(q => ({ ...q, quality_score: null }));
+    }
+
+    const data = await response.json();
+    return data.scoredQuestions || questions;
+  } catch (error) {
+    console.error('Error scoring questions:', error);
+    return questions.map(q => ({ ...q, quality_score: null }));
+  }
+}
+
 async function cacheQuestions(
   supabase: any,
   questions: any[],
@@ -189,6 +223,7 @@ async function cacheQuestions(
         track: config.track || 'عام',
         question_data: question,
         question_hash: questionHash,
+        quality_score: question.quality_score || null,
         is_used: false
       }, {
         onConflict: 'question_hash',
@@ -204,17 +239,37 @@ async function cacheQuestions(
 async function getCacheStats(supabase: any): Promise<any> {
   const { data } = await supabase
     .from("questions_cache")
-    .select("test_type, section, difficulty, track, is_used")
+    .select("test_type, section, difficulty, track, is_used, quality_score")
     .eq("is_used", false);
 
   const stats: Record<string, number> = {};
+  const qualityStats = {
+    excellent: 0,
+    good: 0,
+    acceptable: 0,
+    low: 0,
+    unknown: 0
+  };
   
   data?.forEach((item: any) => {
     const key = `${item.test_type}_${item.section}_${item.difficulty}_${item.track}`;
     stats[key] = (stats[key] || 0) + 1;
+
+    // Track quality distribution
+    if (!item.quality_score) {
+      qualityStats.unknown++;
+    } else if (item.quality_score >= 4.5) {
+      qualityStats.excellent++;
+    } else if (item.quality_score >= 4) {
+      qualityStats.good++;
+    } else if (item.quality_score >= 3) {
+      qualityStats.acceptable++;
+    } else {
+      qualityStats.low++;
+    }
   });
 
-  return stats;
+  return { stats, qualityStats };
 }
 
 serve(async (req) => {
@@ -274,8 +329,8 @@ if (req.method === 'OPTIONS') {
 
     // Get current cache stats
     if (action === 'stats') {
-      const stats = await getCacheStats(supabase);
-      return new Response(JSON.stringify({ stats }), {
+      const result = await getCacheStats(supabase);
+      return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
@@ -313,8 +368,16 @@ if (req.method === 'OPTIONS') {
             knowledgeBase || []
           );
 
+          // Score quality (fast heuristic)
+          const scoredQuestions = await scoreQuestionsQuality(supabase, questions, jwt);
+
+          // Filter out low quality questions (score < 3)
+          const acceptableQuestions = scoredQuestions.filter(
+            q => !q.quality_score || q.quality_score >= 3
+          );
+
           // Cache them
-          const cached = await cacheQuestions(supabase, questions, config);
+          const cached = await cacheQuestions(supabase, acceptableQuestions, config);
 
           results.push({
             config,
@@ -338,12 +401,12 @@ if (req.method === 'OPTIONS') {
       }
 
       // Get updated stats
-      const stats = await getCacheStats(supabase);
+      const result = await getCacheStats(supabase);
 
       return new Response(JSON.stringify({ 
         success: true,
         results,
-        stats
+        ...result
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -352,12 +415,12 @@ if (req.method === 'OPTIONS') {
     // Clean expired reservations
     if (action === 'clean') {
       await supabase.rpc('clean_expired_cache_reservations');
-      const stats = await getCacheStats(supabase);
+      const result = await getCacheStats(supabase);
       
       return new Response(JSON.stringify({ 
         success: true,
         message: 'Expired reservations cleaned',
-        stats
+        ...result
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });

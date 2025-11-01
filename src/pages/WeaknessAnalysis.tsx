@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Loader2,
   BarChart3,
-  Award
+  Award,
+  Clock,
+  LineChart
 } from "lucide-react";
 import AITutor from "@/components/AITutor";
 import { useProfile } from "@/hooks/useProfile";
@@ -24,6 +26,9 @@ import { WeaknessNavigationBar } from "@/components/WeaknessNavigationBar";
 import { BackToTopButton } from "@/components/BackToTopButton";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
 import { CustomTestDialog, TestParams } from "@/components/CustomTestDialog";
+import { usePerformanceAnalytics } from "@/hooks/usePerformanceAnalytics";
+import { PerformanceLineChart } from "@/components/charts/PerformanceLineChart";
+import { useWeaknessProfile } from "@/hooks/useWeaknessProfile";
 
 const WeaknessAnalysis = () => {
   const [showAITutor, setShowAITutor] = useState(false);
@@ -56,7 +61,18 @@ const WeaknessAnalysis = () => {
     },
   });
 
-  if (isLoading) {
+  // Get performance analytics
+  const { 
+    getPerformanceTrends,
+    calculateSuccessRateByTopic,
+    calculateAverageTimeByDifficulty,
+    isLoading: performanceLoading 
+  } = usePerformanceAnalytics(profile?.id);
+
+  // Get weakness profile with scores
+  const { weaknessProfile } = useWeaknessProfile(profile?.id);
+
+  if (isLoading || performanceLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -282,6 +298,84 @@ const WeaknessAnalysis = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Performance Trends */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LineChart className="w-6 h-6" />
+                تطور الأداء - آخر 7 أيام
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PerformanceLineChart 
+                data={getPerformanceTrends('day').slice(-7).map(trend => ({
+                  date: new Date(trend.date).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' }),
+                  score: trend.successRate,
+                  time: trend.avgTime
+                }))}
+              />
+              <div className="mt-4 flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/performance-analytics')}
+                >
+                  <LineChart className="w-4 h-4 ml-2" />
+                  عرض التحليل الكامل
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Topics Performance with Time */}
+          {calculateSuccessRateByTopic().length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-6 h-6" />
+                  الأداء والوقت حسب الموضوع
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {calculateSuccessRateByTopic().slice(0, 10).map((topic, index) => {
+                    const weaknessScore = weaknessProfile?.find(
+                      w => w.topic_name === topic.topic
+                    )?.weakness_score || 0;
+                    
+                    return (
+                      <div key={index} className="p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-bold">{topic.topic}</h4>
+                            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                              <span>نسبة النجاح: {topic.successRate.toFixed(1)}%</span>
+                              <span>متوسط الوقت: {topic.avgTime.toFixed(1)} دقيقة</span>
+                              <span>المحاولات: {topic.totalAttempts}</span>
+                            </div>
+                          </div>
+                          {weaknessScore > 0 && (
+                            <Badge 
+                              variant={weaknessScore > 7 ? "destructive" : weaknessScore > 4 ? "default" : "secondary"}
+                              className="ml-2"
+                            >
+                              نقاط ضعف: {weaknessScore}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className="h-2 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"
+                            style={{ width: `${topic.successRate}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
