@@ -107,8 +107,6 @@ const CustomTestContent = () => {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
         body: {
           mode: "practice",
-          testType: profile?.test_type_preference || "قدرات",
-          track: profile?.track_preference || "عام",
           difficulty: state.difficulty,
           sectionFilter: state.section,
           questionCount: state.questionCount,
@@ -235,8 +233,7 @@ const CustomTestContent = () => {
           exercise_type: 'custom',
           custom_topic: state.topic,
           section_type: state.section,
-          test_type: profile?.test_type_preference || "قدرات",
-          track: profile?.track_preference || "عام",
+          test_type: "قدرات",
           questions: questionsWithAnswers,
           score: score,
           total_questions: questions.length,

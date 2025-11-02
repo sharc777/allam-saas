@@ -88,8 +88,6 @@ const DailyExerciseContent = () => {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
         body: {
           mode: "practice",
-          testType,
-          track: profile?.track_preference || "عام",
           difficulty: selectedDifficulty,
           sectionFilter: sectionType,
           questionCount: selectedQuestionCount,
@@ -228,8 +226,7 @@ const DailyExerciseContent = () => {
           user_id: profile.id,
           day_number: dayNumber,
           section_type: sectionType,
-          test_type: testType as "قدرات" | "تحصيلي",
-          track: profile?.track_preference || "عام",
+          test_type: "قدرات" as "قدرات" | "تحصيلي",
           questions: questionsWithAnswers,
           score: score,
           total_questions: questions.length,
@@ -270,12 +267,9 @@ const DailyExerciseContent = () => {
       queryClient.invalidateQueries({ queryKey: ["exercise-history", profile.id] });
       console.log("✅ Exercise history cache updated");
 
-      // Calculate performance
+      // Calculate performance (قدرات فقط)
       await supabase.functions.invoke("calculate-performance", {
-        body: {
-          testType,
-          track: profile?.track_preference || "عام",
-        },
+        body: {},
       });
 
       // Award achievements

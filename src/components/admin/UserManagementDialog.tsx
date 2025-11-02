@@ -24,8 +24,7 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     full_name: user?.full_name || "",
-    test_type_preference: user?.test_type_preference || "قدرات" as TestType,
-    track_preference: user?.track_preference || "عام" as AcademicTrack,
+    test_type_preference: "قدرات" as TestType,
     trial_days: user?.trial_days || 0,
     subscription_active: user?.subscription_active || false,
   });
@@ -205,26 +204,15 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="قدرات">قدرات</SelectItem>
-                    <SelectItem value="تحصيلي">تحصيلي</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label>المسار</Label>
-                <Select 
-                  value={formData.track_preference} 
-                  onValueChange={(v: AcademicTrack) => setFormData({ ...formData, track_preference: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="عام">عام</SelectItem>
-                    <SelectItem value="علمي">علمي</SelectItem>
-                    <SelectItem value="نظري">نظري</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>نوع الاختبار (ثابت)</Label>
+                <div className="p-2 bg-muted rounded-md">
+                  القدرات العامة
+                </div>
               </div>
             </div>
           </div>

@@ -17,13 +17,11 @@ export const DashboardAnalytics = () => {
     queryFn: async () => {
       if (!profile?.id) return null;
 
-      // Fetch exercises with test_type filter
-      const testType = profile.test_type_preference || "قدرات";
+      // Fetch exercises (القدرات فقط)
       const { data: exercises } = await supabase
         .from("daily_exercises")
         .select("*")
         .eq("user_id", profile.id)
-        .eq("test_type", testType)
         .order("created_at", { ascending: false });
 
       // Calculate stats

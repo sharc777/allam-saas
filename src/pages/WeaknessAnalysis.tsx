@@ -42,8 +42,8 @@ const WeaknessAnalysis = () => {
   const activeSection = useScrollSpy({ sectionIds, offset: 150 });
 
   const { data: weaknessData, isLoading, error: weaknessError } = useQuery({
-    queryKey: ["weakness-analysis", profile?.test_type_preference, profile?.track_preference],
-    enabled: !!profile?.test_type_preference,
+    queryKey: ["weakness-analysis", profile?.id],
+    enabled: !!profile?.id,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -52,8 +52,6 @@ const WeaknessAnalysis = () => {
       const { data, error } = await supabase.functions.invoke("analyze-weaknesses", {
         body: {
           userId: user.id,
-          testType: profile?.test_type_preference || "قدرات",
-          track: profile?.track_preference,
           timeRange: 30,
         },
       });

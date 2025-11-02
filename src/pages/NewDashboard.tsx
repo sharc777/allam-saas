@@ -30,16 +30,13 @@ const NewDashboard = () => {
   const { data: profile, isLoading: profileLoading } = useProfile();
   const { data: achievements, isLoading: achievementsLoading } = useAchievements();
 
-  const testType = profile?.test_type_preference || "قدرات";
-  const track = profile?.track_preference || "عام";
-
   // استخدام الهيكل الديناميكي
   const { sections: dynamicSections } = useTestStructure();
 
-  // Fetch daily exercises
+  // Fetch daily exercises (القدرات فقط)
   const { data: exercises, isLoading: exercisesLoading } = useQuery({
-    queryKey: ["daily-exercises", profile?.id, testType],
-    staleTime: 1 * 60 * 1000, // 1 minute
+    queryKey: ["daily-exercises", profile?.id],
+    staleTime: 1 * 60 * 1000,
     gcTime: 3 * 60 * 1000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
@@ -48,7 +45,6 @@ const NewDashboard = () => {
         .from("daily_exercises")
         .select("*")
         .eq("user_id", profile.id)
-        .eq("test_type", testType)
         .order("day_number", { ascending: true });
       
       if (error) throw error;
@@ -57,10 +53,10 @@ const NewDashboard = () => {
     enabled: !!profile?.id,
   });
 
-  // Fetch performance data
+  // Fetch performance data (القدرات فقط)
   const { data: performance, isLoading: performanceLoading } = useQuery({
-    queryKey: ["student-performance", profile?.id, testType],
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    queryKey: ["student-performance", profile?.id],
+    staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
@@ -69,7 +65,6 @@ const NewDashboard = () => {
         .from("student_performance")
         .select("*")
         .eq("user_id", profile.id)
-        .eq("test_type", testType)
         .maybeSingle();
       
       if (error && error.code !== 'PGRST116') throw error;
@@ -152,7 +147,7 @@ const NewDashboard = () => {
                     key={section.type}
                     sectionType={section.type}
                     sectionNameAr={section.nameAr}
-                    testType={testType}
+                    testType="قدرات"
                     completedDays={section.completedDays}
                     averageScore={section.averageScore}
                     icon={section.icon}
@@ -171,7 +166,7 @@ const NewDashboard = () => {
                   <DayGrid
                     days={dayStatuses}
                     sectionType={firstSection.type}
-                    testType={testType}
+                    testType="قدرات"
                   />
                 </CardContent>
               </Card>

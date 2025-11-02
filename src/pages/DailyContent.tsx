@@ -26,11 +26,7 @@ const DailyContentPageContent = () => {
   const [selectedDay, setSelectedDay] = useState(parseInt(urlDay || "1"));
   const navigate = useNavigate();
   const { data: profile } = useProfile();
-  const { data: dailyContent, isLoading } = useDailyContent(
-    selectedDay,
-    profile?.test_type_preference,
-    profile?.track_preference
-  );
+  const { data: dailyContent, isLoading } = useDailyContent(selectedDay);
   const { data: progressData } = useStudentProgress(profile?.id || undefined);
 
   const currentDay = profile?.current_day || 1;

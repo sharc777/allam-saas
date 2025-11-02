@@ -360,7 +360,6 @@ export type Database = {
           test_type: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics: Json | null
-          track: Database["public"]["Enums"]["academic_track"] | null
           updated_at: string
           video_url: string | null
         }
@@ -384,7 +383,6 @@ export type Database = {
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title: string
           topics?: Json | null
-          track?: Database["public"]["Enums"]["academic_track"] | null
           updated_at?: string
           video_url?: string | null
         }
@@ -408,7 +406,6 @@ export type Database = {
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title?: string
           topics?: Json | null
-          track?: Database["public"]["Enums"]["academic_track"] | null
           updated_at?: string
           video_url?: string | null
         }
@@ -428,7 +425,6 @@ export type Database = {
           test_type: Database["public"]["Enums"]["test_type"]
           time_taken_minutes: number | null
           total_questions: number
-          track: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
         }
         Insert: {
@@ -444,7 +440,6 @@ export type Database = {
           test_type: Database["public"]["Enums"]["test_type"]
           time_taken_minutes?: number | null
           total_questions?: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
         }
         Update: {
@@ -460,7 +455,6 @@ export type Database = {
           test_type?: Database["public"]["Enums"]["test_type"]
           time_taken_minutes?: number | null
           total_questions?: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id?: string
         }
         Relationships: []
@@ -533,7 +527,6 @@ export type Database = {
           strengths: string[] | null
           test_type: Database["public"]["Enums"]["test_type"]
           total_score: number
-          track: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses: string[] | null
         }
@@ -547,7 +540,6 @@ export type Database = {
           strengths?: string[] | null
           test_type: Database["public"]["Enums"]["test_type"]
           total_score: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses?: string[] | null
         }
@@ -561,7 +553,6 @@ export type Database = {
           strengths?: string[] | null
           test_type?: Database["public"]["Enums"]["test_type"]
           total_score?: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id?: string
           weaknesses?: string[] | null
         }
@@ -594,7 +585,6 @@ export type Database = {
           related_topics: string[] | null
           test_type: Database["public"]["Enums"]["test_type"] | null
           title: string
-          track: Database["public"]["Enums"]["academic_track"] | null
           updated_at: string | null
         }
         Insert: {
@@ -608,7 +598,6 @@ export type Database = {
           related_topics?: string[] | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title: string
-          track?: Database["public"]["Enums"]["academic_track"] | null
           updated_at?: string | null
         }
         Update: {
@@ -622,7 +611,6 @@ export type Database = {
           related_topics?: string[] | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title?: string
-          track?: Database["public"]["Enums"]["academic_track"] | null
           updated_at?: string | null
         }
         Relationships: []
@@ -696,7 +684,6 @@ export type Database = {
           subscription_end_date: string | null
           test_type_preference: Database["public"]["Enums"]["test_type"] | null
           total_points: number | null
-          track_preference: Database["public"]["Enums"]["academic_track"] | null
           trial_days: number | null
           updated_at: string
           user_level: string | null
@@ -721,9 +708,6 @@ export type Database = {
           subscription_end_date?: string | null
           test_type_preference?: Database["public"]["Enums"]["test_type"] | null
           total_points?: number | null
-          track_preference?:
-            | Database["public"]["Enums"]["academic_track"]
-            | null
           trial_days?: number | null
           updated_at?: string
           user_level?: string | null
@@ -748,9 +732,6 @@ export type Database = {
           subscription_end_date?: string | null
           test_type_preference?: Database["public"]["Enums"]["test_type"] | null
           total_points?: number | null
-          track_preference?:
-            | Database["public"]["Enums"]["academic_track"]
-            | null
           trial_days?: number | null
           updated_at?: string
           user_level?: string | null
@@ -861,7 +842,6 @@ export type Database = {
           reserved_by: string | null
           section: string
           test_type: Database["public"]["Enums"]["test_type"]
-          track: Database["public"]["Enums"]["academic_track"] | null
           used_at: string | null
         }
         Insert: {
@@ -875,7 +855,6 @@ export type Database = {
           reserved_by?: string | null
           section: string
           test_type: Database["public"]["Enums"]["test_type"]
-          track?: Database["public"]["Enums"]["academic_track"] | null
           used_at?: string | null
         }
         Update: {
@@ -889,7 +868,6 @@ export type Database = {
           reserved_by?: string | null
           section?: string
           test_type?: Database["public"]["Enums"]["test_type"]
-          track?: Database["public"]["Enums"]["academic_track"] | null
           used_at?: string | null
         }
         Relationships: []
@@ -910,7 +888,6 @@ export type Database = {
           test_type: Database["public"]["Enums"]["test_type"] | null
           time_taken_minutes: number | null
           total_questions: number
-          track: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses: string[] | null
         }
@@ -929,7 +906,6 @@ export type Database = {
           test_type?: Database["public"]["Enums"]["test_type"] | null
           time_taken_minutes?: number | null
           total_questions: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses?: string[] | null
         }
@@ -948,7 +924,6 @@ export type Database = {
           test_type?: Database["public"]["Enums"]["test_type"] | null
           time_taken_minutes?: number | null
           total_questions?: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id?: string
           weaknesses?: string[] | null
         }
@@ -1136,7 +1111,6 @@ export type Database = {
           test_type: Database["public"]["Enums"]["test_type"]
           total_exercises: number
           total_score: number
-          track: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses: Json | null
         }
@@ -1152,7 +1126,6 @@ export type Database = {
           test_type: Database["public"]["Enums"]["test_type"]
           total_exercises?: number
           total_score?: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id: string
           weaknesses?: Json | null
         }
@@ -1168,7 +1141,6 @@ export type Database = {
           test_type?: Database["public"]["Enums"]["test_type"]
           total_exercises?: number
           total_score?: number
-          track?: Database["public"]["Enums"]["academic_track"] | null
           user_id?: string
           weaknesses?: Json | null
         }

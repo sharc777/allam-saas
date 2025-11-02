@@ -59,8 +59,7 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
         total_questions: questions?.length || 0,
         percentage,
         questions: questions || [],
-        test_type: profile?.test_type_preference || "قدرات",
-        track: profile?.track_preference || "عام",
+        test_type: "قدرات",
         quiz_mode: "daily",
       });
 
