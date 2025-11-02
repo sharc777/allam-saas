@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -213,10 +213,14 @@ function analyzeComprehensively(
   let totalTimeSpent = 0;
   const strengthTopics = new Set<string>();
 
-  // Process performance history (primary source)
-  performanceHistory.forEach((record) => {
+  // Process performance history (primary source) with de-duplication per exercise/question
+  const seenPerformanceKeys = new Set<string>();
+  for (const record of performanceHistory) {
+    const key = `${record.question_hash || ''}:${record.metadata?.exercise_id || 'na'}`;
+    if (seenPerformanceKeys.has(key)) continue;
+    seenPerformanceKeys.add(key);
+
     const topic = record.topic || "غير محدد";
-    
     if (!topicStats[topic]) {
       topicStats[topic] = { correct: 0, incorrect: 0, totalTime: 0, attempts: 0, mistakes: [] };
     }
@@ -244,7 +248,7 @@ function analyzeComprehensively(
     // Calculate score for recent performance
     const score = record.is_correct ? 100 : 0;
     recentScores.push(score);
-  });
+  }
 
   // Process each exercise (supplementary source)
   exercises.forEach((exercise, index) => {
@@ -366,12 +370,18 @@ function analyzeComprehensively(
       attempts: stats.attempts 
     };
 
+    // Categorize weaknesses
     if (successRate < 40) {
       critical.push(topicData);
     } else if (successRate < 60) {
       moderate.push(topicData);
     } else if (successRate < 75) {
       improving.push(topicData);
+    }
+
+    // Derive strengths from performance when attempts are sufficient
+    if (stats.attempts >= 3 && successRate >= 80) {
+      strengthTopics.add(topic);
     }
   });
 

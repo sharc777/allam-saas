@@ -41,7 +41,7 @@ const WeaknessAnalysis = () => {
   const sectionIds = ["summary", "strengths", "critical", "moderate", "repeated", "recommendations"];
   const activeSection = useScrollSpy({ sectionIds, offset: 150 });
 
-  const { data: weaknessData, isLoading, error: weaknessError } = useQuery({
+  const { data: weaknessData, isLoading, error: weaknessError, refetch } = useQuery({
     queryKey: ["weakness-analysis", profile?.id],
     enabled: !!profile?.id,
     staleTime: 2 * 60 * 1000,
@@ -84,6 +84,32 @@ const WeaknessAnalysis = () => {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (weaknessError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-24 pb-12 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <Card className="border-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="w-5 h-5" /> حدث خطأ أثناء جلب التحليل
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">يرجى المحاولة مرة أخرى. إذا استمر الخطأ، ابدأ تمرينًا قصيرًا ثم عد.</p>
+                <div className="flex gap-3">
+                  <Button onClick={() => refetch()} className="gradient-primary text-primary-foreground">إعادة المحاولة</Button>
+                  <Button variant="outline" onClick={() => navigate('/daily-content')}>ابدأ تمرينًا الآن</Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
