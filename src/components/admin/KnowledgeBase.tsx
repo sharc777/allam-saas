@@ -123,7 +123,6 @@ export const KnowledgeBase = () => {
       content: "",
       related_topics: [],
       test_type: "قدرات",
-      track: "عام",
       is_active: true,
     });
     setTopicInput("");
@@ -230,39 +229,20 @@ export const KnowledgeBase = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="test_type">نوع الاختبار</Label>
-                  <Select
-                    value={formData.test_type}
-                    onValueChange={(value) => setFormData({ ...formData, test_type: value as TestType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="قدرات">قدرات</SelectItem>
-                      <SelectItem value="تحصيلي">تحصيلي</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="track">المسار</Label>
-                  <Select
-                    value={formData.track}
-                    onValueChange={(value) => setFormData({ ...formData, track: value as AcademicTrack })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="عام">عام</SelectItem>
-                      <SelectItem value="علمي">علمي</SelectItem>
-                      <SelectItem value="نظري">نظري</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label htmlFor="test_type">نوع الاختبار</Label>
+                <Select
+                  value={formData.test_type}
+                  onValueChange={(value) => setFormData({ ...formData, test_type: value as TestType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="قدرات">قدرات</SelectItem>
+                    <SelectItem value="تحصيلي">تحصيلي</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
