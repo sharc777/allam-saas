@@ -9,7 +9,7 @@ import {
   calculateDynamicTemperature,
   buildDynamicSystemPrompt 
 } from "../_shared/dynamicPrompt.ts";
-import { TEST_STRUCTURE, getSections, getTopics, validateSectionAndTopic } from "../_shared/testStructure.ts";
+import { getSections, getTopics, validateSectionAndTopic } from "../_shared/testStructure.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

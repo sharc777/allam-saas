@@ -85,16 +85,17 @@ serve(async (req) => {
 
     console.log(`✅ [Analyze Weaknesses] User authenticated: ${user.email}`);
 
-    const { userId, testType, track, timeRange = 30 } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { userId, timeRange = 30 } = body || {};
     const targetUserId = userId || user.id;
 
-    console.log(`📊 [Analyze Weaknesses] Analyzing for user: ${targetUserId}, testType: ${testType || 'all'}, track: ${track || 'all'}, timeRange: ${timeRange} days`);
+    console.log(`📊 [Analyze Weaknesses] Analyzing for user: ${targetUserId}, timeRange: ${timeRange} days`);
 
     // Calculate date range
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - timeRange);
 
-    // Fetch data from multiple sources
+    // Fetch data from multiple sources (no test_type/track filters)
     const [performanceHistory, weaknessProfile, exercises] = await Promise.all([
       supabase
         .from("user_performance_history")
@@ -106,35 +107,13 @@ serve(async (req) => {
         .from("user_weakness_profile")
         .select("*")
         .eq("user_id", targetUserId)
-        .eq("test_type", testType || "قدرات")
         .order("weakness_score", { ascending: false }),
-      // Filter by test_type and optionally track
-      testType ? 
-        (track ?
-          supabase
-            .from("daily_exercises")
-            .select("*")
-            .eq("user_id", targetUserId)
-            .eq("test_type", testType)
-            .eq("track", track)
-            .gte("created_at", startDate.toISOString())
-            .order("created_at", { ascending: false })
-          :
-          supabase
-            .from("daily_exercises")
-            .select("*")
-            .eq("user_id", targetUserId)
-            .eq("test_type", testType)
-            .gte("created_at", startDate.toISOString())
-            .order("created_at", { ascending: false })
-        )
-        :
-        supabase
-          .from("daily_exercises")
-          .select("*")
-          .eq("user_id", targetUserId)
-          .gte("created_at", startDate.toISOString())
-          .order("created_at", { ascending: false }),
+      supabase
+        .from("daily_exercises")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: false }),
     ]);
 
     if (performanceHistory.error) throw performanceHistory.error;
@@ -160,9 +139,7 @@ serve(async (req) => {
           strengths: [],
           repeatedMistakes: [],
           recommendations: [
-            testType === "تحصيلي" 
-              ? "ابدأ بحل تمارين التحصيلي لتحليل نقاط قوتك وضعفك في المواد العلمية" 
-              : "ابدأ بحل التمارين اليومية لتحليل نقاط قوتك وضعفك"
+              "ابدأ بحل التمارين اليومية لتحليل نقاط قوتك وضعفك"
           ],
           weaknessProfile: [],
           isEmpty: true,

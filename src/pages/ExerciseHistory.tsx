@@ -150,7 +150,7 @@ const ExerciseHistory = () => {
                             <div>
                               <h3 className="font-bold text-lg">{exercise.section_type}</h3>
                               <p className="text-sm text-muted-foreground">
-                                {exercise.test_type} - {exercise.track || "عام"}
+                                {exercise.test_type}
                               </p>
                             </div>
                           </div>

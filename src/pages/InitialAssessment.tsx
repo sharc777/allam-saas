@@ -43,8 +43,6 @@ const InitialAssessment = () => {
       const { data, error } = await supabase.functions.invoke("generate-quiz", {
         body: {
           mode: "assessment",
-          testType: profile?.test_type_preference || "قدرات",
-          track: profile?.track_preference || "عام",
           questionCount: 15,
         },
       });
@@ -110,7 +108,6 @@ const InitialAssessment = () => {
         .insert({
           user_id: profile!.id,
           test_type: profile!.test_type_preference,
-          track: profile?.track_preference,
           questions: questionsWithAnswers,
           total_score: totalScore,
           percentage: percentage,

@@ -142,7 +142,6 @@ export const KnowledgeBaseManager = () => {
       content: kb.content || "",
       content_type: kb.content_type,
       test_type: kb.test_type || "قدرات",
-      track: kb.track || "عام",
       related_topics: kb.related_topics || [],
       is_active: kb.is_active,
     });
@@ -171,13 +170,12 @@ export const KnowledgeBaseManager = () => {
     const matchesSearch = kb.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          kb.content?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === "all" || kb.test_type === filterType;
-    const matchesTrack = filterTrack === "all" || kb.track === filterTrack;
     const matchesSection = filterSection === "all" ||
                           kb.related_topics?.some((t: string) => 
                             (filterSection === "كمي" && t.includes("كمي")) ||
                             (filterSection === "لفظي" && t.includes("لفظي"))
                           );
-    return matchesSearch && matchesType && matchesTrack && matchesSection;
+    return matchesSearch && matchesType && matchesSection;
   });
 
   // Statistics
@@ -187,9 +185,9 @@ export const KnowledgeBaseManager = () => {
     tahseeli: knowledgeBase?.filter(kb => kb.test_type === "تحصيلي").length || 0,
     active: knowledgeBase?.filter(kb => kb.is_active).length || 0,
     byTrack: {
-      general: knowledgeBase?.filter(kb => kb.track === "عام").length || 0,
-      scientific: knowledgeBase?.filter(kb => kb.track === "علمي").length || 0,
-      literary: knowledgeBase?.filter(kb => kb.track === "نظري").length || 0,
+      general: 0,
+      scientific: 0,
+      literary: 0,
     }
   };
 
@@ -534,7 +532,6 @@ export const KnowledgeBaseManager = () => {
                         {kb.is_active ? "نشط" : "غير نشط"}
                       </Badge>
                       <Badge variant="outline">{kb.test_type}</Badge>
-                      {kb.track && <Badge variant="outline">{kb.track}</Badge>}
                       <Badge variant="secondary">{kb.content_type}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-2">

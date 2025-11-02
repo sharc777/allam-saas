@@ -24,7 +24,7 @@ export const useKnowledgeBase = (params: UseKnowledgeBaseParams) => {
       if (testType) query = query.eq("test_type", testType);
       if (track) query = query.eq("track", track);
 
-      const { data, error } = await query.limit(20);
+      const { data, error } = await (query.limit(20) as any);
 
       if (error) throw error;
 

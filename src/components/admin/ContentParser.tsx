@@ -272,7 +272,6 @@ export function ContentParser() {
                 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{content.test_type}</span>
-                  {content.track && <span>• {content.track}</span>}
                   {content.content_text && (
                     <span>• {content.content_text.length} حرف</span>
                   )}

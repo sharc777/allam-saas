@@ -26,7 +26,6 @@ export const KnowledgeBase = () => {
     content: "",
     related_topics: [] as string[],
     test_type: "قدرات" as TestType,
-    track: "عام" as AcademicTrack,
     is_active: true,
   });
   const [topicInput, setTopicInput] = useState("");
@@ -138,7 +137,6 @@ export const KnowledgeBase = () => {
       content: item.content || "",
       related_topics: item.related_topics || [],
       test_type: item.test_type || "قدرات",
-      track: item.track || "عام",
       is_active: item.is_active,
     });
     setIsDialogOpen(true);
@@ -332,9 +330,6 @@ export const KnowledgeBase = () => {
                   </span>
                   <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
                     {item.test_type}
-                  </span>
-                  <span className="px-2 py-1 bg-accent/10 text-accent-foreground rounded text-sm">
-                    {item.track}
                   </span>
                   {item.is_active && (
                     <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">نشط</span>

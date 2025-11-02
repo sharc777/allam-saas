@@ -125,7 +125,7 @@ export const ContentManagement = () => {
       
       // إضافة التصنيف الأساسي
       if (content.test_type) relatedTopics.push(content.test_type);
-      if (content.track) relatedTopics.push(content.track);
+      
       
       // استخراج المواضيع من أول 3 أسطر من المحتوى (إن وجدت)
       if (content.content_text) {
@@ -148,7 +148,6 @@ export const ContentManagement = () => {
         content: content.content_text || content.description || '',
         content_type: 'lesson',
         test_type: content.test_type,
-        track: content.track,
         related_topics: uniqueTopics,
         is_active: true,
         metadata: {
@@ -198,7 +197,7 @@ export const ContentManagement = () => {
       description: content.description || "",
       day_number: content.day_number,
       test_type: content.test_type || "قدرات",
-      track: content.track || "عام",
+      track: "عام",
       content_text: content.content_text || "",
       video_url: content.video_url || "",
       duration_minutes: content.duration_minutes,
@@ -386,9 +385,6 @@ export const ContentManagement = () => {
                   </span>
                   <span className="px-2 py-1 bg-secondary/10 text-secondary-foreground rounded text-sm">
                     {content.test_type}
-                  </span>
-                  <span className="px-2 py-1 bg-accent/10 text-accent-foreground rounded text-sm">
-                    {content.track}
                   </span>
                   {content.is_published && (
                     <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">منشور</span>

@@ -262,7 +262,6 @@ const CustomTestContent = () => {
       await supabase.functions.invoke("calculate-performance", {
         body: {
           testType: profile?.test_type_preference || "قدرات",
-          track: profile?.track_preference || "عام",
         },
       });
 
