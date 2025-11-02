@@ -7,17 +7,33 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Message validation helper
-function validateMessages(messages: any[]): boolean {
-  if (!Array.isArray(messages)) return false;
-  if (messages.length === 0 || messages.length > 50) return false;
-  
-  return messages.every(msg => 
-    msg.role && ['user', 'assistant'].includes(msg.role) &&
-    msg.content && typeof msg.content === 'string' &&
-    msg.content.length > 0 &&
-    msg.content.length <= 4000
-  );
+// Message validation helper (detailed)
+function validateMessagesDetailed(messages: any[]): { ok: boolean; reasons?: string[] } {
+  const reasons: string[] = [];
+  if (!Array.isArray(messages)) return { ok: false, reasons: ["messages_not_array"] };
+  if (messages.length === 0) reasons.push("empty_messages");
+  if (messages.length > 50) reasons.push("too_many_messages");
+
+  messages.forEach((msg, idx) => {
+    if (!msg || (msg.role !== "user" && msg.role !== "assistant")) {
+      reasons.push(`invalid_role_at_${idx}`);
+      return;
+    }
+    if (typeof msg.content !== "string") {
+      reasons.push(`non_string_content_at_${idx}`);
+      return;
+    }
+
+    const len = msg.content.length;
+    if (msg.role === "user") {
+      if (len === 0) reasons.push(`empty_user_content_at_${idx}`);
+      if (len > 2000) reasons.push(`user_content_too_long_at_${idx}`);
+    } else if (msg.role === "assistant") {
+      if (len > 20000) reasons.push(`assistant_content_too_long_at_${idx}`);
+    }
+  });
+
+  return { ok: reasons.length === 0, reasons: reasons.length ? reasons : undefined };
 }
 
 serve(async (req) => {
@@ -70,9 +86,11 @@ serve(async (req) => {
     const { messages, mode = "general", weaknessData = null, currentQuestion = null } = await req.json();
     
     // Validate messages
-    if (!validateMessages(messages)) {
+    const validation = validateMessagesDetailed(messages);
+    if (!validation.ok) {
+      console.error("Invalid messages payload", validation.reasons);
       return new Response(
-        JSON.stringify({ error: "رسائل غير صالحة" }),
+        JSON.stringify({ error: "رسائل غير صالحة", reasons: validation.reasons }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
