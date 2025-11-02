@@ -16,7 +16,7 @@ function validateMessages(messages: any[]): boolean {
     msg.role && ['user', 'assistant'].includes(msg.role) &&
     msg.content && typeof msg.content === 'string' &&
     msg.content.length > 0 &&
-    msg.content.length <= 1000
+    msg.content.length <= 4000
   );
 }
 
