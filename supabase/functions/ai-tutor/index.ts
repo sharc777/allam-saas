@@ -85,14 +85,37 @@ serve(async (req) => {
     
     const { messages, mode = "general", weaknessData = null, currentQuestion = null } = await req.json();
     
-    // Validate messages
+    // Validate messages and build a safe fallback when possible
+    let safeMessages = messages;
     const validation = validateMessagesDetailed(messages);
     if (!validation.ok) {
-      console.error("Invalid messages payload", validation.reasons);
-      return new Response(
-        JSON.stringify({ error: "رسائل غير صالحة", reasons: validation.reasons }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      try {
+        if (Array.isArray(messages)) {
+          const lastUser = [...messages].reverse().find((m) => m && m.role === "user" && typeof m.content === "string" && m.content.trim().length > 0);
+          if (lastUser) {
+            safeMessages = [{ role: "user", content: lastUser.content.trim().slice(0, 2000) }];
+            console.warn("Invalid messages payload. Falling back to last user message only.", validation.reasons);
+          } else {
+            console.error("Invalid messages payload", validation.reasons);
+            return new Response(
+              JSON.stringify({ error: "رسائل غير صالحة", reasons: validation.reasons }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        } else {
+          console.error("Invalid messages payload (not array)", validation.reasons);
+          return new Response(
+            JSON.stringify({ error: "رسائل غير صالحة", reasons: validation.reasons }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (e) {
+        console.error("Validation handling error", e);
+        return new Response(
+          JSON.stringify({ error: "رسائل غير صالحة" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -101,7 +124,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("AI Tutor request:", { mode, messageCount: messages.length });
+    console.log("AI Tutor request:", { mode, messageCount: safeMessages.length });
 
     // Base system prompt
     let systemPrompt = `أنت مدرس خصوصي ذكي متخصص في مساعدة الطلاب على الاستعداد لاختبارات القدرات والتحصيلي في السعودية.
@@ -222,7 +245,7 @@ ${currentQuestion.correct_answer ? `**الإجابة الصحيحة:** ${current
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages,
+          ...safeMessages,
         ],
         stream: true,
       }),
