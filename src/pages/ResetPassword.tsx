@@ -12,18 +12,41 @@ const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [linkExpired, setLinkExpired] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if there's an access token in the URL
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
+    const verifySession = async () => {
+      // Check hash parameters
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+      const error = hashParams.get('error');
+      const errorDescription = hashParams.get('error_description');
+      
+      // Check for errors in URL
+      if (error) {
+        toast.error(errorDescription || "رابط غير صالح");
+        setLinkExpired(true);
+        return;
+      }
+      
+      // Verify it's a recovery type link
+      if (!accessToken || type !== 'recovery') {
+        setLinkExpired(true);
+        return;
+      }
+      
+      // Verify session is valid
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        setLinkExpired(true);
+      }
+    };
     
-    if (!accessToken) {
-      toast.error("رابط غير صالح أو منتهي الصلاحية");
-      navigate("/auth");
-    }
-  }, [navigate]);
+    verifySession();
+  }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,11 +94,26 @@ const ResetPassword = () => {
             إعادة تعيين كلمة المرور
           </CardTitle>
           <CardDescription className="text-center">
-            أدخل كلمة المرور الجديدة
+            {linkExpired ? "الرابط غير صالح أو منتهي الصلاحية" : "أدخل كلمة المرور الجديدة"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleResetPassword} className="space-y-4">
+          {linkExpired ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-center">
+                <p className="text-sm text-destructive">
+                  هذا الرابط غير صالح أو منتهي الصلاحية. الرجاء طلب رابط جديد.
+                </p>
+              </div>
+              <Button 
+                onClick={() => navigate("/auth")} 
+                className="w-full"
+              >
+                طلب رابط جديد
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newPassword">كلمة المرور الجديدة</Label>
               <Input
@@ -115,6 +153,7 @@ const ResetPassword = () => {
               )}
             </Button>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

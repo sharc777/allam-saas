@@ -141,7 +141,7 @@ const Auth = () => {
       if (error) throw error;
       
       setResetEmailSent(true);
-      toast.success("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني");
+      toast.success("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني. الرابط صالح لمدة ساعة واحدة فقط.");
     } catch (error: any) {
       console.error("Password reset error:", error);
       toast.error("حدث خطأ، حاول مرة أخرى");
@@ -169,12 +169,12 @@ const Auth = () => {
           {forgotPassword ? (
             resetEmailSent ? (
               <div className="space-y-4">
-                <div className="text-center py-6">
-                  <p className="text-muted-foreground mb-4">
-                    تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني
+                <div className="rounded-lg border border-primary/20 bg-primary/10 p-4 text-center space-y-2">
+                  <p className="text-sm text-primary font-medium">
+                    تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    الرجاء التحقق من بريدك الإلكتروني واتباع التعليمات
+                  <p className="text-xs text-muted-foreground">
+                    الرجاء التحقق من صندوق الوارد أو البريد المزعج. الرابط صالح لمدة ساعة واحدة فقط ويمكن استخدامه مرة واحدة فقط.
                   </p>
                 </div>
                 <Button
