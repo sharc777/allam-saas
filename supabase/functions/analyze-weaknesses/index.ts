@@ -96,7 +96,7 @@ serve(async (req) => {
     startDate.setDate(startDate.getDate() - timeRange);
 
     // Fetch data from multiple sources (no test_type/track filters)
-    const [performanceHistory, weaknessProfile, exercises] = await Promise.all([
+    const [performanceHistory, weaknessProfile, exercises, quizResults] = await Promise.all([
       supabase
         .from("user_performance_history")
         .select("*")
@@ -114,17 +114,25 @@ serve(async (req) => {
         .eq("user_id", targetUserId)
         .gte("created_at", startDate.toISOString())
         .order("created_at", { ascending: false }),
+      supabase
+        .from("quiz_results")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: false }),
     ]);
 
     if (performanceHistory.error) throw performanceHistory.error;
     if (weaknessProfile.error) throw weaknessProfile.error;
     if (exercises.error) throw exercises.error;
+    if (quizResults.error) throw quizResults.error;
 
     const performanceData = performanceHistory.data || [];
     const weaknessData = weaknessProfile.data || [];
     const exerciseData = exercises.data || [];
+    const quizData = quizResults.data || [];
 
-    if (performanceData.length === 0 && exerciseData.length === 0) {
+    if (performanceData.length === 0 && exerciseData.length === 0 && quizData.length === 0) {
       console.log('⚠️ [Analyze Weaknesses] No data found for analysis');
       return new Response(
         JSON.stringify({
@@ -148,8 +156,8 @@ serve(async (req) => {
       );
     }
 
-    // Analyze using both data sources
-    const analysis = analyzeComprehensively(exerciseData as Exercise[], performanceData, weaknessData);
+    // Analyze using all data sources (including quiz results)
+    const analysis = analyzeComprehensively(exerciseData as Exercise[], performanceData, weaknessData, quizData);
 
     const duration = Date.now() - startTime;
     console.log(`✅ [Analyze Weaknesses] Analysis complete in ${duration}ms:`, {
@@ -184,8 +192,9 @@ serve(async (req) => {
 function analyzeComprehensively(
   exercises: Exercise[], 
   performanceHistory: any[], 
-  weaknessProfile: any[]
-): WeaknessAnalysis & { weaknessProfile: any[] } {
+  weaknessProfile: any[],
+  quizResults: any[] = []
+): WeaknessAnalysis & { weaknessProfile: any[], strengths: string[] } {
   const topicStats: Record<string, { 
     correct: number; 
     incorrect: number; 
@@ -202,6 +211,7 @@ function analyzeComprehensively(
   let totalMistakes = 0;
   let recentScores: number[] = [];
   let totalTimeSpent = 0;
+  const strengthTopics = new Set<string>();
 
   // Process performance history (primary source)
   performanceHistory.forEach((record) => {
@@ -269,6 +279,57 @@ function analyzeComprehensively(
         } else if (question.is_correct === true || 
                    (question.user_answer && question.user_answer === question.correct_answer)) {
           topicStats[topic].correct++;
+        }
+      });
+    }
+  });
+
+  // Process quiz results (fallback source)
+  quizResults.forEach((quiz) => {
+    const quizScore = Number(quiz.percentage || 0);
+    recentScores.push(quizScore);
+
+    // Extract strengths and weaknesses from quiz
+    if (quiz.strengths && Array.isArray(quiz.strengths)) {
+      quiz.strengths.forEach((strength: string) => strengthTopics.add(strength));
+    }
+
+    // Process questions from quiz if available
+    if (quiz.questions && Array.isArray(quiz.questions)) {
+      quiz.questions.forEach((question: any) => {
+        const topic = question.topic || question.subject || "غير محدد";
+        
+        if (!topicStats[topic]) {
+          topicStats[topic] = { correct: 0, incorrect: 0, totalTime: 0, attempts: 0, mistakes: [] };
+        }
+
+        topicStats[topic].attempts++;
+
+        if (question.is_correct === false || 
+            (question.user_answer && question.user_answer !== question.correct_answer)) {
+          topicStats[topic].incorrect++;
+          totalMistakes++;
+          
+          if (topicStats[topic].mistakes.length < 3) {
+            topicStats[topic].mistakes.push({
+              question: question.question_text || "سؤال غير متوفر",
+              wrongAnswer: question.user_answer || "غير محدد",
+              correctAnswer: question.correct_answer || "غير محدد",
+              explanation: question.explanation || "يرجى مراجعة المفهوم",
+            });
+          }
+        } else if (question.is_correct === true || 
+                   (question.user_answer && question.user_answer === question.correct_answer)) {
+          topicStats[topic].correct++;
+        }
+      });
+    }
+
+    // Add weaknesses from quiz to topic stats
+    if (quiz.weaknesses && Array.isArray(quiz.weaknesses)) {
+      quiz.weaknesses.forEach((weakness: string) => {
+        if (!topicStats[weakness]) {
+          topicStats[weakness] = { correct: 0, incorrect: 0, totalTime: 0, attempts: 0, mistakes: [] };
         }
       });
     }
@@ -349,7 +410,7 @@ function analyzeComprehensively(
 
   return {
     summary: {
-      totalExercises: exercises.length + performanceHistory.length,
+      totalExercises: exercises.length + performanceHistory.length + quizResults.length,
       totalMistakes,
       improvementRate,
       recentPerformance,
@@ -360,6 +421,7 @@ function analyzeComprehensively(
       moderate: moderate.slice(0, 5),
       improving: improving.slice(0, 5),
     },
+    strengths: Array.from(strengthTopics),
     repeatedMistakes: repeatedMistakes.slice(0, 10),
     recommendations,
     weaknessProfile: enrichedWeaknessProfile,

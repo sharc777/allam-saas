@@ -90,14 +90,14 @@ const WeaknessAnalysis = () => {
     );
   }
 
-  const hasStrengths = weaknessData?.weaknesses?.improving?.length > 0;
+  const hasStrengths = (weaknessData?.strengths?.length > 0) || (weaknessData?.weaknesses?.improving?.length > 0);
   const hasCritical = weaknessData?.weaknesses?.critical?.length > 0;
   const hasModerate = weaknessData?.weaknesses?.moderate?.length > 0;
   const isEmpty = weaknessData?.isEmpty || false;
 
   // Calculate counts for navigation badges
   const counts = {
-    strengths: weaknessData?.weaknesses?.improving?.length || 0,
+    strengths: (weaknessData?.strengths?.length || 0) + (weaknessData?.weaknesses?.improving?.length || 0),
     critical: weaknessData?.weaknesses?.critical?.length || 0,
     moderate: weaknessData?.weaknesses?.moderate?.length || 0,
     repeated: weaknessData?.repeatedMistakes?.length || 0,
@@ -239,15 +239,26 @@ const WeaknessAnalysis = () => {
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="flex flex-wrap gap-3">
-                  {weaknessData.weaknesses.improving.map((strength: any, index: number) => (
+                  {/* Strengths from quiz results */}
+                  {weaknessData?.strengths?.map((strength: string, index: number) => (
                     <Badge 
-                      key={index} 
+                      key={`quiz-${index}`} 
+                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 text-base"
+                    >
+                      <CheckCircle2 className="w-4 h-4 ml-2" />
+                      {strength}
+                    </Badge>
+                  ))}
+                  {/* Improving weaknesses as strengths */}
+                  {weaknessData?.weaknesses?.improving?.map((strength: any, index: number) => (
+                    <Badge 
+                      key={`improving-${index}`} 
                       className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 text-base"
                     >
                       <CheckCircle2 className="w-4 h-4 ml-2" />
                       {strength.topic}
                       <span className="mr-2 opacity-90">
-                        ({strength.successRate}%)
+                        ({strength.successRate?.toFixed(1)}%)
                       </span>
                     </Badge>
                   ))}

@@ -37,6 +37,42 @@ serve(async (req) => {
 
     if (exercisesError) throw exercisesError;
 
+    // Process current exercise to create performance history records
+    if (exerciseId) {
+      const currentExercise = exercises?.find(ex => ex.id === exerciseId);
+      if (currentExercise && currentExercise.questions) {
+        const questions = currentExercise.questions as any[];
+        
+        // Create performance history records for each question
+        for (const question of questions) {
+          const questionHash = generateQuestionHash(
+            question.question_text || '', 
+            question.options || []
+          );
+          
+          const isCorrect = question.is_correct === true || 
+                          (question.user_answer && question.user_answer === question.correct_answer);
+          
+          await supabaseClient.from("user_performance_history").insert({
+            user_id: user.id,
+            question_hash: questionHash,
+            topic: question.topic || question.subject || currentExercise.section_type || "غير محدد",
+            section: currentExercise.section_type || "عام",
+            difficulty: question.difficulty || "medium",
+            is_correct: isCorrect,
+            time_spent_seconds: Math.floor((currentExercise.time_taken_minutes || 0) * 60 / questions.length),
+            attempted_at: new Date().toISOString(),
+            metadata: {
+              exercise_id: exerciseId,
+              exercise_type: currentExercise.exercise_type,
+            }
+          });
+        }
+
+        console.log(`✅ Created ${questions.length} performance history records`);
+      }
+    }
+
     // Calculate performance metrics
     const totalExercises = exercises?.length || 0;
     const totalScore = exercises?.reduce((sum, ex) => sum + (ex.score || 0), 0) || 0;
@@ -144,3 +180,15 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to generate question hash
+function generateQuestionHash(questionText: string, options: any): string {
+  const combined = questionText + JSON.stringify(options);
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const char = combined.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
