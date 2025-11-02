@@ -84,7 +84,13 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error('❌ [Analyze Weaknesses] Missing authorization header');
-      throw new Error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", message: "Missing authorization header" }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
     }
 
     const token = authHeader.replace("Bearer ", "");
@@ -92,7 +98,13 @@ serve(async (req) => {
 
     if (authError || !user) {
       console.error('❌ [Analyze Weaknesses] Authentication failed:', authError);
-      throw new Error("Authentication failed");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", message: "Authentication failed" }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
     }
 
     console.log(`✅ [Analyze Weaknesses] User authenticated: ${user.email}`);

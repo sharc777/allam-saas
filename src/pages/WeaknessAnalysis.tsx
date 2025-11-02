@@ -21,7 +21,7 @@ import {
   LineChart
 } from "lucide-react";
 import AITutor from "@/components/AITutor";
-import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/hooks/useAuth";
 import { WeaknessNavigationBar } from "@/components/WeaknessNavigationBar";
 import { BackToTopButton } from "@/components/BackToTopButton";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
@@ -34,7 +34,7 @@ const WeaknessAnalysis = () => {
   const [showAITutor, setShowAITutor] = useState(false);
   const [showCustomTestDialog, setShowCustomTestDialog] = useState(false);
   const [selectedWeaknessTopic, setSelectedWeaknessTopic] = useState("");
-  const { data: profile } = useProfile();
+  const { user, loading: authLoading } = useAuth(true);
   const navigate = useNavigate();
 
   // Section IDs for navigation - MUST be defined before early return
@@ -44,11 +44,10 @@ const WeaknessAnalysis = () => {
   const [isRepairingData, setIsRepairingData] = useState(false);
 
   const { data: weaknessData, isLoading, error: weaknessError, refetch } = useQuery({
-    queryKey: ["weakness-analysis"],
-    enabled: true,
+    queryKey: ["weakness-analysis", user?.id],
+    enabled: !!user,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       const { data, error } = await supabase.functions.invoke("analyze-weaknesses", {
@@ -90,10 +89,31 @@ const WeaknessAnalysis = () => {
     calculateSuccessRateByTopic,
     calculateAverageTimeByDifficulty,
     isLoading: performanceLoading 
-  } = usePerformanceAnalytics(profile?.id);
+  } = usePerformanceAnalytics(user?.id);
 
   // Get weakness profile with scores
-  const { weaknessProfile } = useWeaknessProfile(profile?.id);
+  const { weaknessProfile } = useWeaknessProfile(user?.id);
+
+  // Show loader while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-24 pb-12 px-4">
+          <div className="container mx-auto max-w-6xl">
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect happens automatically via useAuth if not authenticated
+  if (!user) {
+    return null;
+  }
 
   if (isLoading || performanceLoading) {
     return (
@@ -111,6 +131,14 @@ const WeaknessAnalysis = () => {
   }
 
   if (weaknessError) {
+    const isAuthError = weaknessError.message?.includes("Not authenticated") || 
+                        weaknessError.message?.includes("Unauthorized");
+    
+    if (isAuthError) {
+      navigate('/auth');
+      return null;
+    }
+
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -200,9 +228,7 @@ const WeaknessAnalysis = () => {
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   {isSparseData 
                     ? `لديك ${totalSources} سجل، لكن نحتاج ${thresholds.minAttemptsForStrength} محاولات على الأقل لكل موضوع لتحليل دقيق`
-                    : profile?.test_type_preference === "تحصيلي" 
-                      ? "قم بإكمال بعض تمارين التحصيلي في المواد العلمية لنتمكن من تحليل نقاط قوتك وضعفك"
-                      : "قم بإكمال بعض التمارين اليومية لنتمكن من تحليل نقاط قوتك وضعفك وتقديم توصيات مخصصة"
+                   : "قم بإكمال بعض التمارين اليومية لنتمكن من تحليل نقاط قوتك وضعفك وتقديم توصيات مخصصة"
                   }
                 </p>
                 
