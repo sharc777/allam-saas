@@ -41,6 +41,8 @@ const WeaknessAnalysis = () => {
   const sectionIds = ["summary", "strengths", "critical", "moderate", "repeated", "recommendations"];
   const activeSection = useScrollSpy({ sectionIds, offset: 150 });
 
+  const [isRepairingData, setIsRepairingData] = useState(false);
+
   const { data: weaknessData, isLoading, error: weaknessError, refetch } = useQuery({
     queryKey: ["weakness-analysis", profile?.id],
     enabled: !!profile?.id,
@@ -63,6 +65,24 @@ const WeaknessAnalysis = () => {
       return data;
     },
   });
+
+  const handleRepairData = async () => {
+    setIsRepairingData(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("backfill-performance");
+      
+      if (error) throw error;
+      
+      console.log('✅ Backfill complete:', data);
+      
+      // Refetch analysis after repair
+      await refetch();
+    } catch (error) {
+      console.error('❌ Backfill error:', error);
+    } finally {
+      setIsRepairingData(false);
+    }
+  };
 
   // Get performance analytics
   const { 
@@ -120,6 +140,10 @@ const WeaknessAnalysis = () => {
   const hasCritical = weaknessData?.weaknesses?.critical?.length > 0;
   const hasModerate = weaknessData?.weaknesses?.moderate?.length > 0;
   const isEmpty = weaknessData?.isEmpty || false;
+  const isSparseData = weaknessData?.isSparseData || false;
+  const sourceCounts = weaknessData?.sourceCounts || { performanceCount: 0, exercisesCount: 0, quizCount: 0 };
+  const thresholds = weaknessData?.thresholds || { minAttemptsForStrength: 3, minSuccessRateForStrength: 80, minSuccessRateForPromising: 70 };
+  const promisingTopics = weaknessData?.promisingTopics || [];
 
   // Calculate counts for navigation badges
   const counts = {
@@ -131,6 +155,9 @@ const WeaknessAnalysis = () => {
 
   // Show empty state if no data
   if (isEmpty || (weaknessData && !hasStrengths && !hasCritical && !hasModerate)) {
+    const totalSources = sourceCounts.performanceCount + sourceCounts.exercisesCount + sourceCounts.quizCount;
+    const shouldShowRepair = totalSources > 0 && isSparseData;
+    
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -143,17 +170,77 @@ const WeaknessAnalysis = () => {
               </p>
             </div>
 
+            {/* Data Source Badges */}
+            <Card className="mb-4">
+              <CardContent className="pt-6">
+                <div className="flex flex-wrap gap-3 items-center">
+                  <span className="text-sm font-medium">مصادر البيانات:</span>
+                  <Badge variant="secondary">
+                    📊 سجل الأداء: {sourceCounts.performanceCount}
+                  </Badge>
+                  <Badge variant="secondary">
+                    ✏️ التمارين: {sourceCounts.exercisesCount}
+                  </Badge>
+                  <Badge variant="secondary">
+                    📝 الاختبارات: {sourceCounts.quizCount}
+                  </Badge>
+                  <Badge variant="outline" className="mr-auto">
+                    المطلوب للقوة: {thresholds.minAttemptsForStrength} محاولات و {thresholds.minSuccessRateForStrength}% نجاح
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="border-2">
               <CardContent className="text-center py-16">
                 <AlertCircle className="w-20 h-20 mx-auto mb-6 text-muted-foreground opacity-50" />
-                <h2 className="text-2xl font-bold mb-3">لا توجد بيانات كافية للتحليل</h2>
+                <h2 className="text-2xl font-bold mb-3">
+                  {isSparseData ? "بيانات غير كافية للتحليل الدقيق" : "لا توجد بيانات"}
+                </h2>
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  {profile?.test_type_preference === "تحصيلي" 
-                    ? "قم بإكمال بعض تمارين التحصيلي في المواد العلمية لنتمكن من تحليل نقاط قوتك وضعفك"
-                    : "قم بإكمال بعض التمارين اليومية لنتمكن من تحليل نقاط قوتك وضعفك وتقديم توصيات مخصصة"
+                  {isSparseData 
+                    ? `لديك ${totalSources} سجل، لكن نحتاج ${thresholds.minAttemptsForStrength} محاولات على الأقل لكل موضوع لتحليل دقيق`
+                    : profile?.test_type_preference === "تحصيلي" 
+                      ? "قم بإكمال بعض تمارين التحصيلي في المواد العلمية لنتمكن من تحليل نقاط قوتك وضعفك"
+                      : "قم بإكمال بعض التمارين اليومية لنتمكن من تحليل نقاط قوتك وضعفك وتقديم توصيات مخصصة"
                   }
                 </p>
+                
+                {/* Instructional card */}
+                <Card className="max-w-md mx-auto mb-6 bg-muted/30">
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold mb-3 flex items-center justify-center gap-2">
+                      <Target className="w-4 h-4" />
+                      كيف تحصل على تحليل دقيق؟
+                    </h3>
+                    <ul className="text-sm text-right space-y-2 text-muted-foreground">
+                      <li>✓ حل {thresholds.minAttemptsForStrength} أسئلة على الأقل في كل موضوع</li>
+                      <li>✓ تحقيق نسبة نجاح {thresholds.minSuccessRateForStrength}% أو أكثر للقوة</li>
+                      <li>✓ نسبة {thresholds.minSuccessRateForPromising}% تظهرك كـ "قوة واعدة"</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+                
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  {shouldShowRepair && (
+                    <Button 
+                      onClick={handleRepairData}
+                      disabled={isRepairingData}
+                      size="lg"
+                      variant="secondary"
+                    >
+                      {isRepairingData ? (
+                        <>
+                          <Loader2 className="w-5 h-5 ml-2 animate-spin" />
+                          جاري إصلاح التحليل...
+                        </>
+                      ) : (
+                        <>
+                          🔧 إصلاح التحليل
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Button 
                     onClick={() => navigate('/daily-content')}
                     size="lg"
@@ -192,6 +279,27 @@ const WeaknessAnalysis = () => {
             </p>
           </div>
 
+          {/* Diagnostic Source Counts */}
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap gap-3 items-center">
+                <span className="text-sm font-medium">مصادر البيانات:</span>
+                <Badge variant="secondary">
+                  📊 سجل الأداء: {sourceCounts.performanceCount}
+                </Badge>
+                <Badge variant="secondary">
+                  ✏️ التمارين: {sourceCounts.exercisesCount}
+                </Badge>
+                <Badge variant="secondary">
+                  📝 الاختبارات: {sourceCounts.quizCount}
+                </Badge>
+                <Badge variant="outline" className="mr-auto">
+                  للقوة: {thresholds.minAttemptsForStrength}+ محاولات • {thresholds.minSuccessRateForStrength}%+ نجاح
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Navigation Bar */}
           <WeaknessNavigationBar activeSection={activeSection} counts={counts} />
 
@@ -227,9 +335,9 @@ const WeaknessAnalysis = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">معدل التحسن</p>
                     <p className={`text-2xl font-bold ${
-                      (weaknessData?.summary?.improvementRate || 0) > 0 ? 'text-green-600' : 'text-red-600'
+                      (Number(weaknessData?.summary?.improvementRate) || 0) > 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {weaknessData?.summary?.improvementRate?.toFixed(1) || 0}%
+                      {Number(weaknessData?.summary?.improvementRate || 0).toFixed(1)}%
                     </p>
                   </div>
                   {(weaknessData?.summary?.improvementRate || 0) > 0 ? (
@@ -246,7 +354,7 @@ const WeaknessAnalysis = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">الأداء الأخير</p>
-                    <p className="text-2xl font-bold">{weaknessData?.summary?.recentPerformance?.toFixed(1) || 0}%</p>
+                    <p className="text-2xl font-bold">{Number(weaknessData?.summary?.recentPerformance || 0).toFixed(1)}%</p>
                   </div>
                   <Award className="w-8 h-8 text-primary" />
                 </div>
@@ -284,7 +392,38 @@ const WeaknessAnalysis = () => {
                       <CheckCircle2 className="w-4 h-4 ml-2" />
                       {strength.topic}
                       <span className="mr-2 opacity-90">
-                        ({strength.successRate?.toFixed(1)}%)
+                        ({Number(strength.successRate || 0).toFixed(1)}%)
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Promising Topics Section */}
+          {promisingTopics.length > 0 && (
+            <Card id="promising" className="mb-8 border-yellow-500/30">
+              <CardHeader className="bg-yellow-500/10">
+                <CardTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+                  <TrendingUp className="w-6 h-6" />
+                  نقاط قوة واعدة - على وشك التميز! ⭐
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground mb-4">
+                  مواضيع تظهر أداءً جيداً ({thresholds.minSuccessRateForPromising}%+) لكن تحتاج المزيد من التدريب للوصول للتميز
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {promisingTopics.map((topic: any, index: number) => (
+                    <Badge 
+                      key={index} 
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 text-base"
+                    >
+                      <TrendingUp className="w-4 h-4 ml-2" />
+                      {topic.topic}
+                      <span className="mr-2 opacity-90">
+                        ({Number(topic.successRate || 0).toFixed(1)}% • {topic.attempts} محاولة)
                       </span>
                     </Badge>
                   ))}

@@ -52,6 +52,18 @@ interface WeaknessAnalysis {
     }>;
   }>;
   recommendations: string[];
+  sourceCounts: {
+    performanceCount: number;
+    exercisesCount: number;
+    quizCount: number;
+  };
+  thresholds: {
+    minAttemptsForStrength: number;
+    minSuccessRateForStrength: number;
+    minSuccessRateForPromising: number;
+  };
+  promisingTopics: Array<{ topic: string; successRate: number; attempts: number }>;
+  isSparseData: boolean;
 }
 
 serve(async (req) => {
@@ -132,6 +144,8 @@ serve(async (req) => {
     const exerciseData = exercises.data || [];
     const quizData = quizResults.data || [];
 
+    console.log(`📊 [Analyze Weaknesses] Data sources: Performance=${performanceData.length}, Exercises=${exerciseData.length}, Quiz=${quizData.length}, WeaknessProfile=${weaknessData.length}`);
+
     if (performanceData.length === 0 && exerciseData.length === 0 && quizData.length === 0) {
       console.log('⚠️ [Analyze Weaknesses] No data found for analysis');
       return new Response(
@@ -147,10 +161,15 @@ serve(async (req) => {
           strengths: [],
           repeatedMistakes: [],
           recommendations: [
-              "ابدأ بحل التمارين اليومية لتحليل نقاط قوتك وضعفك"
+              "ابدأ بحل 5 أسئلة على الأقل في موضوع واحد لتظهر القوة",
+              "أكمل تمريناً يومياً لتحليل أدائك"
           ],
           weaknessProfile: [],
           isEmpty: true,
+          sourceCounts: { performanceCount: 0, exercisesCount: 0, quizCount: 0 },
+          thresholds: { minAttemptsForStrength: 3, minSuccessRateForStrength: 80, minSuccessRateForPromising: 70 },
+          promisingTopics: [],
+          isSparseData: true,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -166,6 +185,9 @@ serve(async (req) => {
       weaknessRecords: weaknessData.length,
       criticalWeaknesses: analysis.weaknesses.critical.length,
       moderateWeaknesses: analysis.weaknesses.moderate.length,
+      strengths: analysis.strengths.length,
+      promisingTopics: analysis.promisingTopics.length,
+      isSparseData: analysis.isSparseData,
     });
 
     return new Response(JSON.stringify(analysis), {
@@ -194,7 +216,7 @@ function analyzeComprehensively(
   performanceHistory: any[], 
   weaknessProfile: any[],
   quizResults: any[] = []
-): WeaknessAnalysis & { weaknessProfile: any[], strengths: string[] } {
+): WeaknessAnalysis & { weaknessProfile: any[], strengths: string[], isEmpty?: boolean } {
   const topicStats: Record<string, { 
     correct: number; 
     incorrect: number; 
@@ -212,6 +234,12 @@ function analyzeComprehensively(
   let recentScores: number[] = [];
   let totalTimeSpent = 0;
   const strengthTopics = new Set<string>();
+  const promisingTopics: Array<{ topic: string; successRate: number; attempts: number }> = [];
+  
+  // Constants for thresholds
+  const MIN_ATTEMPTS_FOR_STRENGTH = 3;
+  const MIN_SUCCESS_RATE_FOR_STRENGTH = 80;
+  const MIN_SUCCESS_RATE_FOR_PROMISING = 70;
 
   // Process performance history (primary source) with de-duplication per exercise/question
   const seenPerformanceKeys = new Set<string>();
@@ -380,8 +408,13 @@ function analyzeComprehensively(
     }
 
     // Derive strengths from performance when attempts are sufficient
-    if (stats.attempts >= 3 && successRate >= 80) {
+    if (stats.attempts >= MIN_ATTEMPTS_FOR_STRENGTH && successRate >= MIN_SUCCESS_RATE_FOR_STRENGTH) {
       strengthTopics.add(topic);
+    }
+    
+    // Identify promising topics (70%+ success but fewer attempts)
+    if (stats.attempts >= 1 && successRate >= MIN_SUCCESS_RATE_FOR_PROMISING && successRate < MIN_SUCCESS_RATE_FOR_STRENGTH) {
+      promisingTopics.push({ topic, successRate, attempts: stats.attempts });
     }
   });
 
@@ -418,6 +451,15 @@ function analyzeComprehensively(
     priority: w.priority,
   }));
 
+  // Check if data is sparse (no topics with sufficient attempts)
+  const topicsWithEnoughAttempts = Object.values(topicStats).filter(
+    stats => stats.attempts >= MIN_ATTEMPTS_FOR_STRENGTH
+  ).length;
+  const isSparseData = topicsWithEnoughAttempts === 0;
+
+  // Sort promising topics by success rate
+  promisingTopics.sort((a, b) => b.successRate - a.successRate);
+
   return {
     summary: {
       totalExercises: exercises.length + performanceHistory.length + quizResults.length,
@@ -435,6 +477,18 @@ function analyzeComprehensively(
     repeatedMistakes: repeatedMistakes.slice(0, 10),
     recommendations,
     weaknessProfile: enrichedWeaknessProfile,
+    sourceCounts: {
+      performanceCount: performanceHistory.length,
+      exercisesCount: exercises.length,
+      quizCount: quizResults.length,
+    },
+    thresholds: {
+      minAttemptsForStrength: MIN_ATTEMPTS_FOR_STRENGTH,
+      minSuccessRateForStrength: MIN_SUCCESS_RATE_FOR_STRENGTH,
+      minSuccessRateForPromising: MIN_SUCCESS_RATE_FOR_PROMISING,
+    },
+    promisingTopics: promisingTopics.slice(0, 5),
+    isSparseData,
   };
 }
 

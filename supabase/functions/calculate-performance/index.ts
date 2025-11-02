@@ -42,12 +42,30 @@ serve(async (req) => {
       if (currentExercise && currentExercise.questions) {
         const questions = currentExercise.questions as any[];
         
-        // Create performance history records for each question
+        // Create performance history records for each question with duplicate check
+        let insertedCount = 0;
+        let skippedCount = 0;
+        
         for (const question of questions) {
           const questionHash = generateQuestionHash(
             question.question_text || '', 
             question.options || []
           );
+          
+          // Check if record already exists for this user/question/exercise combo
+          const { data: existing } = await supabaseClient
+            .from("user_performance_history")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("question_hash", questionHash)
+            .contains("metadata", { exercise_id: exerciseId })
+            .maybeSingle();
+          
+          if (existing) {
+            console.log(`⏭️ Skipping duplicate record for question_hash=${questionHash}, exercise_id=${exerciseId}`);
+            skippedCount++;
+            continue;
+          }
           
           const isCorrect = question.is_correct === true || 
                           (question.user_answer && question.user_answer === question.correct_answer);
@@ -66,9 +84,10 @@ serve(async (req) => {
               exercise_type: currentExercise.exercise_type,
             }
           });
+          insertedCount++;
         }
 
-        console.log(`✅ Created ${questions.length} performance history records`);
+        console.log(`✅ Performance tracking: ${insertedCount} inserted, ${skippedCount} skipped (duplicates)`);
       }
     }
 
