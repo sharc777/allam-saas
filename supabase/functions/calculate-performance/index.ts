@@ -25,14 +25,13 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    const { exerciseId, testType, track } = await req.json();
+    const { exerciseId } = await req.json();
 
     // Get all user exercises
     const { data: exercises, error: exercisesError } = await supabaseClient
       .from("daily_exercises")
       .select("*")
       .eq("user_id", user.id)
-      .eq("test_type", testType)
       .order("created_at", { ascending: false });
 
     if (exercisesError) throw exercisesError;
@@ -127,18 +126,70 @@ serve(async (req) => {
     if (totalExercises >= 15) badges.push("مثابر"); // Persistent
     if (improvementRate > 10) badges.push("متطور"); // Improving
 
+    // Update user_weakness_profile based on topic performance
+    for (const [topic, stats] of Object.entries(topicPerformance)) {
+      const accuracy = (stats.correct / stats.total) * 100;
+      const weaknessScore = 100 - accuracy;
+      
+      let priority: string;
+      if (weaknessScore >= 70) priority = 'critical';
+      else if (weaknessScore >= 50) priority = 'high';
+      else if (weaknessScore >= 30) priority = 'medium';
+      else priority = 'low';
+
+      let trend: string;
+      if (accuracy >= 80) trend = 'improving';
+      else if (accuracy >= 60) trend = 'stable_good';
+      else if (accuracy >= 40) trend = 'stable';
+      else trend = 'declining';
+
+      // Check if record exists
+      const { data: existing } = await supabaseClient
+        .from("user_weakness_profile")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("topic", topic)
+        .maybeSingle();
+
+      const weaknessData = {
+        user_id: user.id,
+        topic: topic,
+        section: "عام", // Will be updated from question metadata
+        weakness_score: weaknessScore,
+        total_attempts: stats.total,
+        correct_attempts: stats.correct,
+        priority: priority,
+        trend: trend,
+        last_attempt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (existing) {
+        await supabaseClient
+          .from("user_weakness_profile")
+          .update(weaknessData)
+          .eq("id", existing.id);
+      } else {
+        await supabaseClient
+          .from("user_weakness_profile")
+          .insert(weaknessData);
+      }
+    }
+
+    console.log(`✅ Updated weakness profile for ${Object.keys(topicPerformance).length} topics`);
+
     // Update or insert performance record
     const { data: existingPerf } = await supabaseClient
       .from("student_performance")
       .select("*")
       .eq("user_id", user.id)
-      .eq("test_type", testType)
+      .eq("test_type", "قدرات")
       .maybeSingle();
 
     const performanceData = {
       user_id: user.id,
-      test_type: testType,
-      track: track,
+      test_type: "قدرات",
+      track: "عام",
       current_level: currentLevel,
       total_exercises: totalExercises,
       total_score: totalScore,

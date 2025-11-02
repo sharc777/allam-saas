@@ -225,7 +225,7 @@ const CustomTestContent = () => {
       }));
 
       // Save to daily_exercises with custom test marker
-      const { error: saveError } = await supabase
+      const { data: savedExercise, error: saveError } = await supabase
         .from("daily_exercises")
         .insert([{
           user_id: profile.id,
@@ -239,10 +239,12 @@ const CustomTestContent = () => {
           total_questions: questions.length,
           time_taken_minutes: timeTaken,
           completed_at: new Date().toISOString(),
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (saveError) {
-        throw new Error(`فشل حفظ الاختبار: ${saveError.message}`);
+      if (saveError || !savedExercise) {
+        throw new Error(`فشل حفظ الاختبار: ${saveError?.message}`);
       }
 
       // Log questions to prevent repetition
@@ -261,7 +263,7 @@ const CustomTestContent = () => {
       // Calculate performance
       await supabase.functions.invoke("calculate-performance", {
         body: {
-          testType: profile?.test_type_preference || "قدرات",
+          exerciseId: savedExercise.id,
         },
       });
 

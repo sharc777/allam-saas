@@ -267,9 +267,11 @@ const DailyExerciseContent = () => {
       queryClient.invalidateQueries({ queryKey: ["exercise-history", profile.id] });
       console.log("✅ Exercise history cache updated");
 
-      // Calculate performance (قدرات فقط)
+      // Calculate performance
       await supabase.functions.invoke("calculate-performance", {
-        body: {},
+        body: {
+          exerciseId: savedExercise.id,
+        },
       });
 
       // Award achievements

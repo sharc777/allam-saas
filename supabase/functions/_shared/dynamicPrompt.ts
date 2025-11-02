@@ -18,10 +18,9 @@ export interface StudentLevel {
 export async function loadUserWeaknesses(
   supabase: SupabaseClient,
   userId: string,
-  section: string,
-  testType: string
+  section: string
 ): Promise<UserWeakness[]> {
-  console.log(`📊 Loading weaknesses for user ${userId} - ${testType}/${section}`);
+  console.log(`📊 Loading weaknesses for user ${userId} - section: ${section}`);
   
   const { data, error } = await supabase
     .from("user_weakness_profile")

@@ -21,7 +21,6 @@ interface WeaknessProfile {
 
 interface WeaknessFilters {
   section?: string;
-  test_type?: string;
   priority?: 'critical' | 'high' | 'medium' | 'low';
   limit?: number;
 }
@@ -33,7 +32,7 @@ export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) =
 
   // Fetch weakness profile
   const { data: weaknessProfile, isLoading, error, refetch } = useQuery({
-    queryKey: ["weakness-profile", userId, filters, profile?.test_type_preference],
+    queryKey: ["weakness-profile", userId, filters],
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000,
     enabled: !!userId || !!profile?.id,
@@ -54,17 +53,9 @@ export const useWeaknessProfile = (userId?: string, filters?: WeaknessFilters) =
           .select("*")
           .eq("user_id", targetUserId);
 
-        // Filter by test_type from profile
-        if (profile?.test_type_preference) {
-          query = query.eq("test_type", profile.test_type_preference);
-        }
-
         // Apply additional filters
         if (filters?.section) {
           query = query.eq("section", filters.section);
-        }
-        if (filters?.test_type) {
-          query = query.eq("test_type", filters.test_type);
         }
         if (filters?.priority) {
           query = query.eq("priority", filters.priority);

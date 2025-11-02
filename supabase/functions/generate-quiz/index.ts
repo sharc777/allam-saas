@@ -953,7 +953,7 @@ serve(async (req) => {
     console.log("📊 Loading student weaknesses and performance level...");
     
     const [weaknesses, studentLevel] = await Promise.all([
-      loadUserWeaknesses(supabase, userId, sectionFilter || 'كمي', testType),
+      loadUserWeaknesses(supabase, userId, sectionFilter || 'كمي'),
       calculateStudentLevel(supabase, userId)
     ]);
     
