@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
@@ -47,21 +48,27 @@ export const usePerformanceAnalytics = (
   userId?: string,
   dateRange?: DateRange
 ) => {
-  const defaultDateRange = {
+  // Use ref to keep default range stable across renders
+  const defaultRangeRef = useRef({
     from: subDays(new Date(), 30),
     to: new Date(),
-  };
+  });
 
-  const range = dateRange || defaultDateRange;
+  const range = dateRange || defaultRangeRef.current;
+
+  // Generate stable query keys from date range
+  const keyFrom = startOfDay(range.from).toISOString();
+  const keyTo = endOfDay(range.to).toISOString();
 
   // Fetch performance data
   const { data: performanceData, isLoading, error, refetch } = useQuery({
-    queryKey: ["performance-analytics", userId, range],
+    queryKey: ["performance-analytics", userId, keyFrom, keyTo],
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     enabled: !!userId,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       try {
         console.log('📊 [Performance Analytics] Fetching data...', { userId, range });
