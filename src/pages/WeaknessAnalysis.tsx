@@ -44,8 +44,8 @@ const WeaknessAnalysis = () => {
   const [isRepairingData, setIsRepairingData] = useState(false);
 
   const { data: weaknessData, isLoading, error: weaknessError, refetch } = useQuery({
-    queryKey: ["weakness-analysis", profile?.id],
-    enabled: !!profile?.id,
+    queryKey: ["weakness-analysis"],
+    enabled: true,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
