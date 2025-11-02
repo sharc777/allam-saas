@@ -501,9 +501,23 @@ function generateDistribution(total: number, subSkills: string[]): string {
 }
 
 function buildSystemPrompt(params: any) {
-  const { testType, sectionFilter, targetQuestions, difficulty, availableTopics, allRelatedTopics, systemPromptOverride, isPractice } = params;
+  const { testType, sectionFilter, targetQuestions, difficulty, availableTopics, allRelatedTopics, systemPromptOverride, isPractice, topicFilter } = params;
   
   let prompt = systemPromptOverride ? `${systemPromptOverride}\n\n` : "";
+  
+  // Add topic filter requirement at the top if specified
+  if (topicFilter) {
+    prompt += `🎯 **الموضوع المطلوب حصرياً:**
+"${topicFilter}"
+
+⚠️ **تعليمات إلزامية:**
+- جميع الأسئلة يجب أن تكون عن موضوع "${topicFilter}" فقط
+- لا تولد أسئلة من مواضيع أخرى نهائياً
+- كل سؤال يجب أن يتعلق بـ "${topicFilter}" بشكل مباشر
+${sectionFilter ? `- من القسم ${sectionFilter} حصرياً` : ''}
+
+`;
+  }
   
   // Add KB topics if available
   if (isPractice && availableTopics.length > 0) {
@@ -532,7 +546,7 @@ function buildSystemPrompt(params: any) {
 }
 
 function buildUserPrompt(params: any) {
-  const { mode, testType, targetQuestions, content, additionalKnowledge, sectionFilter, isInitialAssessment, knowledgeData } = params;
+  const { mode, testType, targetQuestions, content, additionalKnowledge, sectionFilter, isInitialAssessment, knowledgeData, topicFilter } = params;
   
   const templates = knowledgeData?.flatMap((kb: any) => kb.metadata?.templates || []) || [];
   const variations = knowledgeData?.flatMap((kb: any) => kb.metadata?.variation_strategies || []) || [];
@@ -542,6 +556,16 @@ function buildUserPrompt(params: any) {
 
 📚 **المحتوى المعرفي:**
 ${mode === 'practice' || isInitialAssessment ? additionalKnowledge : `${content.title}\n${content.content_text || ""}\n${additionalKnowledge}`}`;
+
+  // Add strong topic focus if topicFilter is specified
+  if (topicFilter) {
+    prompt += `\n\n🎯 **تعليمات إلزامية للموضوع:**
+⚠️ جميع الأسئلة يجب أن تكون حصرياً عن: "${topicFilter}"
+- كل سؤال يجب أن يتناول "${topicFilter}" بشكل مباشر ومحدد
+- لا تولد أسئلة من مواضيع أخرى مثل ${getSampleOtherTopics(topicFilter, sectionFilter)}
+- نوّع مستوى الصعوبة ولكن نفس الموضوع "${topicFilter}"
+- استخدم مهارات فرعية مختلفة ضمن موضوع "${topicFilter}"`;
+  }
 
   if (templates.length > 0) {
     prompt += `\n\n🎯 **قوالب الأسئلة المتاحة** (استخدم كل قالب بتنويع مختلف):
@@ -563,15 +587,29 @@ ${generateDistribution(targetQuestions, subSkills)}`;
 - كل سؤال يستخدم أرقاماً وسياقاً مختلفاً
 - نوّع مستوى الصعوبة (${Math.floor(targetQuestions * 0.3)} سهل، ${Math.floor(targetQuestions * 0.5)} متوسط، ${Math.floor(targetQuestions * 0.2)} صعب)
 ${sectionFilter ? `- جميع الأسئلة ${sectionFilter} فقط` : '- أسئلة متنوعة'}
+${topicFilter ? `- جميع الأسئلة عن موضوع "${topicFilter}" فقط` : ''}
 - 4 خيارات مختلفة لكل سؤال (الخيارات يجب أن تكون معقولة وليست واضحة الخطأ)
 - تفسير تعليمي مفصل يشرح الحل خطوة بخطوة ويربط بالمهارة الأساسية
 
 🚫 **ممنوع**:
 - تكرار نفس الأرقام أو السياق
 - أسئلة متشابهة في البنية
-- خيارات واضحة الخطأ أو سهلة الاستبعاد`;
+- خيارات واضحة الخطأ أو سهلة الاستبعاد
+${topicFilter ? `- أسئلة من مواضيع غير "${topicFilter}"` : ''}`;
 
   return prompt;
+}
+
+// Helper function to suggest other topics to avoid
+function getSampleOtherTopics(currentTopic: string, section: string | null): string {
+  if (section === "لفظي") {
+    const verbalTopics = ["القراءة والاستيعاب", "المفردات", "التناظر اللفظي", "إكمال الجمل", "الخطأ السياقي"];
+    return verbalTopics.filter(t => t !== currentTopic).slice(0, 2).join("، ");
+  } else if (section === "كمي") {
+    const mathTopics = ["الجبر", "الهندسة", "الإحصاء", "الأعداد", "النسب والتناسب", "المعادلات"];
+    return mathTopics.filter(t => t !== currentTopic).slice(0, 2).join("، ");
+  }
+  return "مواضيع أخرى";
 }
 
 async function generateWithAI(apiKey: string, systemPrompt: string, userPrompt: string, model: string, temp: number) {
@@ -655,21 +693,78 @@ function calculateQuestionHashes(questions: any[]) {
   });
 }
 
-function filterBySection(questions: any[], sectionFilter: string | null, testType: string) {
-  if (!sectionFilter || testType !== "قدرات") return questions;
+// Helper function to check if topics are related
+function areRelatedTopics(topic1: string, topic2: string): boolean {
+  if (!topic1 || !topic2) return false;
   
-  const mathKeywords = ['نسبة', 'معادلة', 'مجموع', 'مساحة', 'محيط', 'جذر', 'ضرب', 'قسمة'];
+  const t1 = topic1.toLowerCase().trim();
+  const t2 = topic2.toLowerCase().trim();
+  
+  // Exact match
+  if (t1 === t2) return true;
+  
+  // Partial match
+  if (t1.includes(t2) || t2.includes(t1)) return true;
+  
+  // Topic synonyms/related terms
+  const relatedGroups = [
+    ["التناظر اللفظي", "التناظر", "المتناظرات"],
+    ["إكمال الجمل", "إكمال", "الجمل"],
+    ["الخطأ السياقي", "السياق", "الخطأ"],
+    ["القراءة والاستيعاب", "الاستيعاب", "القراءة"],
+    ["النسب والتناسب", "النسبة", "التناسب", "النسب المئوية"],
+    ["الجبر", "المعادلات", "المتغيرات"],
+    ["الهندسة", "المساحة", "المحيط", "الحجم"],
+  ];
+  
+  for (const group of relatedGroups) {
+    const hasT1 = group.some(term => t1.includes(term));
+    const hasT2 = group.some(term => t2.includes(term));
+    if (hasT1 && hasT2) return true;
+  }
+  
+  return false;
+}
+
+function filterBySection(questions: any[], sectionFilter: string | null, testType: string, topicFilter?: string) {
+  if (!sectionFilter && !topicFilter) return questions;
+  
+  const mathKeywords = ['نسبة', 'معادلة', 'مجموع', 'مساحة', 'محيط', 'جذر', 'ضرب', 'قسمة', 'رقم', 'عدد'];
   
   return questions.filter((q: any) => {
-    const text = q.question_text?.toLowerCase() || "";
-    const hasNumbers = /\d/.test(text);
-    const hasMathWords = mathKeywords.some(kw => text.includes(kw));
-    
-    if (sectionFilter === "كمي") {
-      return q.section === "كمي" || hasNumbers || hasMathWords;
-    } else {
-      return q.section === "لفظي" && !hasNumbers && !hasMathWords;
+    // Filter by section first
+    if (sectionFilter && testType === "قدرات") {
+      const text = q.question_text?.toLowerCase() || "";
+      const hasNumbers = /\d/.test(text);
+      const hasMathWords = mathKeywords.some(kw => text.includes(kw));
+      
+      if (sectionFilter === "كمي") {
+        const isQuantitative = q.section === "كمي" || hasNumbers || hasMathWords;
+        if (!isQuantitative) return false;
+      } else if (sectionFilter === "لفظي") {
+        const isVerbal = q.section === "لفظي" && !hasNumbers && !hasMathWords;
+        if (!isVerbal) return false;
+      }
     }
+    
+    // Then filter by topic if specified
+    if (topicFilter) {
+      const questionText = q.question_text?.toLowerCase() || "";
+      const questionTopic = q.topic?.toLowerCase() || "";
+      const targetTopic = topicFilter.toLowerCase();
+      
+      // Check if topic matches
+      const topicMatch = areRelatedTopics(questionTopic, targetTopic) ||
+                        questionText.includes(targetTopic) ||
+                        questionTopic.includes(targetTopic);
+      
+      if (!topicMatch) {
+        console.log(`❌ Filtered out question with topic "${q.topic}" (expected "${topicFilter}")`);
+        return false;
+      }
+    }
+    
+    return true;
   });
 }
 
@@ -685,7 +780,7 @@ function validateQuestions(questions: any[]) {
 }
 
 async function fillFromQuestionBank(supabase: any, missing: number, params: any) {
-  const { sectionFilter, difficulty, testType, availableTopics, allRelatedTopics, isPractice } = params;
+  const { sectionFilter, difficulty, testType, availableTopics, allRelatedTopics, isPractice, topicFilter } = params;
   
   // Try 1: Exact match
   let query = supabase.from("questions_bank").select("*");
@@ -706,6 +801,14 @@ async function fillFromQuestionBank(supabase: any, missing: number, params: any)
   
   return bankQuestions
     .filter((q: any) => {
+      // Topic filter if specified
+      if (topicFilter) {
+        const questionTopic = q.topic?.toLowerCase() || "";
+        if (!areRelatedTopics(questionTopic, topicFilter)) {
+          return false;
+        }
+      }
+      
       // Topic filter for practice mode
       if (availableTopics.length > 0 && isPractice) {
         const topic = q.topic?.toLowerCase() || "";
@@ -732,13 +835,14 @@ async function fillFromQuestionBank(supabase: any, missing: number, params: any)
 }
 
 async function topupWithAI(apiKey: string, missing: number, systemPrompt: string, params: any) {
-  const { sectionFilter, availableTopics } = params;
+  const { sectionFilter, availableTopics, topicFilter } = params;
   
   const topupPrompt = `قم بتوليد ${missing} سؤال ${sectionFilter || ''} فقط:
 
 ⚠️ **مهم:**
 - ${missing} سؤال بالضبط
 ${sectionFilter ? `- ${sectionFilter} حصرياً` : ''}
+${topicFilter ? `- جميع الأسئلة عن موضوع "${topicFilter}" حصرياً` : ''}
 ${availableTopics.length > 0 ? `- المواضيع: ${availableTopics.slice(0, 5).join('، ')}` : ''}`;
 
   try {
@@ -1010,7 +1114,7 @@ serve(async (req) => {
     
     const baseSystemPrompt = buildSystemPrompt({ 
       testType, sectionFilter, targetQuestions, difficulty, 
-      availableTopics, allRelatedTopics, systemPromptOverride, isPractice 
+      availableTopics, allRelatedTopics, systemPromptOverride, isPractice, topicFilter 
     });
     
     const systemPrompt = buildDynamicSystemPrompt(
@@ -1023,7 +1127,7 @@ serve(async (req) => {
     // ============= BUILD USER PROMPT WITH FEW-SHOT EXAMPLES =============
     const baseUserPrompt = buildUserPrompt({ 
       mode, testType, targetQuestions, content, additionalKnowledge, 
-      sectionFilter, isInitialAssessment, knowledgeData 
+      sectionFilter, isInitialAssessment, knowledgeData, topicFilter 
     });
     
     // Add weakness information to prompt if in practice mode
@@ -1071,10 +1175,10 @@ serve(async (req) => {
     uniqueQuestions = validateQuestionQuality(uniqueQuestions);
     console.log(`✅ Quality validated: ${uniqueQuestions.length}`);
     
-    // 12. Filter by section
-    uniqueQuestions = filterBySection(uniqueQuestions, sectionFilter, testType);
+    // 12. Filter by section and topic
+    uniqueQuestions = filterBySection(uniqueQuestions, sectionFilter, testType, topicFilter);
     uniqueQuestions = validateQuestions(uniqueQuestions);
-    console.log(`✅ Section filtered: ${uniqueQuestions.length}`);
+    console.log(`✅ Section${topicFilter ? ' & topic' : ''} filtered: ${uniqueQuestions.length}`);
     
     // 13. Apply diversity engine
     console.log(`🎨 Applying diversity engine...`);
@@ -1100,7 +1204,7 @@ serve(async (req) => {
       console.log(`⚠️ Missing ${missing} questions, filling from bank...`);
       
       const bankQuestions = await fillFromQuestionBank(supabase, missing, {
-        sectionFilter, difficulty, testType, availableTopics, allRelatedTopics, isPractice
+        sectionFilter, difficulty, testType, availableTopics, allRelatedTopics, isPractice, topicFilter
       });
       finalQuestions.push(...bankQuestions);
       missing = targetQuestions - finalQuestions.length;
@@ -1108,7 +1212,7 @@ serve(async (req) => {
       
       if (missing > 0) {
         const topupQuestions = await topupWithAI(LOVABLE_API_KEY, missing, systemPrompt, {
-          sectionFilter, availableTopics
+          sectionFilter, availableTopics, topicFilter
         });
         const validTopup = validateQuestionQuality(validateQuestions(topupQuestions)).slice(0, missing);
         finalQuestions.push(...validTopup);
@@ -1116,7 +1220,28 @@ serve(async (req) => {
       }
     }
     
-    // 11. Final check
+    // 11. Final validation for topic matching
+    if (topicFilter) {
+      const mismatchedQuestions = finalQuestions.filter(q => {
+        const questionTopic = q.topic?.toLowerCase() || "";
+        return !areRelatedTopics(questionTopic, topicFilter);
+      });
+      
+      if (mismatchedQuestions.length > 0) {
+        console.warn(`⚠️ Found ${mismatchedQuestions.length} mismatched questions for topic "${topicFilter}"`);
+        mismatchedQuestions.forEach(q => {
+          console.warn(`  - Question topic: "${q.topic}", Text preview: "${q.question_text?.substring(0, 50)}..."`);
+        });
+        
+        // Remove mismatched questions
+        finalQuestions = finalQuestions.filter(q => 
+          areRelatedTopics(q.topic?.toLowerCase() || "", topicFilter)
+        );
+        console.log(`✅ After topic validation: ${finalQuestions.length} questions remain`);
+      }
+    }
+    
+    // 12. Final check
     finalQuestions = finalQuestions.slice(0, targetQuestions);
     // بدل رمي خطأ 500، ارجع تحذيراً مع الأسئلة المتاحة لضمان تجربة سلسة في الواجهة
     const warning = finalQuestions.length < targetQuestions
@@ -1211,7 +1336,18 @@ serve(async (req) => {
     
     console.log(`📊 Analytics: Diversity=${diversityScore.toFixed(1)}%, Quality=${qualityScore.toFixed(1)}%`);
     
-    // 15. Return response
+    // 15. Collect debug information
+    const debugInfo = topicFilter ? {
+      requestedTopic: topicFilter,
+      requestedSection: sectionFilter,
+      generatedTopics: [...new Set(finalQuestions.map(q => q.topic))],
+      generatedSections: [...new Set(finalQuestions.map(q => q.section))],
+      topicMatchRate: Math.round((finalQuestions.filter(q => 
+        areRelatedTopics(q.topic?.toLowerCase() || "", topicFilter)
+      ).length / finalQuestions.length) * 100)
+    } : undefined;
+    
+    // 16. Return response
     return new Response(
       JSON.stringify({
         questions: finalQuestions,
@@ -1222,7 +1358,8 @@ serve(async (req) => {
         fromCache: cachedQuestions.length > 0,
         cacheHitRate: Math.round((cachedQuestions.length / targetQuestions) * 100),
         generationTime,
-        warning
+        warning,
+        debug: debugInfo
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
