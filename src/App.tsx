@@ -12,6 +12,7 @@ import DailyContent from "./pages/DailyContent";
 import InitialAssessment from "./pages/InitialAssessment";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Subscription from "./pages/Subscription";
 import ExerciseHistory from "./pages/ExerciseHistory";
@@ -44,6 +45,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/reset-password" element={<ResetPassword />} />
             <Route path="/subscription" element={<Subscription />} />
             <Route path="/dashboard" element={<NewDashboard />} />
             <Route path="/daily-exercise" element={<DailyExercise />} />
