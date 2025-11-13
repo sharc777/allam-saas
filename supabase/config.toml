@@ -75,3 +75,9 @@ verify_jwt = true
 [functions.analyze-weaknesses]
 verify_jwt = true
 
+[functions.validate-questions]
+verify_jwt = true
+
+[functions.cleanup-expired-cache]
+verify_jwt = false
+
