@@ -76,8 +76,8 @@ export const PackagesPreview = () => {
                 </div>
               </div>
               <CardTitle className="text-xl mb-2">{pkg.name_ar}</CardTitle>
-              <CardDescription>
-                <div className="text-3xl font-bold text-foreground mb-1">
+              <CardDescription className="space-y-1">
+                <span className="text-3xl font-bold text-foreground block">
                   {isFree ? (
                     "مجاني"
                   ) : (
@@ -85,8 +85,8 @@ export const PackagesPreview = () => {
                       {price} <span className="text-base text-muted-foreground">ر.س</span>
                     </>
                   )}
-                </div>
-                <div className="text-sm">شهرياً</div>
+                </span>
+                <span className="text-sm block">شهرياً</span>
               </CardDescription>
             </CardHeader>
 
