@@ -76,17 +76,35 @@ export async function selectFewShotExamples(
     return [];
   }
   
-  // Phase 3: Apply diversity strategy with weakness awareness
+  // Phase 3: NEW - Strict diversity enforcement
+  // Rule 1: Determine target count based on student level (3-5 examples)
+  const targetCount = studentLevel === 'مبتدئ' ? 3 : 
+                      studentLevel === 'متوسط' ? 4 : 5;
+  
+  // Rule 2: Only use examples with quality_score >= 4
+  const highQualityExamples = data.filter((ex: any) => (ex.quality_score || 0) >= 4);
+  
+  console.log(`📊 Quality filter: ${highQualityExamples.length}/${data.length} examples with score >= 4`);
+  
+  if (highQualityExamples.length === 0) {
+    console.warn("⚠️ No high-quality examples found (score >= 4)");
+    return [];
+  }
+  
+  // Rule 3: Max 1 example per topic (subject)
+  const selectedTopics = new Set<string>();
+  const selectedSubjects = new Set<string>();
   let selected: any[] = [];
   
+  // Phase 3: Apply diversity strategy with strict rules
   switch (diversityMode) {
     case 'weakness-focused':
-      // Phase 3: Prioritize examples from weak topics
-      const weaknessExamples = data.filter((ex: any) => 
-        weakTopics.includes(ex.subject)
+      // Phase 3: Prioritize examples from weak topics (1 per topic)
+      const weaknessExamples = highQualityExamples.filter((ex: any) => 
+        weakTopics.includes(ex.subject) && !selectedSubjects.has(ex.subject)
       );
-      const otherExamples = data.filter((ex: any) => 
-        !weakTopics.includes(ex.subject)
+      const otherExamples = highQualityExamples.filter((ex: any) => 
+        !weakTopics.includes(ex.subject) && !selectedSubjects.has(ex.subject)
       );
       
       // For beginners with weaknesses: easier examples from weak topics
@@ -98,57 +116,114 @@ export async function selectFewShotExamples(
           ex.difficulty === 'hard'
         );
         
-        selected = [
-          ...easyWeak.slice(0, Math.ceil(count * 0.6)),
-          ...hardWeak.slice(0, Math.floor(count * 0.2)),
-          ...otherExamples.slice(0, Math.floor(count * 0.2))
-        ];
+        // Add unique examples (max 1 per topic)
+        for (const ex of easyWeak) {
+          if (!selectedSubjects.has(ex.subject) && selected.length < Math.ceil(targetCount * 0.6)) {
+            selected.push(ex);
+            selectedSubjects.add(ex.subject);
+          }
+        }
+        for (const ex of hardWeak) {
+          if (!selectedSubjects.has(ex.subject) && selected.length < Math.ceil(targetCount * 0.8)) {
+            selected.push(ex);
+            selectedSubjects.add(ex.subject);
+          }
+        }
+        for (const ex of otherExamples) {
+          if (!selectedSubjects.has(ex.subject) && selected.length < targetCount) {
+            selected.push(ex);
+            selectedSubjects.add(ex.subject);
+          }
+        }
       } else {
         // Regular weakness-focused distribution
-        selected = [
-          ...weaknessExamples.slice(0, Math.ceil(count * 0.7)),
-          ...otherExamples.slice(0, Math.floor(count * 0.3))
-        ];
+        for (const ex of weaknessExamples) {
+          if (!selectedSubjects.has(ex.subject) && selected.length < Math.ceil(targetCount * 0.7)) {
+            selected.push(ex);
+            selectedSubjects.add(ex.subject);
+          }
+        }
+        for (const ex of otherExamples) {
+          if (!selectedSubjects.has(ex.subject) && selected.length < targetCount) {
+            selected.push(ex);
+            selectedSubjects.add(ex.subject);
+          }
+        }
       }
       break;
       
     case 'topic-focused':
-      const topicMatches = topic ? data.filter((ex: any) => ex.subject === topic) : [];
-      const others = topic ? data.filter((ex: any) => ex.subject !== topic) : data;
-      selected = [
-        ...topicMatches.slice(0, Math.ceil(count * 0.7)),
-        ...others.slice(0, Math.floor(count * 0.3))
-      ];
+      const topicMatches = topic ? highQualityExamples.filter((ex: any) => 
+        ex.subject === topic && !selectedSubjects.has(ex.subject)
+      ) : [];
+      const others = topic ? highQualityExamples.filter((ex: any) => 
+        ex.subject !== topic && !selectedSubjects.has(ex.subject)
+      ) : highQualityExamples;
+      
+      // Add unique topic-focused examples
+      for (const ex of topicMatches) {
+        if (!selectedSubjects.has(ex.subject) && selected.length < Math.ceil(targetCount * 0.7)) {
+          selected.push(ex);
+          selectedSubjects.add(ex.subject);
+        }
+      }
+      for (const ex of others) {
+        if (!selectedSubjects.has(ex.subject) && selected.length < targetCount) {
+          selected.push(ex);
+          selectedSubjects.add(ex.subject);
+        }
+      }
       break;
       
     case 'difficulty-spread':
       const byDifficulty: Record<string, any[]> = { easy: [], medium: [], hard: [] };
-      data.forEach((ex: any) => {
+      highQualityExamples.forEach((ex: any) => {
         const diff = ex.difficulty || 'medium';
         if (byDifficulty[diff]) byDifficulty[diff].push(ex);
       });
       
-      const perLevel = Math.ceil(count / 3);
-      selected = [
-        ...byDifficulty.easy.slice(0, perLevel),
-        ...byDifficulty.medium.slice(0, perLevel),
-        ...byDifficulty.hard.slice(0, perLevel)
-      ];
+      const perLevel = Math.ceil(targetCount / 3);
+      
+      // Add examples ensuring uniqueness per topic
+      for (const ex of byDifficulty.easy) {
+        if (!selectedSubjects.has(ex.subject) && selected.length < perLevel) {
+          selected.push(ex);
+          selectedSubjects.add(ex.subject);
+        }
+      }
+      for (const ex of byDifficulty.medium) {
+        if (!selectedSubjects.has(ex.subject) && selected.length < perLevel * 2) {
+          selected.push(ex);
+          selectedSubjects.add(ex.subject);
+        }
+      }
+      for (const ex of byDifficulty.hard) {
+        if (!selectedSubjects.has(ex.subject) && selected.length < targetCount) {
+          selected.push(ex);
+          selectedSubjects.add(ex.subject);
+        }
+      }
       break;
       
     case 'balanced':
     default:
-      const topicRelevant = topic ? data.filter((ex: any) => ex.subject === topic) : [];
-      const highQuality = data.filter((ex: any) => (ex.quality_score || 0) >= 4);
-      const random = data.sort(() => Math.random() - 0.5);
+      // Shuffle high-quality examples for randomness
+      const shuffled = highQualityExamples.sort(() => Math.random() - 0.5);
       
-      const pool = Array.from(new Set([...topicRelevant, ...highQuality, ...random]));
-      selected = pool.slice(0, count);
+      // Add examples ensuring no topic repetition
+      for (const ex of shuffled) {
+        if (!selectedSubjects.has(ex.subject) && selected.length < targetCount) {
+          selected.push(ex);
+          selectedSubjects.add(ex.subject);
+        }
+      }
       break;
   }
   
-  console.log(`✅ Phase 3: Selected ${selected.length} examples (${diversityMode} strategy, weakTopics: ${weakTopics.length})`);
-  return selected.slice(0, count);
+  console.log(`✅ Phase 3: Selected ${selected.length} unique examples (${diversityMode} strategy, ${selectedSubjects.size} unique topics)`);
+  console.log(`📌 Topics: ${Array.from(selectedSubjects).join(', ')}`);
+  
+  return selected.slice(0, targetCount);
 }
 
 export function injectFewShotExamples(

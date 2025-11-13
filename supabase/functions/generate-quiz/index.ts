@@ -613,6 +613,24 @@ function getSampleOtherTopics(currentTopic: string, section: string | null): str
 }
 
 async function generateWithAI(apiKey: string, systemPrompt: string, userPrompt: string, model: string, temp: number) {
+  // ============= PHASE 4: SYSTEM PROMPT CLARITY =============
+  // Build messages with clear separation between system instructions and user content
+  const messages = [
+    {
+      role: "system",
+      content: systemPrompt // ONLY instructions and requirements
+    },
+    {
+      role: "user", 
+      content: userPrompt // Context, examples, and specific request
+    }
+  ];
+  
+  console.log("📤 Phase 4: Sending structured prompt to AI...");
+  console.log(`  - System Prompt: ${systemPrompt.substring(0, 100)}...`);
+  console.log(`  - User Prompt: ${userPrompt.substring(0, 100)}...`);
+  console.log(`  - Model: ${model}, Temperature: ${temp}`);
+
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -622,10 +640,7 @@ async function generateWithAI(apiKey: string, systemPrompt: string, userPrompt: 
     body: JSON.stringify({
       model,
       temperature: temp,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
+      messages, // Use structured messages array (Phase 4)
       tools: [{
         type: "function",
         function: {
@@ -1150,6 +1165,46 @@ serve(async (req) => {
     try {
       allQuestions = await generateWithAI(LOVABLE_API_KEY, systemPrompt, userPrompt, quizModel, dynamicTemperature);
       console.log(`🤖 AI generated: ${allQuestions.length} questions`);
+      
+      // ============= PHASE 2: AI SAFETY GUARD =============
+      if (allQuestions.length > 0) {
+        console.log("🛡️ Phase 2: Running AI Safety Guard validation...");
+        
+        try {
+          const validationResponse = await supabase.functions.invoke('validate-questions', {
+            body: { questions: allQuestions }
+          });
+
+          if (validationResponse.error) {
+            console.error("⚠️ Validation service error:", validationResponse.error);
+          } else if (validationResponse.data) {
+            const validated = validationResponse.data;
+            console.log(`✅ Validation: ${validated.valid}/${validated.total} questions passed`);
+            
+            // Use only valid questions
+            if (validated.validQuestions && validated.validQuestions.length > 0) {
+              allQuestions = validated.validQuestions;
+              console.log(`🛡️ Using ${allQuestions.length} validated questions`);
+            }
+            
+            // Log invalid questions for monitoring
+            if (validated.invalid > 0 && validated.invalidDetails) {
+              console.warn(`⚠️ ${validated.invalid} questions failed validation:`);
+              validated.invalidDetails.forEach((detail: any) => {
+                console.error(`  - Question ${detail.index}: Score ${detail.score}/100`);
+                console.error(`    Errors: ${detail.errors.join(', ')}`);
+                if (detail.warnings.length > 0) {
+                  console.warn(`    Warnings: ${detail.warnings.join(', ')}`);
+                }
+              });
+            }
+          }
+        } catch (validationError) {
+          console.error("⚠️ Validation failed, proceeding with unvalidated questions:", validationError);
+          // Continue with unvalidated questions - don't break user experience
+        }
+      }
+      
     } catch (error: any) {
       if (error?.name === 'AbortError') {
         console.error('⏱️ AI generation timeout after 30s');
