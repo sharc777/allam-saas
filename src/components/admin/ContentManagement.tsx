@@ -302,7 +302,6 @@ export const ContentManagement = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="قدرات">قدرات</SelectItem>
-                      <SelectItem value="تحصيلي">تحصيلي</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

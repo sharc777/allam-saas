@@ -127,7 +127,7 @@ serve(async (req) => {
     console.log("AI Tutor request:", { mode, messageCount: safeMessages.length });
 
     // Base system prompt
-    let systemPrompt = `أنت مدرس خصوصي ذكي متخصص في مساعدة الطلاب على الاستعداد لاختبارات القدرات والتحصيلي في السعودية.
+    let systemPrompt = `أنت مدرس خصوصي ذكي متخصص في مساعدة الطلاب على الاستعداد لاختبار القدرات في السعودية.
 
 مهامك:
 1. شرح المفاهيم الرياضية والعلمية واللغوية بطريقة واضحة ومبسطة

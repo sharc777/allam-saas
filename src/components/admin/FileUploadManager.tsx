@@ -182,7 +182,6 @@ export const FileUploadManager = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="قدرات">قدرات</SelectItem>
-                      <SelectItem value="تحصيلي">تحصيلي</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -278,7 +277,6 @@ export const FileUploadManager = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="قدرات">قدرات</SelectItem>
-                      <SelectItem value="تحصيلي">تحصيلي</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
