@@ -119,6 +119,38 @@ const MessageContent = ({ content, role }: MessageContentProps) => {
             {children}
           </a>
         ),
+        table: ({ children }) => (
+          <div className="my-4 overflow-x-auto rounded-lg border border-border">
+            <table className="w-full border-collapse text-sm">
+              {children}
+            </table>
+          </div>
+        ),
+        thead: ({ children }) => (
+          <thead className="bg-muted/70 border-b border-border">
+            {children}
+          </thead>
+        ),
+        tbody: ({ children }) => (
+          <tbody className="divide-y divide-border">
+            {children}
+          </tbody>
+        ),
+        tr: ({ children }) => (
+          <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">
+            {children}
+          </tr>
+        ),
+        th: ({ children }) => (
+          <th className="px-4 py-3 text-right font-bold text-foreground border-l border-border first:border-l-0">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="px-4 py-3 text-right border-l border-border first:border-l-0">
+            {children}
+          </td>
+        ),
       }}
       >
         {content}
