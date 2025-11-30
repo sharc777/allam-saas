@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_settings: {
+        Row: {
+          ad_slots: Json | null
+          adsense_client_id: string | null
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          placement_settings: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          ad_slots?: Json | null
+          adsense_client_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          placement_settings?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          ad_slots?: Json | null
+          adsense_client_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          placement_settings?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_conversations: {
         Row: {
           context_type:
