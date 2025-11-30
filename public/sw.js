@@ -88,7 +88,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'تحدي الـ30 يوم', options)
+    self.registration.showNotification(data.title || 'دربني', options)
   );
 });
 

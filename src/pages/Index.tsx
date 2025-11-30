@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
-import { Brain, Target, Trophy, TrendingUp, Sparkles, BookOpen, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Brain, GraduationCap, Trophy, TrendingUp, Sparkles, BookOpen, MessageSquare, CheckCircle2 } from "lucide-react";
 import { PackagesPreview } from "@/components/PackagesPreview";
 import { GoogleAd } from "@/components/GoogleAd";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,21 +42,21 @@ const Index = () => {
             
             <h1 className="text-5xl md:text-7xl font-bold leading-tight">
               <span className="bg-gradient-to-r from-primary via-primary-glow to-secondary bg-clip-text text-transparent">
-                تحدي الـ30 يوم
+                دربني
               </span>
               <br />
               <span className="text-foreground">رحلتك نحو التميز</span>
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              برنامج تدريبي مكثف يجمع بين المحتوى التعليمي المتقدم، الذكاء الاصطناعي، والاختبارات المخصصة لضمان تفوقك
+              منصة تدريبية متكاملة تجمع بين المحتوى التعليمي المتقدم، الذكاء الاصطناعي، والاختبارات المخصصة لضمان تفوقك
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
               <Link to="/dashboard">
                 <Button size="lg" className="gradient-primary text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth text-lg px-8 py-6">
-                  <Target className="ml-2 w-5 h-5" />
-                  ابدأ التحدي الآن
+                  <GraduationCap className="ml-2 w-5 h-5" />
+                  ابدأ التدريب الآن
                 </Button>
               </Link>
               <Button size="lg" variant="outline" className="border-2 text-lg px-8 py-6">
@@ -92,7 +92,7 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">
-              لماذا تحدي الـ<span className="text-primary">30 يوم</span>؟
+              لماذا <span className="text-primary">دربني</span>؟
             </h2>
             <p className="text-muted-foreground text-lg">
               منصة متكاملة مصممة خصيصاً لنجاحك
@@ -116,7 +116,7 @@ const Index = () => {
             <Card className="border-2 hover:border-secondary/50 transition-smooth hover:shadow-elegant group">
               <CardContent className="p-6 space-y-4">
                 <div className="w-14 h-14 rounded-2xl gradient-secondary flex items-center justify-center group-hover:animate-glow">
-                  <Target className="w-7 h-7 text-secondary-foreground" />
+                  <GraduationCap className="w-7 h-7 text-secondary-foreground" />
                 </div>
                 <h3 className="text-xl font-bold">اختبارات مخصصة</h3>
                 <p className="text-muted-foreground leading-relaxed">
@@ -183,7 +183,7 @@ const Index = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">كيف يعمل التحدي؟</h2>
+            <h2 className="text-4xl font-bold mb-4">كيف يعمل؟</h2>
             <p className="text-muted-foreground text-lg">ثلاث خطوات بسيطة نحو التميز</p>
           </div>
 
@@ -192,7 +192,7 @@ const Index = () => {
               <div className="w-16 h-16 rounded-full gradient-primary mx-auto flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-elegant">
                 1
               </div>
-              <h3 className="text-xl font-bold">ابدأ التحدي</h3>
+              <h3 className="text-xl font-bold">ابدأ التدريب</h3>
               <p className="text-muted-foreground">
                 سجل في المنصة وابدأ رحلتك التعليمية. ستحصل على خطة دراسية مخصصة لك
               </p>
@@ -252,13 +252,13 @@ const Index = () => {
             هل أنت مستعد لبدء رحلة التميز؟
           </h2>
           <p className="text-xl text-white/90 max-w-2xl mx-auto">
-            انضم الآن إلى آلاف الطلاب الذين حققوا نتائج استثنائية مع تحدي الـ30 يوم
+            انضم الآن إلى آلاف الطلاب الذين حققوا نتائج استثنائية مع دربني
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
             <Link to="/dashboard">
               <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-xl text-lg px-8 py-6">
                 <Trophy className="ml-2 w-5 h-5" />
-                ابدأ التحدي الآن
+                ابدأ التدريب الآن
               </Button>
             </Link>
           </div>
@@ -273,9 +273,9 @@ const Index = () => {
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <Target className="w-6 h-6 text-primary-foreground" />
+              <GraduationCap className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold">تحدي الـ30 يوم</span>
+            <span className="text-xl font-bold">دربني</span>
           </div>
           <p className="text-muted-foreground mb-4">
             منصة متكاملة للاستعداد لاختبارات القدرات والتحصيلي
