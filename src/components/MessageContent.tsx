@@ -15,6 +15,36 @@ interface MessageContentProps {
   role: 'user' | 'assistant';
 }
 
+// دالة لاستخراج النص من React children
+const extractTextFromChildren = (children: React.ReactNode): string => {
+  if (typeof children === 'string') return children;
+  if (Array.isArray(children)) {
+    return children.map(extractTextFromChildren).join('');
+  }
+  if (children && typeof children === 'object' && 'props' in children) {
+    return extractTextFromChildren((children as any).props.children);
+  }
+  return '';
+};
+
+// دالة للتعرف على نوع الصندوق من محتوى blockquote
+const getAlertType = (text: string): { type: string; icon: string; colors: string } | null => {
+  const patterns = [
+    { keywords: ['مثال:', 'مثال :', '📝'], type: 'example', icon: '📝', colors: 'bg-blue-50 border-blue-300 dark:bg-blue-950/30 dark:border-blue-800' },
+    { keywords: ['ملاحظة:', 'ملاحظة :', '💡'], type: 'note', icon: '💡', colors: 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950/30 dark:border-yellow-800' },
+    { keywords: ['تنبيه:', 'تنبيه :', '⚠️', 'انتباه:'], type: 'warning', icon: '⚠️', colors: 'bg-orange-50 border-orange-300 dark:bg-orange-950/30 dark:border-orange-800' },
+    { keywords: ['الحل:', 'الحل :', '✅', 'الجواب:'], type: 'solution', icon: '✅', colors: 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-800' },
+    { keywords: ['قاعدة:', 'قاعدة :', '📌', 'تذكر:'], type: 'rule', icon: '📌', colors: 'bg-purple-50 border-purple-300 dark:bg-purple-950/30 dark:border-purple-800' },
+  ];
+  
+  for (const pattern of patterns) {
+    if (pattern.keywords.some(keyword => text.includes(keyword))) {
+      return { type: pattern.type, icon: pattern.icon, colors: pattern.colors };
+    }
+  }
+  return null;
+};
+
 const MessageContent = ({ content, role }: MessageContentProps) => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -98,11 +128,29 @@ const MessageContent = ({ content, role }: MessageContentProps) => {
         li: ({ children }) => (
           <li className="mb-1">{children}</li>
         ),
-        blockquote: ({ children }) => (
-          <blockquote className="border-r-4 border-primary pr-4 my-3 italic text-muted-foreground">
-            {children}
-          </blockquote>
-        ),
+        blockquote: ({ children }) => {
+          const textContent = extractTextFromChildren(children);
+          const alertType = getAlertType(textContent);
+          
+          if (alertType) {
+            return (
+              <div className={`my-4 p-4 rounded-lg border-r-4 ${alertType.colors}`}>
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl flex-shrink-0">{alertType.icon}</span>
+                  <div className="flex-1 [&>p]:mb-0 [&>p:first-child]:mt-0">
+                    {children}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          
+          return (
+            <blockquote className="border-r-4 border-primary pr-4 my-3 italic text-muted-foreground">
+              {children}
+            </blockquote>
+          );
+        },
         strong: ({ children }) => (
           <strong className="font-bold text-foreground">{children}</strong>
         ),
