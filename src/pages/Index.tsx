@@ -55,7 +55,7 @@ const Index = () => {
                   ابدأ التدريب الآن
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="border-2 text-lg px-8 py-6">
+              <Button size="lg" variant="outline" onClick={() => navigate("/about")} className="border-2 text-lg px-8 py-6">
                 <BookOpen className="ml-2 w-5 h-5" />
                 اعرف المزيد
               </Button>
