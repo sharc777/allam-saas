@@ -53,7 +53,7 @@ serve(async (req) => {
     // Fetch user profile with package data
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('trial_days, subscription_active, daily_exercises_count, package_id')
+      .select('trial_days, subscription_active, daily_exercises_count, package_id, package_end_date')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -127,8 +127,13 @@ serve(async (req) => {
     const verbalCount = currentCounts['لفظي'] || 0;
     
     // Check trial or subscription status
+    // Check if user has a valid package that hasn't expired
+    const hasValidPackage = profile.package_id && 
+      profile.package_end_date && 
+      new Date(profile.package_end_date) > new Date();
+    
     const isTrial = profile.trial_days > 0;
-    const isSubscribed = profile.subscription_active;
+    const isSubscribed = profile.subscription_active || hasValidPackage;
     
     let canExercise = true;
     let message = '';
