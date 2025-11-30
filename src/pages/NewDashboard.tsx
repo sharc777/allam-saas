@@ -342,7 +342,6 @@ const NewDashboard = () => {
             variant="outline"
             className="fixed bottom-72 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
-            <LineChart className="w-6 h-6 ml-2" />
             <span className="text-lg font-semibold">تحليل الأداء التفصيلي</span>
           </Button>
 
@@ -353,7 +352,6 @@ const NewDashboard = () => {
             variant="outline"
             className="fixed bottom-56 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
-            <Target className="w-6 h-6 ml-2" />
             <span className="text-lg font-semibold">نقاط القوة والضعف</span>
           </Button>
 
@@ -364,7 +362,6 @@ const NewDashboard = () => {
             variant="outline"
             className="fixed bottom-40 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
-            <BarChart className="w-6 h-6 ml-2" />
             <span className="text-lg font-semibold">لوحة التقدم الشاملة</span>
           </Button>
 
@@ -375,7 +372,6 @@ const NewDashboard = () => {
             variant="outline"
             className="fixed bottom-24 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
-            <History className="w-6 h-6 ml-2" />
             <span className="text-lg font-semibold">سجل التمارين</span>
           </Button>
 
@@ -386,7 +382,6 @@ const NewDashboard = () => {
             variant="outline"
             className="fixed bottom-8 right-8 shadow-elegant z-40 h-14 px-6 border-2"
           >
-            <BookOpen className="w-6 h-6 ml-2" />
             <span className="text-lg font-semibold">المحتوى اليومي</span>
           </Button>
 
