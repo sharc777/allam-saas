@@ -21,6 +21,7 @@ import { useWeaknessProfile } from "@/hooks/useWeaknessProfile";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useTestStructure } from "@/hooks/useTestStructure";
+import { UsageLimits } from "@/components/UsageLimits";
 
 const NewDashboard = () => {
   const { loading: authLoading } = useAuth(true);
@@ -263,6 +264,9 @@ const NewDashboard = () => {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Usage Limits */}
+              <UsageLimits />
 
               {/* Trial Countdown */}
               <TrialCountdown />
