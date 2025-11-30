@@ -35,6 +35,7 @@ const getAlertType = (text: string): { type: string; icon: string; colors: strin
     { keywords: ['تنبيه:', 'تنبيه :', '⚠️', 'انتباه:'], type: 'warning', icon: '⚠️', colors: 'bg-orange-50 border-orange-300 dark:bg-orange-950/30 dark:border-orange-800' },
     { keywords: ['الحل:', 'الحل :', '✅', 'الجواب:'], type: 'solution', icon: '✅', colors: 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-800' },
     { keywords: ['قاعدة:', 'قاعدة :', '📌', 'تذكر:'], type: 'rule', icon: '📌', colors: 'bg-purple-50 border-purple-300 dark:bg-purple-950/30 dark:border-purple-800' },
+    { keywords: ['صيغة:', 'صيغة :', '📐', 'قانون:', 'قانون :'], type: 'formula', icon: '📐', colors: 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/30 dark:border-indigo-800' },
   ];
   
   for (const pattern of patterns) {
