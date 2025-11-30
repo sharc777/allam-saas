@@ -416,7 +416,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           custom_topic: string | null
-          day_number: number
+          day_number: number | null
           exercise_type: string | null
           id: string
           questions: Json
@@ -431,7 +431,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           custom_topic?: string | null
-          day_number: number
+          day_number?: number | null
           exercise_type?: string | null
           id?: string
           questions?: Json
@@ -446,7 +446,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           custom_topic?: string | null
-          day_number?: number
+          day_number?: number | null
           exercise_type?: string | null
           id?: string
           questions?: Json
