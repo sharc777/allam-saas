@@ -69,7 +69,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "تحدي الـ30 يوم <notifications@yourdomain.com>",
+        from: "دربني <notifications@yourdomain.com>",
         to: [to],
         subject,
         html,
