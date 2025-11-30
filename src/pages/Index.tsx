@@ -7,27 +7,23 @@ import { PackagesPreview } from "@/components/PackagesPreview";
 import { GoogleAd } from "@/components/GoogleAd";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
-
 const Index = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth(false);
-
+  const {
+    user,
+    loading
+  } = useAuth(false);
   useEffect(() => {
     if (!loading && user) {
       navigate("/dashboard");
     }
   }, [user, loading, navigate]);
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+    return <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Navbar />
       
       {/* Hero Section */}
@@ -280,13 +276,10 @@ const Index = () => {
           <p className="text-muted-foreground mb-4">
             منصة متكاملة للاستعداد لاختبارات القدرات والتحصيلي
           </p>
-          <p className="text-sm text-muted-foreground">
-            © 2024 جميع الحقوق محفوظة
-          </p>
+          <p className="text-sm text-muted-foreground">© 2025 جميع الحقوق محفوظة لمنصة تحسين
+www.T7seen.com</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
