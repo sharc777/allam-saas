@@ -578,11 +578,15 @@ export type Database = {
           content: string | null
           content_type: string
           created_at: string | null
+          difficulty: string | null
           file_url: string | null
           id: string
           is_active: boolean | null
+          learning_objectives: string[] | null
           metadata: Json | null
           related_topics: string[] | null
+          section: string | null
+          source_file: string | null
           test_type: Database["public"]["Enums"]["test_type"] | null
           title: string
           updated_at: string | null
@@ -591,11 +595,15 @@ export type Database = {
           content?: string | null
           content_type: string
           created_at?: string | null
+          difficulty?: string | null
           file_url?: string | null
           id?: string
           is_active?: boolean | null
+          learning_objectives?: string[] | null
           metadata?: Json | null
           related_topics?: string[] | null
+          section?: string | null
+          source_file?: string | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title: string
           updated_at?: string | null
@@ -604,11 +612,15 @@ export type Database = {
           content?: string | null
           content_type?: string
           created_at?: string | null
+          difficulty?: string | null
           file_url?: string | null
           id?: string
           is_active?: boolean | null
+          learning_objectives?: string[] | null
           metadata?: Json | null
           related_topics?: string[] | null
+          section?: string | null
+          source_file?: string | null
           test_type?: Database["public"]["Enums"]["test_type"] | null
           title?: string
           updated_at?: string | null
@@ -783,50 +795,62 @@ export type Database = {
         Row: {
           correct_answer: string
           created_at: string
+          created_by: string | null
           difficulty: Database["public"]["Enums"]["difficulty_level"]
           explanation: string | null
           id: string
+          last_reviewed_at: string | null
           options: Json | null
           question_text: string
           question_type: Database["public"]["Enums"]["question_type"]
+          review_notes: string | null
           subject: Database["public"]["Enums"]["question_subject"]
           success_rate: number | null
           tags: string[] | null
           topic: string
           updated_at: string
           usage_count: number | null
+          validation_status: string | null
         }
         Insert: {
           correct_answer: string
           created_at?: string
+          created_by?: string | null
           difficulty: Database["public"]["Enums"]["difficulty_level"]
           explanation?: string | null
           id?: string
+          last_reviewed_at?: string | null
           options?: Json | null
           question_text: string
           question_type: Database["public"]["Enums"]["question_type"]
+          review_notes?: string | null
           subject: Database["public"]["Enums"]["question_subject"]
           success_rate?: number | null
           tags?: string[] | null
           topic: string
           updated_at?: string
           usage_count?: number | null
+          validation_status?: string | null
         }
         Update: {
           correct_answer?: string
           created_at?: string
+          created_by?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty_level"]
           explanation?: string | null
           id?: string
+          last_reviewed_at?: string | null
           options?: Json | null
           question_text?: string
           question_type?: Database["public"]["Enums"]["question_type"]
+          review_notes?: string | null
           subject?: Database["public"]["Enums"]["question_subject"]
           success_rate?: number | null
           tags?: string[] | null
           topic?: string
           updated_at?: string
           usage_count?: number | null
+          validation_status?: string | null
         }
         Relationships: []
       }
@@ -834,6 +858,8 @@ export type Database = {
         Row: {
           created_at: string | null
           difficulty: Database["public"]["Enums"]["difficulty_level"]
+          expires_at: string | null
+          generation_source: string | null
           id: string
           is_used: boolean | null
           question_data: Json
@@ -842,11 +868,14 @@ export type Database = {
           reserved_by: string | null
           section: string
           test_type: Database["public"]["Enums"]["test_type"]
+          topic: string | null
           used_at: string | null
         }
         Insert: {
           created_at?: string | null
           difficulty: Database["public"]["Enums"]["difficulty_level"]
+          expires_at?: string | null
+          generation_source?: string | null
           id?: string
           is_used?: boolean | null
           question_data: Json
@@ -855,11 +884,14 @@ export type Database = {
           reserved_by?: string | null
           section: string
           test_type: Database["public"]["Enums"]["test_type"]
+          topic?: string | null
           used_at?: string | null
         }
         Update: {
           created_at?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty_level"]
+          expires_at?: string | null
+          generation_source?: string | null
           id?: string
           is_used?: boolean | null
           question_data?: Json
@@ -868,6 +900,7 @@ export type Database = {
           reserved_by?: string | null
           section?: string
           test_type?: Database["public"]["Enums"]["test_type"]
+          topic?: string | null
           used_at?: string | null
         }
         Relationships: []
@@ -1544,6 +1577,20 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      fetch_and_reserve_questions: {
+        Args: {
+          p_count: number
+          p_difficulty: string
+          p_section: string
+          p_test_type: string
+          p_user_id: string
+        }
+        Returns: {
+          id: string
+          question_data: Json
+          question_hash: string
+        }[]
       }
       has_active_access: { Args: { p_user_id: string }; Returns: boolean }
       has_role: {
