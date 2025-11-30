@@ -22,7 +22,13 @@ export const SubscriptionGuard = ({
   const navigate = useNavigate();
 
   const isLoading = subLoading || profileLoading;
-  const hasAccess = subscribed || profile?.subscription_active || (profile?.trial_days ?? 0) > 0;
+  
+  // Check if user has a valid package that hasn't expired
+  const hasValidPackage = profile?.package_id && 
+    profile?.package_end_date && 
+    new Date(profile.package_end_date) > new Date();
+  
+  const hasAccess = subscribed || profile?.subscription_active || (profile?.trial_days ?? 0) > 0 || hasValidPackage;
 
   if (isLoading) {
     return (
