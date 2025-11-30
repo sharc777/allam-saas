@@ -44,6 +44,9 @@ const Navbar = () => {
             <Link to="/" className="text-foreground hover:text-primary transition-smooth font-medium">
               الرئيسية
             </Link>
+            <Link to="/stats" className="text-foreground hover:text-primary transition-smooth font-medium">
+              الإحصائيات
+            </Link>
             {user ? (
               <>
                 <Link to="/dashboard" className="text-foreground hover:text-primary transition-smooth font-medium">
@@ -90,6 +93,13 @@ const Navbar = () => {
               onClick={() => setIsOpen(false)}
             >
               الرئيسية
+            </Link>
+            <Link
+              to="/stats"
+              className="block py-2 text-foreground hover:text-primary transition-smooth font-medium"
+              onClick={() => setIsOpen(false)}
+            >
+              الإحصائيات
             </Link>
             {user ? (
               <>

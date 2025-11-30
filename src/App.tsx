@@ -23,6 +23,7 @@ import ProgressDashboard from "./pages/ProgressDashboard";
 import PerformanceAnalytics from "./pages/PerformanceAnalytics";
 import Support from "./pages/Support";
 import TestDashboard from "./pages/TestDashboard";
+import PublicStats from "./pages/PublicStats";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 const queryClient = new QueryClient({
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/performance-analytics" element={<PerformanceAnalytics />} />
             <Route path="/support" element={<Support />} />
             <Route path="/test-dashboard" element={<TestDashboard />} />
+            <Route path="/stats" element={<PublicStats />} />
             <Route path="/admin" element={<Admin />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
