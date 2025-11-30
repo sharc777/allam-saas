@@ -187,3 +187,38 @@ All colors MUST be HSL.
     }
   }
 }
+
+/* تنسيق المعادلات الرياضية */
+.katex-display {
+  margin: 1rem 0;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  position: relative;
+}
+
+.katex-display::before {
+  content: '📐';
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.6;
+}
+
+.dark .katex-display {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.15) 100%);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.katex:not(.katex-display .katex) {
+  background-color: rgba(99, 102, 241, 0.08);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+}
+
+.dark .katex:not(.katex-display .katex) {
+  background-color: rgba(139, 92, 246, 0.15);
+}
