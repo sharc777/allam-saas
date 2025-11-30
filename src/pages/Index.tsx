@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
 import { Brain, Target, Trophy, TrendingUp, Sparkles, BookOpen, MessageSquare, CheckCircle2 } from "lucide-react";
 import { PackagesPreview } from "@/components/PackagesPreview";
+import { GoogleAd } from "@/components/GoogleAd";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
@@ -82,6 +83,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Ad Slot: Hero */}
+      <GoogleAd slot="hero" format="horizontal" className="container mx-auto max-w-6xl my-8" />
 
       {/* Features Section */}
       <section className="py-20 px-4 bg-muted/30">
@@ -172,6 +176,9 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Ad Slot: Between Sections */}
+      <GoogleAd slot="between_sections" format="auto" className="container mx-auto max-w-6xl my-8" />
+
       {/* How It Works */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-5xl">
@@ -257,6 +264,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Ad Slot: Footer */}
+      <GoogleAd slot="footer" format="horizontal" className="container mx-auto max-w-6xl my-8" />
 
       {/* Footer */}
       <footer className="py-12 px-4 bg-card border-t border-border">
