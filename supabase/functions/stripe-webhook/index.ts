@@ -73,18 +73,41 @@ serve(async (req) => {
           break;
         }
 
+        // Get Stripe product ID
+        const stripeProductId = subscription.items.data[0].price.product as string;
+        
+        // Find matching subscription package
+        const { data: packageData, error: packageError } = await supabaseClient
+          .from("subscription_packages_private")
+          .select("id")
+          .eq("stripe_product_id", stripeProductId)
+          .maybeSingle();
+
+        const packageId = packageData?.id || null;
+        
+        if (!packageId) {
+          logStep("Warning: No matching package found for stripe product", { stripeProductId });
+        }
+
         // Update profile
         const isActive = subscription.status === "active";
         const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-        const productId = subscription.items.data[0].price.product;
+
+        const updateData: any = {
+          subscription_active: isActive,
+          subscription_end_date: isActive ? subscriptionEnd : null,
+          trial_days: isActive ? 0 : undefined,
+        };
+
+        // If package found, link it to profile
+        if (packageId) {
+          updateData.package_id = packageId;
+          updateData.package_start_date = new Date().toISOString();
+        }
 
         const { error: updateError } = await supabaseClient
           .from("profiles")
-          .update({
-            subscription_active: isActive,
-            subscription_end_date: isActive ? subscriptionEnd : null,
-            trial_days: isActive ? 0 : undefined,
-          })
+          .update(updateData)
           .eq("id", user.id);
 
         if (updateError) throw updateError;
@@ -92,7 +115,8 @@ serve(async (req) => {
         logStep("Profile updated", { 
           userId: user.id, 
           active: isActive,
-          productId 
+          stripeProductId,
+          packageId
         });
         break;
       }

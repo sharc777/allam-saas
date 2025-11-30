@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Default limits if no package is found
+const DEFAULT_LIMITS = {
+  daily_exercises_quantitative: 10,
+  daily_exercises_verbal: 10,
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -44,10 +50,10 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    // Fetch user profile with maybeSingle() to handle missing profiles
+    // Fetch user profile with package data
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('trial_days, subscription_active, daily_exercises_count')
+      .select('trial_days, subscription_active, daily_exercises_count, package_id')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -59,7 +65,7 @@ serve(async (req) => {
       });
     }
 
-    // If profile doesn't exist yet (race condition), return trial defaults
+    // If profile doesn't exist yet, return trial defaults
     if (!profile) {
       console.log('Profile not found for user, returning trial defaults');
       return new Response(JSON.stringify({
@@ -77,6 +83,24 @@ serve(async (req) => {
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Fetch package limits if user has a package
+    let packageLimits = DEFAULT_LIMITS;
+    if (profile.package_id) {
+      const { data: packageData, error: packageError } = await supabase
+        .from('subscription_packages')
+        .select('limits')
+        .eq('id', profile.package_id)
+        .maybeSingle();
+
+      if (!packageError && packageData?.limits) {
+        const limits = packageData.limits as any;
+        packageLimits = {
+          daily_exercises_quantitative: limits.daily_exercises_quantitative || DEFAULT_LIMITS.daily_exercises_quantitative,
+          daily_exercises_verbal: limits.daily_exercises_verbal || DEFAULT_LIMITS.daily_exercises_verbal,
+        };
+      }
     }
 
     const now = new Date();
@@ -117,13 +141,16 @@ serve(async (req) => {
       canExercise = false;
       message = 'انتهت الفترة التجريبية. يرجى الاشتراك للمتابعة';
     } else {
-      // Subscribed - apply limits (10 quantitative + 10 verbal per day)
-      const remainingQuantitative = Math.max(0, 10 - quantitativeCount);
-      const remainingVerbal = Math.max(0, 10 - verbalCount);
+      // Subscribed - apply limits from package
+      const maxQuantitative = packageLimits.daily_exercises_quantitative;
+      const maxVerbal = packageLimits.daily_exercises_verbal;
       
-      if (quantitativeCount >= 10 && verbalCount >= 10) {
+      const remainingQuantitative = Math.max(0, maxQuantitative - quantitativeCount);
+      const remainingVerbal = Math.max(0, maxVerbal - verbalCount);
+      
+      if (quantitativeCount >= maxQuantitative && verbalCount >= maxVerbal) {
         canExercise = false;
-        message = 'وصلت للحد الأقصى اليومي (10 كمي + 10 لفظي). حاول غداً';
+        message = `وصلت للحد الأقصى اليومي (${maxQuantitative} كمي + ${maxVerbal} لفظي). حاول غداً`;
       } else {
         message = `لديك ${remainingQuantitative} تمارين كمي و ${remainingVerbal} لفظي متبقية اليوم`;
       }
@@ -134,10 +161,15 @@ serve(async (req) => {
       ? new Date(lastReset.getTime() + 24 * 60 * 60 * 1000).toISOString()
       : new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
+    const maxQuantitative = isTrial ? 999 : packageLimits.daily_exercises_quantitative;
+    const maxVerbal = isTrial ? 999 : packageLimits.daily_exercises_verbal;
+
     return new Response(JSON.stringify({
       can_exercise: canExercise,
-      remaining_quantitative: isTrial ? 999 : Math.max(0, 10 - quantitativeCount),
-      remaining_verbal: isTrial ? 999 : Math.max(0, 10 - verbalCount),
+      remaining_quantitative: isTrial ? 999 : Math.max(0, maxQuantitative - quantitativeCount),
+      remaining_verbal: isTrial ? 999 : Math.max(0, maxVerbal - verbalCount),
+      max_quantitative: maxQuantitative,
+      max_verbal: maxVerbal,
       reset_at: resetAt,
       trial_days_remaining: profile.trial_days,
       is_subscribed: isSubscribed,

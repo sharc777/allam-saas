@@ -28,7 +28,18 @@ export const PackageManager = () => {
     stripe_price_id_monthly: "",
     stripe_price_id_yearly: "",
     features: [] as string[],
-    limits: {} as Record<string, number>,
+    limits: {
+      daily_exercises_quantitative: 10,
+      daily_exercises_verbal: 10,
+      daily_custom_tests: 5,
+      daily_ai_conversations: 20,
+      ai_tutoring_minutes: 60,
+      accessible_days: 30,
+      unlock_all_days: false,
+      weakness_analysis: true,
+      smart_recommendations: true,
+      export_reports: false,
+    },
     is_active: true,
     is_featured: false,
   });
@@ -113,7 +124,18 @@ export const PackageManager = () => {
       stripe_price_id_monthly: "",
       stripe_price_id_yearly: "",
       features: [],
-      limits: {},
+      limits: {
+        daily_exercises_quantitative: 10,
+        daily_exercises_verbal: 10,
+        daily_custom_tests: 5,
+        daily_ai_conversations: 20,
+        ai_tutoring_minutes: 60,
+        accessible_days: 30,
+        unlock_all_days: false,
+        weakness_analysis: true,
+        smart_recommendations: true,
+        export_reports: false,
+      },
       is_active: true,
       is_featured: false,
     });
@@ -122,6 +144,7 @@ export const PackageManager = () => {
 
   const handleEdit = (pkg: SubscriptionPackage) => {
     setEditingPackage(pkg);
+    const pkgLimits = (pkg.limits as any) || {};
     setFormData({
       name_ar: pkg.name_ar,
       name_en: pkg.name_en || "",
@@ -132,7 +155,18 @@ export const PackageManager = () => {
       stripe_price_id_monthly: pkg.stripe_price_id_monthly || "",
       stripe_price_id_yearly: pkg.stripe_price_id_yearly || "",
       features: Array.isArray(pkg.features) ? pkg.features as string[] : [],
-      limits: (pkg.limits as Record<string, number>) || {},
+      limits: {
+        daily_exercises_quantitative: pkgLimits.daily_exercises_quantitative || 10,
+        daily_exercises_verbal: pkgLimits.daily_exercises_verbal || 10,
+        daily_custom_tests: pkgLimits.daily_custom_tests || 5,
+        daily_ai_conversations: pkgLimits.daily_ai_conversations || 20,
+        ai_tutoring_minutes: pkgLimits.ai_tutoring_minutes || 60,
+        accessible_days: pkgLimits.accessible_days || 30,
+        unlock_all_days: pkgLimits.unlock_all_days || false,
+        weakness_analysis: pkgLimits.weakness_analysis !== false,
+        smart_recommendations: pkgLimits.smart_recommendations !== false,
+        export_reports: pkgLimits.export_reports || false,
+      },
       is_active: pkg.is_active,
       is_featured: pkg.is_featured || false,
     });
@@ -301,6 +335,141 @@ export const PackageManager = () => {
                       </Button>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* حدود الباقة */}
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-bold">📊 حدود الباقة</h3>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>التمارين اليومية (كمي)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.limits.daily_exercises_quantitative}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, daily_exercises_quantitative: parseInt(e.target.value) || 0 }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label>التمارين اليومية (لفظي)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.limits.daily_exercises_verbal}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, daily_exercises_verbal: parseInt(e.target.value) || 0 }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label>الاختبارات المخصصة</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.limits.daily_custom_tests}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, daily_custom_tests: parseInt(e.target.value) || 0 }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label>محادثات AI</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.limits.daily_ai_conversations}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, daily_ai_conversations: parseInt(e.target.value) || 0 }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label>دقائق المعلم الذكي</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={formData.limits.ai_tutoring_minutes}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, ai_tutoring_minutes: parseInt(e.target.value) || 0 }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label>عدد الأيام المتاحة</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={formData.limits.accessible_days}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, accessible_days: parseInt(e.target.value) || 30 }
+                      })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.limits.unlock_all_days}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, unlock_all_days: e.target.checked }
+                      })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">🔓 فتح جميع الأيام مباشرة</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.limits.weakness_analysis}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, weakness_analysis: e.target.checked }
+                      })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">📊 تحليل نقاط الضعف</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.limits.smart_recommendations}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, smart_recommendations: e.target.checked }
+                      })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">🎯 التوصيات الذكية</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.limits.export_reports}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        limits: { ...formData.limits, export_reports: e.target.checked }
+                      })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">📥 تصدير التقارير</span>
+                  </label>
                 </div>
               </div>
 
