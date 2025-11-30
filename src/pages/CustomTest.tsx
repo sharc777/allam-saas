@@ -229,7 +229,7 @@ const CustomTestContent = () => {
         .from("daily_exercises")
         .insert([{
           user_id: profile.id,
-          day_number: 0,
+          day_number: null,
           exercise_type: 'custom',
           custom_topic: state.topic,
           section_type: state.section,
@@ -250,7 +250,7 @@ const CustomTestContent = () => {
       // Log questions to prevent repetition
       const questionLogs = questions.map(q => ({
         user_id: profile.id,
-        day_number: 0,
+        day_number: null,
         question_hash: JSON.stringify(q.question_text + q.options.join('')),
         question_data: JSON.parse(JSON.stringify(q))
       }));
