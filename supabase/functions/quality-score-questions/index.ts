@@ -47,13 +47,31 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { questions, mode = 'auto' } = await req.json();
+    // Parse and validate request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (jsonError) {
+      throw new Error('Invalid JSON in request body');
+    }
+
+    const { questions, mode = 'auto' } = requestBody;
+
+    // Validate input
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      throw new Error('Invalid or empty questions array. Expected: { questions: [...], mode?: "auto"|"ai" }');
+    }
 
     console.log(`🎯 Quality scoring ${questions.length} questions in ${mode} mode`);
 
     const scoredQuestions: ScoredQuestion[] = [];
 
     for (const question of questions) {
+      // Validate question structure
+      if (!question.question || !question.options || !question.correctAnswer) {
+        console.warn('⚠️ Skipping invalid question:', question);
+        continue;
+      }
       let score: ScoredQuestion;
 
       if (mode === 'auto') {
@@ -88,19 +106,23 @@ serve(async (req) => {
     }
 
     // Calculate statistics
+    if (scoredQuestions.length === 0) {
+      throw new Error('No valid questions to score');
+    }
+
     const avgScore = scoredQuestions.reduce((sum, q) => sum + q.overall_score, 0) / scoredQuestions.length;
     const approved = scoredQuestions.filter(q => q.approved).length;
 
-    console.log(`✅ Scoring complete: avg=${avgScore.toFixed(2)}, approved=${approved}/${questions.length}`);
+    console.log(`✅ Scoring complete: avg=${avgScore.toFixed(2)}, approved=${approved}/${scoredQuestions.length}`);
 
     return new Response(
       JSON.stringify({
         scored_questions: scoredQuestions,
         statistics: {
-          total: questions.length,
+          total: scoredQuestions.length,
           average_score: avgScore,
           approved_count: approved,
-          approval_rate: (approved / questions.length) * 100
+          approval_rate: (approved / scoredQuestions.length) * 100
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -128,7 +150,7 @@ async function scoreQuestionHeuristic(question: any): Promise<ScoredQuestion> {
   let feedback: string[] = [];
 
   // 1. Clarity check
-  const questionLength = question.question.length;
+  const questionLength = question.question?.length || 0;
   if (questionLength < 20) {
     metrics.clarity = 2;
     feedback.push('السؤال قصير جداً');
@@ -140,7 +162,7 @@ async function scoreQuestionHeuristic(question: any): Promise<ScoredQuestion> {
   }
 
   // 2. Options check
-  const optionsCount = Object.keys(question.options).length;
+  const optionsCount = question.options ? Object.keys(question.options).length : 0;
   if (optionsCount !== 4) {
     metrics.distractor_quality = 2;
     feedback.push(`عدد الخيارات غير صحيح: ${optionsCount}`);
@@ -149,7 +171,9 @@ async function scoreQuestionHeuristic(question: any): Promise<ScoredQuestion> {
   }
 
   // 3. Answer correctness (check if correct answer exists in options)
-  const hasCorrectAnswer = Object.values(question.options).includes(question.correctAnswer);
+  const hasCorrectAnswer = question.options && question.correctAnswer 
+    ? Object.values(question.options).includes(question.correctAnswer)
+    : false;
   metrics.answer_correctness = hasCorrectAnswer ? 5 : 1;
   if (!hasCorrectAnswer) {
     feedback.push('الإجابة الصحيحة غير موجودة في الخيارات');
