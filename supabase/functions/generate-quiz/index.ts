@@ -78,7 +78,6 @@ async function fetchFromCache(
     .eq('test_type', testType)
     .eq('section', section)
     .eq('difficulty', difficulty)
-    .eq('track', track)
     .eq('is_used', false)
     .is('reserved_by', null)
     .limit(targetCount);
@@ -154,7 +153,6 @@ async function checkCacheStatus(
       .eq('test_type', testType)
       .eq('section', section)
       .eq('difficulty', difficulty)
-      .eq('track', track)
       .eq('is_used', false),
     supabase
       .from('questions_cache')
@@ -162,7 +160,6 @@ async function checkCacheStatus(
       .eq('test_type', testType)
       .eq('section', section)
       .eq('difficulty', difficulty)
-      .eq('track', track)
   ]);
   
   return {
@@ -239,7 +236,6 @@ async function loadKnowledgeBase(supabase: any, params: any) {
     .from("knowledge_base")
     .select("*")
     .eq("test_type", testType)
-    .eq("track", track)
     .eq("is_active", true);
   
   const limit = isPractice ? 20 : 5;
