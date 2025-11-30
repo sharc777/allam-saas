@@ -1645,6 +1645,8 @@ export type Database = {
         | "أدب"
         | "تاريخ"
         | "جغرافيا"
+        | "كمي"
+        | "لفظي"
       question_type: "multiple_choice" | "true_false" | "short_answer"
       test_type: "قدرات" | "تحصيلي"
       user_role: "student" | "admin"
@@ -1802,6 +1804,8 @@ export const Constants = {
         "أدب",
         "تاريخ",
         "جغرافيا",
+        "كمي",
+        "لفظي",
       ],
       question_type: ["multiple_choice", "true_false", "short_answer"],
       test_type: ["قدرات", "تحصيلي"],
