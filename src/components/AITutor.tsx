@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle, Maximize2, Minimize2, StopCircle, RotateCcw, FileText } from "lucide-react";
+import { Brain, Send, Loader2, X, Sparkles, BookOpen, Target, HelpCircle, AlertCircle, Maximize2, Minimize2, StopCircle, RotateCcw, FileText, History } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,9 @@ import MessageContent from "./MessageContent";
 import { CustomTestDialog, TestParams } from "./CustomTestDialog";
 import { aiMessageSchema } from "@/lib/validation";
 import { useRateLimit } from "@/hooks/useRateLimit";
+import ConversationHistory from "./ConversationHistory";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import type { Conversation } from "@/hooks/useConversationHistory";
 
 interface Message {
   role: "user" | "assistant";
@@ -46,6 +49,8 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
   const [loadingMessage, setLoadingMessage] = useState("🤔 أفكر في أفضل طريقة للشرح...");
   const [showCustomTestDialog, setShowCustomTestDialog] = useState(false);
   const [isGeneratingTest, setIsGeneratingTest] = useState(false);
+  const [showConversationHistory, setShowConversationHistory] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -369,6 +374,27 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
     onClose();
   };
 
+  const handleLoadConversation = (conversation: Conversation) => {
+    // Load conversation messages
+    const conversationMessages = Array.isArray(conversation.messages) 
+      ? conversation.messages 
+      : [];
+    
+    setMessages(conversationMessages);
+    setCurrentConversationId(conversation.id);
+    setShowConversationHistory(false);
+    toast.success("تم تحميل المحادثة");
+  };
+
+  const handleNewConversation = () => {
+    // Reset to initial state
+    setMessages([]);
+    setCurrentConversationId(null);
+    setShowConversationHistory(false);
+    setMode("general");
+    toast.success("محادثة جديدة");
+  };
+
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className={`w-full ${isFullscreen ? 'max-w-7xl h-[95vh]' : 'max-w-4xl h-[80vh]'} border-2 shadow-elegant flex flex-col transition-all duration-300`}>
@@ -380,6 +406,25 @@ const AITutor = ({ onClose, mode: initialMode = "general", initialQuestion }: AI
               <Sparkles className="w-5 h-5 animate-pulse" />
             </CardTitle>
             <div className="flex items-center gap-2">
+              <Sheet open={showConversationHistory} onOpenChange={setShowConversationHistory}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary-foreground hover:bg-white/20"
+                    title="سجل المحادثات"
+                  >
+                    <History className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[400px] sm:w-[500px] p-0">
+                  <ConversationHistory
+                    onLoadConversation={handleLoadConversation}
+                    onNewConversation={handleNewConversation}
+                    onClose={() => setShowConversationHistory(false)}
+                  />
+                </SheetContent>
+              </Sheet>
               <Button
                 variant="ghost"
                 size="sm"
