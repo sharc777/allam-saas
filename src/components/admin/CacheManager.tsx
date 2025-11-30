@@ -11,29 +11,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Critical configurations for comprehensive generation
 const CRITICAL_CONFIGS = [
-  // قدرات - لفظي - مفقود
+  // قدرات - كمي
+  { test_type: "قدرات", section: "كمي", difficulty: "easy", track: "عام", count: 50 },
+  { test_type: "قدرات", section: "كمي", difficulty: "medium", track: "عام", count: 50 },
+  { test_type: "قدرات", section: "كمي", difficulty: "hard", track: "عام", count: 30 },
+  
+  // قدرات - لفظي
+  { test_type: "قدرات", section: "لفظي", difficulty: "easy", track: "عام", count: 50 },
   { test_type: "قدرات", section: "لفظي", difficulty: "medium", track: "عام", count: 50 },
-  { test_type: "قدرات", section: "لفظي", difficulty: "hard", track: "عام", count: 50 },
-  
-  // تحصيلي - رياضيات
-  { test_type: "تحصيلي", section: "رياضيات", difficulty: "easy", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "رياضيات", difficulty: "medium", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "رياضيات", difficulty: "hard", track: "علمي", count: 30 },
-  
-  // تحصيلي - فيزياء
-  { test_type: "تحصيلي", section: "فيزياء", difficulty: "easy", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "فيزياء", difficulty: "medium", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "فيزياء", difficulty: "hard", track: "علمي", count: 30 },
-  
-  // تحصيلي - كيمياء
-  { test_type: "تحصيلي", section: "كيمياء", difficulty: "easy", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "كيمياء", difficulty: "medium", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "كيمياء", difficulty: "hard", track: "علمي", count: 30 },
-  
-  // تحصيلي - أحياء
-  { test_type: "تحصيلي", section: "أحياء", difficulty: "easy", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "أحياء", difficulty: "medium", track: "علمي", count: 50 },
-  { test_type: "تحصيلي", section: "أحياء", difficulty: "hard", track: "علمي", count: 30 },
+  { test_type: "قدرات", section: "لفظي", difficulty: "hard", track: "عام", count: 30 },
 ];
 
 export function CacheManager() {

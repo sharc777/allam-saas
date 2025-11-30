@@ -32,7 +32,7 @@ const Index = () => {
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <div className="inline-block">
               <span className="px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium border border-primary/20">
-                ✨ استعد لاختبارات القدرات والتحصيلي
+                ✨ استعد لاختبار القدرات
               </span>
             </div>
             
@@ -128,7 +128,7 @@ const Index = () => {
                 </div>
                 <h3 className="text-xl font-bold">محتوى يومي</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  دروس وشروحات يومية منظمة بعناية لتغطية جميع جوانب اختبارات القدرات والتحصيلي
+                  دروس وشروحات يومية منظمة بعناية لتغطية جميع جوانب اختبار القدرات
                 </p>
               </CardContent>
             </Card>
@@ -274,7 +274,7 @@ const Index = () => {
             <span className="text-xl font-bold">دربني</span>
           </div>
           <p className="text-muted-foreground mb-4">
-            منصة متكاملة للاستعداد لاختبارات القدرات والتحصيلي
+            منصة متكاملة للاستعداد لاختبار القدرات
           </p>
           <p className="text-sm text-muted-foreground">© 2025 جميع الحقوق محفوظة لمنصة تحسين
 www.T7seen.com</p>

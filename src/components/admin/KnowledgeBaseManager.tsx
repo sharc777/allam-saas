@@ -34,7 +34,7 @@ export const KnowledgeBaseManager = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [newTopic, setNewTopic] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "قدرات" | "تحصيلي">("all");
+  const [filterType, setFilterType] = useState<"all" | "قدرات">("all");
   const [filterTrack, setFilterTrack] = useState<"all" | "عام" | "علمي" | "نظري">("all");
   const [filterSection, setFilterSection] = useState<"all" | "كمي" | "لفظي">("all");
   const [form, setForm] = useState<KBForm>({
@@ -182,7 +182,6 @@ export const KnowledgeBaseManager = () => {
   const stats = {
     total: knowledgeBase?.length || 0,
     qudurat: knowledgeBase?.filter(kb => kb.test_type === "قدرات").length || 0,
-    tahseeli: knowledgeBase?.filter(kb => kb.test_type === "تحصيلي").length || 0,
     active: knowledgeBase?.filter(kb => kb.is_active).length || 0,
     byTrack: {
       general: 0,
@@ -233,7 +232,7 @@ export const KnowledgeBaseManager = () => {
         </TabsList>
         
         <TabsContent value="overview" className="mt-4">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -256,19 +255,6 @@ export const KnowledgeBaseManager = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">قدرات</p>
                     <p className="text-2xl font-bold">{stats.qudurat}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-accent" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">تحصيلي</p>
-                    <p className="text-2xl font-bold">{stats.tahseeli}</p>
                   </div>
                 </div>
               </CardContent>
@@ -355,7 +341,6 @@ export const KnowledgeBaseManager = () => {
                 <SelectContent>
                   <SelectItem value="all">كل الأنواع</SelectItem>
                   <SelectItem value="قدرات">قدرات</SelectItem>
-                  <SelectItem value="تحصيلي">تحصيلي</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterTrack} onValueChange={(v: any) => setFilterTrack(v)}>
@@ -414,7 +399,6 @@ export const KnowledgeBaseManager = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="قدرات">قدرات</SelectItem>
-                      <SelectItem value="تحصيلي">تحصيلي</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
