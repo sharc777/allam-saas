@@ -335,56 +335,6 @@ const NewDashboard = () => {
           </div>
 
 
-          {/* Performance Analytics Button */}
-          <Button
-            onClick={() => navigate("/performance-analytics")}
-            size="lg"
-            variant="outline"
-            className="fixed bottom-72 right-8 shadow-elegant z-40 h-14 px-6 border-2"
-          >
-            <span className="text-lg font-semibold">تحليل الأداء التفصيلي</span>
-          </Button>
-
-          {/* Weakness Analysis Button */}
-          <Button
-            onClick={() => navigate("/weakness-analysis")}
-            size="lg"
-            variant="outline"
-            className="fixed bottom-56 right-8 shadow-elegant z-40 h-14 px-6 border-2"
-          >
-            <span className="text-lg font-semibold">نقاط القوة والضعف</span>
-          </Button>
-
-          {/* Progress Dashboard Button */}
-          <Button
-            onClick={() => navigate("/progress-dashboard")}
-            size="lg"
-            variant="outline"
-            className="fixed bottom-40 right-8 shadow-elegant z-40 h-14 px-6 border-2"
-          >
-            <span className="text-lg font-semibold">لوحة التقدم الشاملة</span>
-          </Button>
-
-          {/* Exercise History Button */}
-          <Button
-            onClick={() => navigate("/exercise-history")}
-            size="lg"
-            variant="outline"
-            className="fixed bottom-24 right-8 shadow-elegant z-40 h-14 px-6 border-2"
-          >
-            <span className="text-lg font-semibold">سجل التمارين</span>
-          </Button>
-
-          {/* Daily Content Button */}
-          <Button
-            onClick={() => navigate("/daily-content")}
-            size="lg"
-            variant="outline"
-            className="fixed bottom-8 right-8 shadow-elegant z-40 h-14 px-6 border-2"
-          >
-            <span className="text-lg font-semibold">المحتوى اليومي</span>
-          </Button>
-
           {/* AI Tutor Button */}
           <Button
             onClick={() => setShowAIChat(true)}
