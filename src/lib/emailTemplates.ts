@@ -126,4 +126,56 @@ export const emailTemplates = {
       </body>
     </html>
   `,
+
+  welcomeEmail: (name: string) => `
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3f4f6; margin: 0; padding: 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%); padding: 40px; text-align: center; }
+          .header h1 { color: white; margin: 0; font-size: 28px; }
+          .content { padding: 40px; }
+          .features-box { background: #F9FAFB; border: 2px solid #8B5CF6; padding: 25px; border-radius: 12px; margin: 25px 0; }
+          .features-box ul { color: #374151; padding-right: 20px; margin: 10px 0; line-height: 1.8; }
+          .cta-button { display: inline-block; background: #8B5CF6; color: white !important; padding: 15px 40px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 20px; }
+          .footer { background: #F9FAFB; padding: 20px; text-align: center; font-size: 12px; color: #6B7280; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎓 مرحباً بك في دربني!</h1>
+          </div>
+          <div class="content">
+            <p style="font-size: 18px; color: #374151;">أهلاً <strong>${name}</strong>!</p>
+            <p style="color: #6B7280; line-height: 1.6;">نحن سعداء بانضمامك إلى منصة دربني للاستعداد لاختبار القدرات. رحلتك التعليمية تبدأ الآن!</p>
+            
+            <div class="features-box">
+              <p style="font-weight: bold; margin-bottom: 15px; color: #374151; font-size: 16px;">ما ستحصل عليه:</p>
+              <ul>
+                <li>📚 برنامج تدريبي مكثف لمدة 30 يوم</li>
+                <li>🤖 مساعد ذكي AI للإجابة على أسئلتك</li>
+                <li>📊 تتبع تقدمك وتحليل نقاط ضعفك</li>
+                <li>🎯 اختبارات مخصصة بناءً على مستواك</li>
+                <li>💪 تمارين يومية متنوعة وشاملة</li>
+              </ul>
+            </div>
+            
+            <p style="text-align: center; color: #6B7280; margin-top: 30px;">جاهز لبدء رحلة التميز؟</p>
+            <div style="text-align: center;">
+              <a href="${window.location.origin}/dashboard" class="cta-button">ابدأ رحلتك الآن</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p style="font-weight: bold; color: #374151;">دربني - منصة الاستعداد لاختبار القدرات 🎓</p>
+            <p style="margin-top: 10px;">إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذا البريد.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `,
 };

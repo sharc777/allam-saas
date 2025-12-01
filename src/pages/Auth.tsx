@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { signUpSchema, loginSchema } from "@/lib/validation";
 import { useRateLimit } from "@/hooks/useRateLimit";
+import { emailTemplates } from "@/lib/emailTemplates";
 
 // Auth component with security features
 const Auth = () => {
@@ -107,6 +108,22 @@ const Auth = () => {
         });
 
         if (error) throw error;
+        
+        // إرسال إيميل الترحيب
+        try {
+          await supabase.functions.invoke('send-email-notification', {
+            body: {
+              to: email,
+              subject: 'مرحباً بك في دربني! 🎓',
+              html: emailTemplates.welcomeEmail(fullName),
+              notificationType: 'welcome'
+            }
+          });
+        } catch (emailError) {
+          console.error('خطأ في إرسال إيميل الترحيب:', emailError);
+          // لا نعرض خطأ للمستخدم لأن التسجيل نجح
+        }
+        
         toast.success("تم إنشاء الحساب بنجاح");
       }
     } catch (error: any) {
