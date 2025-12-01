@@ -35,11 +35,12 @@ serve(async (req) => {
         .single();
 
       if (prefs) {
-        const typeMap: Record<string, string> = {
-          achievement: 'achievement_notifications',
-          subscription: 'subscription_updates',
-          support: 'support_updates',
-        };
+      const typeMap: Record<string, string> = {
+        achievement: 'achievement_notifications',
+        subscription: 'subscription_updates',
+        support: 'support_updates',
+        welcome: 'marketing_emails',
+      };
 
         const prefKey = typeMap[notificationType];
         if (prefKey && !prefs[prefKey]) {
@@ -69,7 +70,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "دربني <notifications@yourdomain.com>",
+        from: "دربني <onboarding@resend.dev>",
         to: [to],
         subject,
         html,
