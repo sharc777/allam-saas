@@ -2,17 +2,53 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
-import { Brain, GraduationCap, Trophy, TrendingUp, Sparkles, BookOpen, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Brain, GraduationCap, Trophy, TrendingUp, Sparkles, BookOpen, MessageSquare, CheckCircle2, AlertTriangle } from "lucide-react";
 import { PackagesPreview } from "@/components/PackagesPreview";
 import { GoogleAd } from "@/components/GoogleAd";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 const Index = () => {
   const navigate = useNavigate();
   const {
     user,
     loading
   } = useAuth(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  // Handle password reset errors from URL hash
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('error=')) {
+      const errorMatch = hash.match(/error=([^&]+)/);
+      const errorDescMatch = hash.match(/error_description=([^&]+)/);
+      
+      if (errorMatch) {
+        const errorCode = errorMatch[1];
+        const errorDesc = errorDescMatch ? decodeURIComponent(errorDescMatch[1].replace(/\+/g, ' ')) : '';
+        
+        if (errorCode === 'otp_expired' || errorDesc.includes('expired')) {
+          setResetError('expired');
+        } else if (errorCode === 'access_denied') {
+          setResetError('invalid');
+        } else {
+          setResetError('general');
+        }
+        
+        // Clear hash from URL
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!loading && user) {
       navigate("/dashboard");
@@ -25,6 +61,49 @@ const Index = () => {
   }
   return <div className="min-h-screen bg-background">
       <Navbar />
+      
+      {/* Password Reset Error Dialog */}
+      <AlertDialog open={!!resetError} onOpenChange={() => setResetError(null)}>
+        <AlertDialogContent className="max-w-md" dir="rtl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-destructive" />
+              </div>
+              <AlertDialogTitle className="text-xl">
+                {resetError === 'expired' ? 'انتهت صلاحية الرابط' : 
+                 resetError === 'invalid' ? 'رابط غير صالح' : 
+                 'حدث خطأ'}
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-base leading-relaxed text-right">
+              {resetError === 'expired' ? (
+                <>
+                  <p className="mb-3">عذراً، انتهت صلاحية رابط إعادة تعيين كلمة المرور.</p>
+                  <p className="text-muted-foreground">⏱️ الروابط صالحة لمدة ساعة واحدة فقط لحماية حسابك.</p>
+                </>
+              ) : resetError === 'invalid' ? (
+                <p>الرابط المستخدم غير صالح أو تم استخدامه بالفعل.</p>
+              ) : (
+                <p>حدث خطأ أثناء التحقق من رابط إعادة تعيين كلمة المرور.</p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogAction asChild>
+              <Button 
+                onClick={() => {
+                  setResetError(null);
+                  navigate('/auth');
+                }}
+                className="w-full gradient-primary"
+              >
+                طلب رابط جديد
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4">
