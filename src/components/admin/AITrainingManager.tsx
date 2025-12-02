@@ -23,7 +23,8 @@ import {
   ChevronRight,
   CheckCircle2,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Wand2
 } from "lucide-react";
 import { 
   getSections, 
@@ -32,6 +33,7 @@ import {
   type SubTopic,
   type TopicWithSubTopics 
 } from "@/config/testStructure";
+import { QuestionBankTab } from "./QuestionBankTab";
 
 type Difficulty = "easy" | "medium" | "hard";
 
@@ -232,6 +234,40 @@ export const AITrainingManager = () => {
     return bankStats[sectionKey]?.[subTopic]?.total || 0;
   };
 
+  // State for generating questions
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+
+  // Generate questions for sub-topic
+  const generateQuestionsMutation = useMutation({
+    mutationFn: async ({ section, subTopic }: { section: string; subTopic: string }) => {
+      setGeneratingFor(subTopic);
+      const { data, error } = await supabase.functions.invoke("generate-questions-for-bank", {
+        body: {
+          section,
+          subTopic,
+          difficulty: "medium",
+          count: 10,
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "تم توليد الأسئلة", 
+        description: `تم إضافة ${data.saved} سؤال للبنك` 
+      });
+      queryClient.invalidateQueries({ queryKey: ["bank-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["training-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["question-bank"] });
+      setGeneratingFor(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "خطأ في التوليد", description: error.message, variant: "destructive" });
+      setGeneratingFor(null);
+    },
+  });
+
   return (
     <div className="space-y-6">
       {/* Header Stats */}
@@ -287,10 +323,14 @@ export const AITrainingManager = () => {
 
       {/* Main Tabs */}
       <Tabs defaultValue="topics" className="space-y-4" dir="rtl">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="topics" className="gap-2">
             <Sparkles className="w-4 h-4" />
             شجرة المواضيع
+          </TabsTrigger>
+          <TabsTrigger value="bank" className="gap-2">
+            <Database className="w-4 h-4" />
+            بنك الأسئلة
           </TabsTrigger>
           <TabsTrigger value="examples" className="gap-2">
             <BookOpen className="w-4 h-4" />
@@ -347,6 +387,7 @@ export const AITrainingManager = () => {
                                     {topic.subTopics.map((subTopic) => {
                                       const exampleCount = getTopicExamplesCount(section.id, subTopic.id);
                                       const bankCount = getBankCount(section.id, subTopic.id);
+                                      const isGenerating = generatingFor === subTopic.id;
                                       return (
                                         <div
                                           key={subTopic.id}
@@ -372,6 +413,25 @@ export const AITrainingManager = () => {
                                             >
                                               {bankCount} سؤال
                                             </Badge>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-6 px-2 text-xs"
+                                              onClick={() => generateQuestionsMutation.mutate({ 
+                                                section: section.id, 
+                                                subTopic: subTopic.id 
+                                              })}
+                                              disabled={isGenerating || generateQuestionsMutation.isPending}
+                                            >
+                                              {isGenerating ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                              ) : (
+                                                <>
+                                                  <Wand2 className="w-3 h-3 ml-1" />
+                                                  ولّد 10
+                                                </>
+                                              )}
+                                            </Button>
                                           </div>
                                         </div>
                                       );
@@ -389,6 +449,11 @@ export const AITrainingManager = () => {
               </ScrollArea>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Question Bank Tab */}
+        <TabsContent value="bank">
+          <QuestionBankTab />
         </TabsContent>
 
         {/* Training Examples Tab */}
