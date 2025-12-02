@@ -195,28 +195,59 @@ serve(async (req) => {
       needed: number;
     }> = [];
     
-    // Define all sub-topics we want to monitor
+    // ✅ الأسماء موحدة مع testStructure.ts و smartTrainingExamples.ts
     const subTopicsToMonitor = [
-      // كمي
+      // كمي - الجبر
       { section: 'كمي', subTopic: 'حساب الكسور', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'النسبة والتناسب', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'النسبة المئوية', difficulties: ['easy', 'medium', 'hard'] },
       { section: 'كمي', subTopic: 'المعادلات الخطية', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'المعادلات التربيعية', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'المتتاليات العددية', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'المثلثات', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'الدوائر', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'الجذور والأسس', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'المتباينات', difficulties: ['easy', 'medium', 'hard'] },
+      // كمي - الهندسة
       { section: 'كمي', subTopic: 'المساحات والمحيطات', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'الإحصاء الوصفي', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'كمي', subTopic: 'الاحتمالات الأساسية', difficulties: ['easy', 'medium', 'hard'] },
-      // لفظي
+      { section: 'كمي', subTopic: 'الزوايا والمثلثات', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'الدوائر', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'الحجوم', difficulties: ['easy', 'medium', 'hard'] },
+      // كمي - الإحصاء
+      { section: 'كمي', subTopic: 'المتوسط والوسيط', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'المنوال والمدى', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'قراءة الرسوم البيانية', difficulties: ['easy', 'medium', 'hard'] },
+      // كمي - الأعداد
+      { section: 'كمي', subTopic: 'النسب والتناسب', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'النسب المئوية', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'الأعداد الأولية', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'القواسم والمضاعفات', difficulties: ['easy', 'medium', 'hard'] },
+      // كمي - المعادلات
+      { section: 'كمي', subTopic: 'المقارنات الكمية', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'المعادلات التربيعية', difficulties: ['easy', 'medium', 'hard'] },
+      // كمي - الاحتمالات
+      { section: 'كمي', subTopic: 'الاحتمالات البسيطة', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'التباديل والتوافيق', difficulties: ['easy', 'medium', 'hard'] },
+      // كمي - المتتاليات
+      { section: 'كمي', subTopic: 'المتتاليات الحسابية', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'كمي', subTopic: 'المتتاليات الهندسية', difficulties: ['easy', 'medium', 'hard'] },
+      // لفظي - القراءة والاستيعاب
       { section: 'لفظي', subTopic: 'فهم النص', difficulties: ['easy', 'medium', 'hard'] },
       { section: 'لفظي', subTopic: 'الفكرة الرئيسية', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'لفظي', subTopic: 'المرادفات', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'لفظي', subTopic: 'الاستنتاج من النص', difficulties: ['easy', 'medium', 'hard'] },
+      // لفظي - المفردات
+      { section: 'لفظي', subTopic: 'معاني الكلمات', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'لفظي', subTopic: 'المترادفات', difficulties: ['easy', 'medium', 'hard'] },
       { section: 'لفظي', subTopic: 'الأضداد', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'لفظي', subTopic: 'التناظر اللفظي', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'لفظي', subTopic: 'إكمال الجمل', difficulties: ['easy', 'medium', 'hard'] },
-      { section: 'لفظي', subTopic: 'الخطأ السياقي', difficulties: ['easy', 'medium', 'hard'] },
+      // لفظي - التناظر اللفظي
+      { section: 'لفظي', subTopic: 'علاقات الكلمات', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'لفظي', subTopic: 'التناظر المركب', difficulties: ['easy', 'medium', 'hard'] },
+      // لفظي - إكمال الجمل
+      { section: 'لفظي', subTopic: 'السياق اللغوي', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'لفظي', subTopic: 'الروابط اللغوية', difficulties: ['easy', 'medium', 'hard'] },
+      // لفظي - الخطأ السياقي
+      { section: 'لفظي', subTopic: 'تحديد الخطأ', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'لفظي', subTopic: 'تصحيح الخطأ', difficulties: ['easy', 'medium', 'hard'] },
+      // لفظي - الارتباط والاختلاف
+      { section: 'لفظي', subTopic: 'التصنيف المنطقي', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'لفظي', subTopic: 'الشاذ المختلف', difficulties: ['easy', 'medium', 'hard'] },
+      // لفظي - الاستنتاج
+      { section: 'لفظي', subTopic: 'الاستنتاج المنطقي', difficulties: ['easy', 'medium', 'hard'] },
+      { section: 'لفظي', subTopic: 'القياس المنطقي', difficulties: ['easy', 'medium', 'hard'] },
     ];
     
     // Check each sub-topic/difficulty combination
