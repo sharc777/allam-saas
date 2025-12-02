@@ -142,22 +142,39 @@ serve(async (req) => {
       // Clean up response - remove markdown code blocks if present
       let cleanContent = content.trim();
       
-      // Remove ```json or ``` markers
-      cleanContent = cleanContent.replace(/^```(?:json)?\s*/i, '');
-      cleanContent = cleanContent.replace(/\s*```$/i, '');
+      // Remove ```json or ``` markers more aggressively
+      cleanContent = cleanContent.replace(/^```(?:json)?\s*/gi, '');
+      cleanContent = cleanContent.replace(/```\s*$/gi, '');
       cleanContent = cleanContent.trim();
       
       // Try to find JSON array
       const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
       if (arrayMatch) {
-        questions = JSON.parse(arrayMatch[0]);
+        try {
+          questions = JSON.parse(arrayMatch[0]);
+        } catch {
+          // If parsing fails, try to extract complete question objects
+          console.log("⚠️ Full JSON parse failed, attempting to extract complete questions...");
+          questions = extractCompleteQuestions(cleanContent);
+        }
       } else {
         questions = JSON.parse(cleanContent);
       }
     } catch (parseError) {
       console.error("❌ JSON Parse error:", parseError);
-      console.error("Raw content:", content.substring(0, 500));
-      throw new Error("Could not parse AI response as JSON");
+      console.error("Raw content (first 1000 chars):", content.substring(0, 1000));
+      
+      // Last resort: try to extract any complete questions
+      try {
+        questions = extractCompleteQuestions(content);
+        if (questions.length > 0) {
+          console.log(`🔄 Recovered ${questions.length} complete questions from truncated response`);
+        } else {
+          throw new Error("Could not parse AI response as JSON");
+        }
+      } catch {
+        throw new Error("Could not parse AI response as JSON");
+      }
     }
 
     if (!Array.isArray(questions) || questions.length === 0) {
@@ -311,4 +328,33 @@ function normalizeAnswer(answer: string): string {
     'a': 'أ', 'b': 'ب', 'c': 'ج', 'd': 'د'
   };
   return mapping[answer] || answer;
+}
+
+// Helper: Extract complete question objects from potentially truncated JSON
+function extractCompleteQuestions(content: string): any[] {
+  const questions: any[] = [];
+  
+  // Remove markdown code blocks
+  let cleanContent = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+  
+  // Try to find complete question objects using regex
+  // Match objects that have all required fields: question, options, correctAnswer, explanation
+  const questionPattern = /\{\s*"question"\s*:\s*"[^"]+(?:\\.[^"]*)*"\s*,\s*"options"\s*:\s*\{[^}]+\}\s*,\s*"correctAnswer"\s*:\s*"[^"]+"\s*,\s*"explanation"\s*:\s*"[^"]+(?:\\.[^"]*)*"\s*\}/g;
+  
+  const matches = cleanContent.match(questionPattern);
+  
+  if (matches) {
+    for (const match of matches) {
+      try {
+        const q = JSON.parse(match);
+        if (q.question && q.options && q.correctAnswer && q.explanation) {
+          questions.push(q);
+        }
+      } catch {
+        // Skip malformed objects
+      }
+    }
+  }
+  
+  return questions;
 }
