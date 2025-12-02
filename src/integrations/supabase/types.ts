@@ -869,9 +869,11 @@ export type Database = {
           id: string
           last_reviewed_at: string | null
           options: Json | null
+          question_hash: string | null
           question_text: string
           question_type: Database["public"]["Enums"]["question_type"]
           review_notes: string | null
+          sub_topic: string | null
           subject: Database["public"]["Enums"]["question_subject"]
           success_rate: number | null
           tags: string[] | null
@@ -889,9 +891,11 @@ export type Database = {
           id?: string
           last_reviewed_at?: string | null
           options?: Json | null
+          question_hash?: string | null
           question_text: string
           question_type: Database["public"]["Enums"]["question_type"]
           review_notes?: string | null
+          sub_topic?: string | null
           subject: Database["public"]["Enums"]["question_subject"]
           success_rate?: number | null
           tags?: string[] | null
@@ -909,9 +913,11 @@ export type Database = {
           id?: string
           last_reviewed_at?: string | null
           options?: Json | null
+          question_hash?: string | null
           question_text?: string
           question_type?: Database["public"]["Enums"]["question_type"]
           review_notes?: string | null
+          sub_topic?: string | null
           subject?: Database["public"]["Enums"]["question_subject"]
           success_rate?: number | null
           tags?: string[] | null

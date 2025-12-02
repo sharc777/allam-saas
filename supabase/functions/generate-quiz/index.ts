@@ -71,6 +71,246 @@ function detectCorrectSection(topicFilter: string): string | null {
   return null;
 }
 
+// ============= QUESTION BANK FUNCTIONS =============
+
+// Fetch user's previously answered questions
+async function getUserAnsweredHashes(supabase: any, userId: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from('user_performance_history')
+    .select('question_hash')
+    .eq('user_id', userId);
+  
+  return new Set(data?.map((q: any) => q.question_hash).filter(Boolean) || []);
+}
+
+// Fetch from permanent question bank (no repeat per user)
+async function fetchFromQuestionBank(
+  supabase: any,
+  targetCount: number,
+  params: {
+    section: string;
+    subTopic?: string;
+    difficulty: string;
+    userId: string;
+    answeredHashes: Set<string>;
+  }
+): Promise<any[]> {
+  const { section, subTopic, difficulty, userId, answeredHashes } = params;
+  
+  console.log(`📚 Fetching from question bank: section=${section}, subTopic=${subTopic || 'any'}, difficulty=${difficulty}`);
+  
+  let query = supabase
+    .from('questions_bank')
+    .select('*')
+    .eq('subject', section === 'كمي' ? 'كمي' : 'لفظي')
+    .eq('difficulty', difficulty)
+    .eq('validation_status', 'approved');
+  
+  // Filter by sub_topic if specified
+  if (subTopic) {
+    query = query.eq('sub_topic', subTopic);
+  }
+  
+  const { data: questions, error } = await query.limit(targetCount * 3); // Get more to filter
+  
+  if (error) {
+    console.error('Question bank fetch error:', error);
+    return [];
+  }
+  
+  if (!questions || questions.length === 0) {
+    console.log('❌ No questions found in bank');
+    return [];
+  }
+  
+  // Filter out already answered questions
+  const unanswered = questions.filter((q: any) => 
+    !answeredHashes.has(q.question_hash)
+  );
+  
+  console.log(`📚 Found ${unanswered.length}/${questions.length} unanswered questions for user`);
+  
+  // Shuffle and take what we need
+  const shuffled = unanswered.sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, targetCount);
+  
+  // Convert to quiz format
+  return selected.map((q: any) => ({
+    question: q.question_text,
+    options: q.options,
+    correctAnswer: q.correct_answer,
+    explanation: q.explanation || '',
+    topic: q.topic || q.sub_topic || section,
+    subTopic: q.sub_topic,
+    section: section,
+    difficulty: q.difficulty,
+    question_hash: q.question_hash || simpleHash(q.question_text),
+    source: 'question_bank'
+  }));
+}
+
+// Check question bank availability for a sub-topic
+async function getQuestionBankStats(
+  supabase: any,
+  section: string,
+  subTopic?: string
+): Promise<{ total: number; byDifficulty: Record<string, number> }> {
+  const sectionValue = section === 'كمي' ? 'كمي' : 'لفظي';
+  
+  let query = supabase
+    .from('questions_bank')
+    .select('difficulty')
+    .eq('subject', sectionValue)
+    .eq('validation_status', 'approved');
+  
+  if (subTopic) {
+    query = query.eq('sub_topic', subTopic);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error || !data) return { total: 0, byDifficulty: {} };
+  
+  const byDifficulty: Record<string, number> = { easy: 0, medium: 0, hard: 0 };
+  data.forEach((q: any) => {
+    if (byDifficulty[q.difficulty] !== undefined) {
+      byDifficulty[q.difficulty]++;
+    }
+  });
+  
+  return { total: data.length, byDifficulty };
+}
+
+// Auto-generate and save to question bank
+const BANK_MINIMUM_THRESHOLD = 10;
+const BANK_REFILL_COUNT = 20;
+
+async function autoRefillQuestionBank(
+  supabase: any,
+  section: string,
+  subTopic: string,
+  difficulty: string
+): Promise<void> {
+  console.log(`🔄 Auto-refill bank: ${section}/${subTopic}/${difficulty}...`);
+  
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    console.error("❌ Auto-refill failed: LOVABLE_API_KEY not configured");
+    return;
+  }
+  
+  try {
+    // Fetch few-shot examples for this sub-topic
+    const { data: examples } = await supabase
+      .from('ai_training_examples')
+      .select('*')
+      .eq('section', section)
+      .gte('quality_score', 3)
+      .limit(3);
+    
+    const examplesText = examples?.map((ex: any) => 
+      `السؤال: ${ex.question_text}\nالخيارات: ${JSON.stringify(ex.options)}\nالإجابة: ${ex.correct_answer}\nالشرح: ${ex.explanation || ''}`
+    ).join('\n\n---\n\n') || '';
+    
+    const difficultyAr = difficulty === 'easy' ? 'سهل' : difficulty === 'hard' ? 'صعب' : 'متوسط';
+    
+    const systemPrompt = `أنت خبير في إنشاء أسئلة اختبار القدرات العامة السعودي.
+قم بإنشاء ${BANK_REFILL_COUNT} سؤال متنوع ومميز.
+
+📌 المتطلبات:
+- القسم: ${section}
+- الموضوع الفرعي: ${subTopic}
+- مستوى الصعوبة: ${difficultyAr}
+- اللغة: العربية الفصحى
+- كل سؤال له 4 خيارات (أ، ب، ج، د)
+- شرح واضح ومفصل للإجابة الصحيحة
+
+${examplesText ? `📚 أمثلة للاسترشاد:\n${examplesText}\n` : ''}
+
+⚠️ كل سؤال يجب أن يكون:
+- فريداً ومختلفاً تماماً
+- متعلقاً بموضوع "${subTopic}" حصرياً
+- بمستوى صعوبة ${difficultyAr}
+
+أرجع JSON array فقط بالصيغة:
+[{
+  "question": "نص السؤال",
+  "options": {"أ": "...", "ب": "...", "ج": "...", "د": "..."},
+  "correctAnswer": "أ",
+  "explanation": "شرح مفصل",
+  "difficulty": "${difficulty}"
+}]`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `أنشئ ${BANK_REFILL_COUNT} سؤال عن "${subTopic}" بمستوى ${difficultyAr} الآن.` }
+        ],
+        temperature: 0.85,
+        max_tokens: 15000
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Auto-refill AI error: ${response.status}`);
+      return;
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices?.[0]?.message?.content || "";
+    
+    // Parse questions
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error("❌ Auto-refill: No valid JSON array found");
+      return;
+    }
+    
+    const questions = JSON.parse(jsonMatch[0]);
+    const sectionValue = section === 'كمي' ? 'كمي' : 'لفظي';
+    
+    // Prepare bank entries
+    const bankEntries = questions.slice(0, BANK_REFILL_COUNT).map((q: any) => ({
+      subject: sectionValue,
+      topic: subTopic,
+      sub_topic: subTopic,
+      difficulty: difficulty,
+      question_type: 'multiple_choice',
+      question_text: q.question,
+      options: q.options,
+      correct_answer: q.correctAnswer,
+      explanation: q.explanation,
+      question_hash: simpleHash(q.question + q.correctAnswer),
+      created_by: 'ai_auto_refill',
+      validation_status: 'approved'
+    }));
+    
+    // Insert with conflict handling
+    const { error: insertError } = await supabase
+      .from('questions_bank')
+      .upsert(bankEntries, { 
+        onConflict: 'question_hash',
+        ignoreDuplicates: true 
+      });
+    
+    if (insertError) {
+      console.error("❌ Auto-refill insert error:", insertError);
+    } else {
+      console.log(`✅ Auto-refill complete: ${bankEntries.length} questions added to bank for ${section}/${subTopic}/${difficulty}`);
+    }
+    
+  } catch (error) {
+    console.error("❌ Auto-refill error:", error);
+  }
+}
+
 // ============= CACHE FUNCTIONS =============
 
 async function fetchFromCache(
@@ -1133,20 +1373,12 @@ serve(async (req) => {
     
     const userId = user.id;
     
-    // 2. Load content, KB, and AI settings in parallel
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const [content, kbResult, aiSettings, recentPerformanceData] = await Promise.all([
+    // 2. Load content, KB, AI settings, and user's answered questions in parallel
+    const [content, kbResult, aiSettings, answeredHashes] = await Promise.all([
       loadContent(supabase, params),
       loadKnowledgeBase(supabase, { ...params, testType, track, topicFilter }),
       loadAISettings(supabase),
-      supabase
-        .from("user_performance_history")
-        .select("question_hash")
-        .eq("user_id", user.id)
-        .gte("attempted_at", sevenDaysAgo.toISOString())
-        .limit(200)
+      getUserAnsweredHashes(supabase, user.id)
     ]);
     
     const { knowledgeData, availableTopics, allRelatedTopics, additionalKnowledge } = kbResult;
@@ -1156,7 +1388,8 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
     
-    const usedHashes = new Set(recentPerformanceData.data?.map(p => p.question_hash) || []);
+    // Use answeredHashes to prevent question repetition per user
+    const usedHashes = answeredHashes;
     console.log(`🔍 Preventing repetition: ${usedHashes.size} questions from last 7 days`);
     
     // 3. Calculate question counts with validation
@@ -1169,7 +1402,58 @@ serve(async (req) => {
     
     console.log(`🎯 Target: ${targetQuestions}, Buffer: ${bufferQuestions}`);
     
-    // 4. Check cache status
+    // 4. First priority: Try to fetch from QUESTION BANK (permanent, per-user unique)
+    const startTime = Date.now();
+    let bankQuestions: any[] = [];
+    
+    if (sectionFilter) {
+      bankQuestions = await fetchFromQuestionBank(supabase, targetQuestions, {
+        section: sectionFilter,
+        subTopic: topicFilter, // Use topic filter as sub_topic
+        difficulty,
+        userId: user.id,
+        answeredHashes: usedHashes
+      });
+      console.log(`📚 Fetched ${bankQuestions.length} from question bank`);
+      
+      // Check if we need auto-refill for this sub-topic
+      if (topicFilter && bankQuestions.length < targetQuestions) {
+        const bankStats = await getQuestionBankStats(supabase, sectionFilter, topicFilter);
+        if (bankStats.total < BANK_MINIMUM_THRESHOLD) {
+          console.log(`⚠️ Question bank low for ${topicFilter} (${bankStats.total}/${BANK_MINIMUM_THRESHOLD}), triggering auto-refill...`);
+          autoRefillQuestionBank(supabase, sectionFilter, topicFilter, difficulty)
+            .catch(e => console.error("Bank auto-refill error:", e));
+        }
+      }
+    }
+    
+    // 5. If bank is sufficient, return directly
+    if (bankQuestions.length >= targetQuestions) {
+      const finalQuestions = bankQuestions.slice(0, targetQuestions);
+      const generationTime = Date.now() - startTime;
+      
+      console.log(`⚡ BANK HIT: ${finalQuestions.length} questions in ${generationTime}ms`);
+      
+      // Log questions
+      await logQuestions(supabase, user.id, finalQuestions, dayNumber, {
+        generation_source: 'question_bank'
+      });
+      
+      return new Response(
+        JSON.stringify({
+          questions: finalQuestions,
+          dayNumber,
+          contentTitle: content.title,
+          testType,
+          track,
+          fromBank: true,
+          generationTime
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // 6. Second priority: Check cache for additional questions
     const cacheStatus = await checkCacheStatus(supabase, {
       testType,
       section: sectionFilter || 'عام',
@@ -1178,13 +1462,11 @@ serve(async (req) => {
     });
     console.log(`📦 Cache status: ${cacheStatus.available}/${cacheStatus.total} available`);
     
-    // 5. Try to fetch from cache first - SMART FALLBACK: get whatever is available
-    const startTime = Date.now();
     let cachedQuestions: any[] = [];
+    const remainingNeeded = targetQuestions - bankQuestions.length;
     
-    // Always try to fetch from cache if section is specified
-    if (sectionFilter && cacheStatus.available > 0) {
-      cachedQuestions = await fetchFromCache(supabase, targetQuestions, {
+    if (sectionFilter && cacheStatus.available > 0 && remainingNeeded > 0) {
+      cachedQuestions = await fetchFromCache(supabase, remainingNeeded, {
         testType,
         section: sectionFilter,
         difficulty,
@@ -1194,18 +1476,24 @@ serve(async (req) => {
       console.log(`📦 Fetched ${cachedQuestions.length} from cache`);
     }
     
-    // 6. If cache is sufficient, use it directly
-    if (cachedQuestions.length >= targetQuestions) {
-      const finalQuestions = cachedQuestions.slice(0, targetQuestions);
+    // 7. Combine bank + cache
+    const combinedQuestions = [...bankQuestions, ...cachedQuestions];
+    
+    if (combinedQuestions.length >= targetQuestions) {
+      const finalQuestions = combinedQuestions.slice(0, targetQuestions);
       const generationTime = Date.now() - startTime;
       
-      console.log(`⚡ CACHE HIT: ${finalQuestions.length} questions in ${generationTime}ms`);
+      console.log(`⚡ BANK+CACHE HIT: ${finalQuestions.length} questions in ${generationTime}ms`);
       
-      // Mark as used
-      await markCacheAsUsed(supabase, finalQuestions);
+      // Mark cache as used
+      if (cachedQuestions.length > 0) {
+        await markCacheAsUsed(supabase, cachedQuestions);
+      }
       
       // Log questions
-      await logQuestions(supabase, user.id, finalQuestions, dayNumber);
+      await logQuestions(supabase, user.id, finalQuestions, dayNumber, {
+        generation_source: 'bank_and_cache'
+      });
       
       // Trigger auto-refill in background if cache is running low
       if (cacheStatus.available < CACHE_REFILL_THRESHOLD && sectionFilter) {
@@ -1220,7 +1508,8 @@ serve(async (req) => {
           contentTitle: content.title,
           testType,
           track,
-          fromCache: true,
+          fromBank: bankQuestions.length,
+          fromCache: cachedQuestions.length,
           generationTime
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
