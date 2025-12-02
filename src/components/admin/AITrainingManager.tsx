@@ -253,6 +253,7 @@ export const AITrainingManager = () => {
 
   // State for generating questions
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [generatingForTopic, setGeneratingForTopic] = useState<string | null>(null);
 
   // Generate questions for sub-topic
   const generateQuestionsMutation = useMutation({
@@ -282,6 +283,49 @@ export const AITrainingManager = () => {
     onError: (error: any) => {
       toast({ title: "خطأ في التوليد", description: error.message, variant: "destructive" });
       setGeneratingFor(null);
+    },
+  });
+
+  // Generate 40 questions for entire topic (distributed among sub-topics)
+  const generateTopicQuestionsMutation = useMutation({
+    mutationFn: async ({ section, topic }: { section: string; topic: TopicWithSubTopics }) => {
+      setGeneratingForTopic(topic.id);
+      
+      const subTopics = topic.subTopics;
+      const questionsPerSubTopic = Math.ceil(40 / subTopics.length);
+      
+      const results = [];
+      for (const subTopic of subTopics) {
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-questions-for-bank", {
+            body: {
+              section,
+              subTopic: subTopic.id,
+              difficulty: "medium",
+              count: questionsPerSubTopic,
+            },
+          });
+          if (!error && data) results.push({ subTopic: subTopic.id, saved: data.saved || 0 });
+        } catch (e) {
+          console.error(`Failed for ${subTopic.id}:`, e);
+        }
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      const totalSaved = results.reduce((sum, r) => sum + (r.saved || 0), 0);
+      toast({ 
+        title: "تم توليد الأسئلة للموضوع", 
+        description: `تم إضافة ${totalSaved} سؤال للبنك` 
+      });
+      queryClient.invalidateQueries({ queryKey: ["bank-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["training-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["question-bank"] });
+      setGeneratingForTopic(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "خطأ في التوليد", description: error.message, variant: "destructive" });
+      setGeneratingForTopic(null);
     },
   });
 
@@ -388,15 +432,39 @@ export const AITrainingManager = () => {
                             <Accordion key={topic.id} type="single" collapsible>
                               <AccordionItem value={topic.id} className="border-r-2 border-primary/30 pr-4">
                                 <AccordionTrigger className="hover:no-underline py-2">
-                                  <div className="flex items-center gap-2">
-                                    <ChevronRight className="w-4 h-4" />
-                                    <span className="font-medium">{topic.nameAr}</span>
-                                    <Badge 
-                                      variant={getTopicExamplesCount(section.id, topic.id) > 0 ? "default" : "secondary"}
-                                      className="text-xs"
+                                  <div className="flex items-center justify-between w-full pl-2">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="w-4 h-4" />
+                                      <span className="font-medium">{topic.nameAr}</span>
+                                      <Badge 
+                                        variant={getTopicExamplesCount(section.id, topic.id) > 0 ? "default" : "secondary"}
+                                        className="text-xs"
+                                      >
+                                        {getTopicExamplesCount(section.id, topic.id)} مثال
+                                      </Badge>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="h-7 px-3 text-xs"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        generateTopicQuestionsMutation.mutate({ 
+                                          section: section.id, 
+                                          topic: topic 
+                                        });
+                                      }}
+                                      disabled={generatingForTopic === topic.id || generateTopicQuestionsMutation.isPending}
                                     >
-                                      {getTopicExamplesCount(section.id, topic.id)} مثال
-                                    </Badge>
+                                      {generatingForTopic === topic.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Wand2 className="w-3 h-3 ml-1" />
+                                          ولّد 40
+                                        </>
+                                      )}
+                                    </Button>
                                   </div>
                                 </AccordionTrigger>
                                 <AccordionContent>
