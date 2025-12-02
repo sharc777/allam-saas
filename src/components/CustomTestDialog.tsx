@@ -9,6 +9,26 @@ import { customTestSchema } from "@/lib/validation";
 import { toast } from "sonner";
 import { useTestStructure } from "@/hooks/useTestStructure";
 
+// دالة الكشف التلقائي عن القسم من الموضوع
+const detectSectionFromTopic = (topic: string): string | null => {
+  const verbalKeywords = [
+    'استيعاب', 'مقروء', 'قراءة', 'مفردات', 'تناظر', 'لفظي',
+    'جمل', 'سياق', 'ارتباط', 'اختلاف', 'نقدي', 'استنتاج',
+    'إكمال', 'خطأ', 'نص', 'فهم', 'تحليل'
+  ];
+  
+  const quantKeywords = [
+    'جبر', 'هندسة', 'إحصاء', 'أعداد', 'نسب', 'تناسب',
+    'معادلات', 'متتاليات', 'احتمالات', 'قياس', 'حساب', 'رياضيات',
+    'كسور', 'نسبة', 'مئوية', 'مساحة', 'محيط', 'زاوية'
+  ];
+  
+  if (verbalKeywords.some(kw => topic.includes(kw))) return 'لفظي';
+  if (quantKeywords.some(kw => topic.includes(kw))) return 'كمي';
+  
+  return null;
+};
+
 interface CustomTestDialogProps {
   open: boolean;
   onClose: () => void;
@@ -43,6 +63,17 @@ export const CustomTestDialog = ({
       setTopic(initialTopic);
     }
   }, [initialTopic]);
+
+  // الكشف التلقائي عن القسم عند تغيير الموضوع
+  useEffect(() => {
+    if (topic.trim().length >= 3) {
+      const detectedSection = detectSectionFromTopic(topic);
+      if (detectedSection && detectedSection !== section) {
+        setSection(detectedSection);
+        console.log(`🔄 Auto-detected section: ${detectedSection} for topic: ${topic}`);
+      }
+    }
+  }, [topic]);
 
   const handleCreate = () => {
     // Validate inputs
