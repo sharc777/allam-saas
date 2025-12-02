@@ -14,7 +14,6 @@ import type { Database } from "@/integrations/supabase/types";
 
 type DailyContent = Database["public"]["Tables"]["daily_content"]["Row"];
 type TestType = Database["public"]["Enums"]["test_type"];
-type AcademicTrack = Database["public"]["Enums"]["academic_track"];
 
 export const ContentManagement = () => {
   const queryClient = useQueryClient();
@@ -25,7 +24,6 @@ export const ContentManagement = () => {
     description: "",
     day_number: 1,
     test_type: "قدرات" as TestType,
-    track: "عام" as AcademicTrack,
     content_text: "",
     video_url: "",
     duration_minutes: 30,
@@ -201,7 +199,6 @@ export const ContentManagement = () => {
       description: "",
       day_number: 1,
       test_type: "قدرات",
-      track: "عام",
       content_text: "",
       video_url: "",
       duration_minutes: 30,
@@ -216,7 +213,6 @@ export const ContentManagement = () => {
       description: content.description || "",
       day_number: content.day_number,
       test_type: content.test_type || "قدرات",
-      track: "عام",
       content_text: content.content_text || "",
       video_url: content.video_url || "",
       duration_minutes: content.duration_minutes,
@@ -309,38 +305,19 @@ export const ContentManagement = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="test_type">نوع الاختبار</Label>
-                  <Select
-                    value={formData.test_type}
-                    onValueChange={(value) => setFormData({ ...formData, test_type: value as TestType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="قدرات">قدرات</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="track">المسار</Label>
-                  <Select
-                    value={formData.track}
-                    onValueChange={(value) => setFormData({ ...formData, track: value as AcademicTrack })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="عام">عام</SelectItem>
-                      <SelectItem value="علمي">علمي</SelectItem>
-                      <SelectItem value="نظري">نظري</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label htmlFor="test_type">نوع الاختبار</Label>
+                <Select
+                  value={formData.test_type}
+                  onValueChange={(value) => setFormData({ ...formData, test_type: value as TestType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="قدرات">قدرات</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
