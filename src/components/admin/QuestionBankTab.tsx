@@ -43,11 +43,11 @@ export const QuestionBankTab = () => {
   const queryClient = useQueryClient();
   const sections = getSections();
   
-  // Filter state
+  // Filter state - use "__all__" instead of empty string
   const [filters, setFilters] = useState({
-    section: "",
-    subTopic: "",
-    difficulty: "",
+    section: "__all__",
+    subTopic: "__all__",
+    difficulty: "__all__",
     search: "",
   });
   
@@ -61,7 +61,7 @@ export const QuestionBankTab = () => {
     optionD: "",
     correct_answer: "",
     explanation: "",
-    sub_topic: "",
+    sub_topic: "__none__",
     difficulty: "",
   });
 
@@ -75,13 +75,13 @@ export const QuestionBankTab = () => {
         .order("created_at", { ascending: false })
         .limit(100);
 
-      if (filters.section) {
+      if (filters.section && filters.section !== "__all__") {
         query = query.eq("subject", filters.section as any);
       }
-      if (filters.subTopic) {
+      if (filters.subTopic && filters.subTopic !== "__all__") {
         query = query.eq("sub_topic", filters.subTopic);
       }
-      if (filters.difficulty) {
+      if (filters.difficulty && filters.difficulty !== "__all__") {
         query = query.eq("difficulty", filters.difficulty as any);
       }
 
@@ -138,7 +138,7 @@ export const QuestionBankTab = () => {
           options,
           correct_answer: editForm.correct_answer,
           explanation: editForm.explanation || null,
-          sub_topic: editForm.sub_topic || null,
+          sub_topic: editForm.sub_topic === "__none__" ? null : editForm.sub_topic || null,
           difficulty: editForm.difficulty as "easy" | "medium" | "hard",
         })
         .eq("id", editingQuestion.id);
@@ -167,14 +167,14 @@ export const QuestionBankTab = () => {
       optionD: options["د"] || options["D"] || "",
       correct_answer: question.correct_answer,
       explanation: question.explanation || "",
-      sub_topic: question.sub_topic || "",
+      sub_topic: question.sub_topic || "__none__",
       difficulty: question.difficulty,
     });
     setEditingQuestion(question);
   };
 
   // Get sub-topics for current filter section
-  const availableSubTopics = filters.section 
+  const availableSubTopics = filters.section && filters.section !== "__all__"
     ? getAllSubTopicsForSection(filters.section)
     : [];
 
@@ -198,13 +198,13 @@ export const QuestionBankTab = () => {
             <Label className="text-xs mb-1 block">القسم</Label>
             <Select
               value={filters.section}
-              onValueChange={(value) => setFilters({ ...filters, section: value, subTopic: "" })}
+              onValueChange={(value) => setFilters({ ...filters, section: value, subTopic: "__all__" })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="الكل" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">الكل</SelectItem>
+                <SelectItem value="__all__">الكل</SelectItem>
                 {sections.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.nameAr}</SelectItem>
                 ))}
@@ -217,13 +217,13 @@ export const QuestionBankTab = () => {
             <Select
               value={filters.subTopic}
               onValueChange={(value) => setFilters({ ...filters, subTopic: value })}
-              disabled={!filters.section}
+              disabled={filters.section === "__all__"}
             >
               <SelectTrigger>
                 <SelectValue placeholder="الكل" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">الكل</SelectItem>
+                <SelectItem value="__all__">الكل</SelectItem>
                 {availableSubTopics.map((st) => (
                   <SelectItem key={st.id} value={st.id}>{st.nameAr}</SelectItem>
                 ))}
@@ -241,7 +241,7 @@ export const QuestionBankTab = () => {
                 <SelectValue placeholder="الكل" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">الكل</SelectItem>
+                <SelectItem value="__all__">الكل</SelectItem>
                 <SelectItem value="easy">سهل</SelectItem>
                 <SelectItem value="medium">متوسط</SelectItem>
                 <SelectItem value="hard">صعب</SelectItem>
@@ -361,7 +361,7 @@ export const QuestionBankTab = () => {
                     <SelectValue placeholder="اختر الموضوع الفرعي" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">بدون</SelectItem>
+                    <SelectItem value="__none__">بدون</SelectItem>
                     {allSubTopics.map((st) => (
                       <SelectItem key={st.id} value={st.id}>{st.nameAr}</SelectItem>
                     ))}
