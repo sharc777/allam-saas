@@ -118,6 +118,25 @@ export const ContentManagement = () => {
     },
   });
 
+  const handleDelete = async (content: DailyContent) => {
+    // التحقق من وجود نتائج اختبارات مرتبطة
+    const { count } = await supabase
+      .from('quiz_results')
+      .select('*', { count: 'exact', head: true })
+      .eq('daily_content_id', content.id);
+    
+    const relatedCount = count || 0;
+    
+    let confirmMessage = `هل أنت متأكد من حذف "${content.title}"؟`;
+    if (relatedCount > 0) {
+      confirmMessage = `⚠️ تحذير: يوجد ${relatedCount} نتيجة اختبار مرتبطة بهذا المحتوى.\n\nسيتم فصل هذه النتائج عن المحتوى (لن تُحذف).\n\nهل تريد المتابعة؟`;
+    }
+    
+    if (confirm(confirmMessage)) {
+      deleteMutation.mutate(content.id);
+    }
+  };
+
   const addToKnowledgeBaseMutation = useMutation({
     mutationFn: async (content: DailyContent) => {
       // استخراج المواضيع من المحتوى
@@ -426,13 +445,14 @@ export const ContentManagement = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    if (confirm("هل أنت متأكد من حذف هذا المحتوى؟")) {
-                      deleteMutation.mutate(content.id);
-                    }
-                  }}
+                  onClick={() => handleDelete(content)}
+                  disabled={deleteMutation.isPending}
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  )}
                 </Button>
               </div>
             </div>
