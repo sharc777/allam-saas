@@ -32,42 +32,68 @@ const ExerciseDetails = () => {
   const formatExplanation = (text: string) => {
     if (!text) return [];
     
-    // Split by numbers followed by period or dash or numbered list patterns
+    // If text is too short, return as paragraph without processing
+    if (text.length < 60) {
+      return [{ type: 'paragraph', content: text }];
+    }
+    
+    // Check for truncated/incomplete explanations
+    const truncatedEndings = /(?:هو|على|يساوي|أن|في|من|=|×|÷|\+|-)\s*$/;
+    if (truncatedEndings.test(text.trim())) {
+      // Don't try to split truncated text, show as-is
+      return [{ type: 'paragraph', content: text }];
+    }
+    
+    // Check if text has clear structure markers
+    const hasStepMarkers = /الخطوة|أولاً|ثانياً|ثالثاً|1\.|2\.|3\./.test(text);
+    const hasWrongOptionExplanation = /الخيار.*خاطئ|خطأ.*لأن/.test(text);
+    
+    // Only split if there are clear structural markers
+    if (!hasStepMarkers && !hasWrongOptionExplanation) {
+      // For unstructured explanations, try to split by sentences
+      const sentences = text.split(/(?<=[.!؟。])\s+/).filter(s => s.trim().length > 10);
+      if (sentences.length >= 2 && sentences.length <= 6) {
+        return sentences.map((sentence, idx) => ({
+          type: 'step',
+          number: idx + 1,
+          content: sentence.trim()
+        }));
+      }
+      // Otherwise return as paragraph
+      return [{ type: 'paragraph', content: text }];
+    }
+    
+    // Split by step patterns
     const patterns = [
-      /(\d+[\.\):])/g,  // 1. or 1) or 1:
-      /([أ-ي][\.\)])/g, // أ. or أ)
-      /(الخطوة \d+)/gi,
-      /(أولاً|ثانياً|ثالثاً|رابعاً|خامساً)/gi,
+      /(الخطوة\s*(?:الأولى|الثانية|الثالثة|الرابعة|\d+):?)/gi,
+      /(أولاً|ثانياً|ثالثاً|رابعاً|خامساً):?/gi,
+      /(\d+[\.\):])\s*/g,
     ];
     
     let steps: string[] = [];
     let remaining = text;
     
-    // Try to split by common patterns
+    // Try each pattern
     for (const pattern of patterns) {
       const matches = remaining.match(pattern);
-      if (matches && matches.length > 1) {
-        steps = remaining.split(pattern).filter(s => s.trim());
+      if (matches && matches.length >= 2) {
+        steps = remaining.split(pattern).filter(s => s.trim() && s.length > 5);
         break;
       }
     }
     
-    // If no pattern found, try splitting by periods for long text
-    if (steps.length === 0) {
-      const sentences = remaining.split(/[\.!؟]\s+/);
-      if (sentences.length > 3) {
-        steps = sentences.filter(s => s.trim());
-      } else {
-        // Return as single paragraph
-        return [{ type: 'paragraph', content: text }];
-      }
+    // If still no valid splits found
+    if (steps.length < 2) {
+      return [{ type: 'paragraph', content: text }];
     }
     
-    // Format steps with proper numbering
+    // Format steps with proper numbering, filtering out very short segments
     return steps
       .map((step, idx) => {
+        // Clean up the step text
         const content = step.replace(/^[\d\.\)\:أ-ي\s]+/, '').trim();
-        return content ? { type: 'step', number: idx + 1, content } : null;
+        // Only include if content is substantial
+        return content && content.length > 10 ? { type: 'step', number: idx + 1, content } : null;
       })
       .filter(Boolean);
   };
