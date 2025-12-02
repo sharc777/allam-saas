@@ -137,9 +137,19 @@ async function fetchFromQuestionBank(
   const selected = shuffled.slice(0, targetCount);
   
   // Convert to quiz format
+  // Helper function to normalize options to array format
+  const normalizeOptions = (opts: any): string[] => {
+    if (Array.isArray(opts)) return opts;
+    if (typeof opts === 'object' && opts !== null) {
+      // Convert { "أ": "...", "ب": "..." } to ["...", "..."]
+      return Object.values(opts);
+    }
+    return [];
+  };
+
   return selected.map((q: any) => ({
     question: q.question_text,
-    options: q.options,
+    options: normalizeOptions(q.options),
     correctAnswer: q.correct_answer,
     explanation: q.explanation || '',
     topic: q.topic || q.sub_topic || section,

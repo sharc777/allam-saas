@@ -569,7 +569,10 @@ const DailyExerciseContent = () => {
                   onValueChange={handleAnswerSelect}
                   className="space-y-3"
                 >
-                  {currentQuestionData?.options.map((option, index) => (
+                  {(Array.isArray(currentQuestionData?.options) 
+                    ? currentQuestionData.options 
+                    : Object.values(currentQuestionData?.options || {}) as string[]
+                  ).map((option: string, index: number) => (
                     <div
                       key={index}
                       className="flex items-center space-x-2 space-x-reverse p-4 rounded-lg border-2 hover:border-primary transition-colors cursor-pointer"
