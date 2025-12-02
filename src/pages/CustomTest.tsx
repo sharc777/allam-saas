@@ -92,12 +92,10 @@ const CustomTestContent = () => {
 
       const limitCheck = limitCheckRaw as any;
 
-      if (!limitCheck?.allowed) {
+      if (!limitCheck?.can_create) {
         toast({
           title: "تجاوزت الحد اليومي",
-          description: `لقد استخدمت ${limitCheck.current} من ${limitCheck.limit} اختبار مخصص اليوم. ${
-            !limitCheck.has_subscription ? 'قم بالاشتراك للحصول على المزيد!' : ''
-          }`,
+          description: `لقد استخدمت ${limitCheck.current_count} من ${limitCheck.max_tests} اختبار مخصص اليوم. ${limitCheck.message}`,
           variant: "destructive"
         });
         navigate("/dashboard");
