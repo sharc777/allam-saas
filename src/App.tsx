@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import Index from "./pages/Index";
 import NewDashboard from "./pages/NewDashboard";
 import DailyExercise from "./pages/DailyExercise";
@@ -49,6 +50,7 @@ const App = () => (
             v7_relativeSplatPath: true,
           }}
         >
+          <ImpersonationBanner />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
