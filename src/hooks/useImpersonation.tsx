@@ -92,6 +92,9 @@ export const useImpersonation = () => {
       setIsImpersonating(true);
       setImpersonatedUser(targetUser);
 
+      // إرسال إشارة مخصصة لإعلام المكونات الأخرى
+      window.dispatchEvent(new CustomEvent('impersonation-changed'));
+
       toast({
         title: "تم الدخول كمستخدم",
         description: `أنت الآن تتصفح كـ ${targetUser.full_name}`,
@@ -157,6 +160,9 @@ export const useImpersonation = () => {
       localStorage.removeItem(IMPERSONATING_KEY);
       setIsImpersonating(false);
       setImpersonatedUser(null);
+
+      // إرسال إشارة لإخفاء الشريط
+      window.dispatchEvent(new CustomEvent('impersonation-changed'));
 
       toast({
         title: "تم العودة",
