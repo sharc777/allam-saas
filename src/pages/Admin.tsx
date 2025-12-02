@@ -8,22 +8,17 @@ import {
   BookOpen, 
   Database, 
   TrendingUp,
-  Plus,
-  Upload,
-  Loader2,
   Edit,
-  Trash2,
-  Shield
+  Loader2,
+  Shield,
+  Brain
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { ContentManagement } from "@/components/admin/ContentManagement";
-import { AIContentManager } from "@/components/admin/AIContentManager";
-import { UnifiedFileManager } from "@/components/admin/UnifiedFileManager";
+import { AITrainingManager } from "@/components/admin/AITrainingManager";
 import { PackageManager } from "@/components/admin/PackageManager";
 import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
-import { CacheManager } from "@/components/admin/CacheManager";
-import AIQualityDashboard from "@/components/admin/AIQualityDashboard";
 import { AdManager } from "@/components/admin/AdManager";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -42,7 +37,7 @@ const Admin = () => {
   // Fetch statistics with caching
   const { data: studentsCount } = useQuery({
     queryKey: ['students-count'],
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
@@ -70,8 +65,9 @@ const Admin = () => {
     gcTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { count } = await supabase
-        .from('questions_bank')
-        .select('*', { count: 'exact', head: true });
+        .from('questions_cache')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_used', false);
       return count || 0;
     }
   });
@@ -92,23 +88,6 @@ const Admin = () => {
       
       if (!total || total === 0) return 0;
       return Math.round(((completed || 0) / total) * 100);
-    }
-  });
-
-  const { data: questions, isLoading: questionsLoading } = useQuery({
-    queryKey: ['questions-bank'],
-    staleTime: 2 * 60 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('questions_bank')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (error) throw error;
-      return data;
     }
   });
 
@@ -188,6 +167,7 @@ const Admin = () => {
   if (!isAdmin) {
     return null;
   }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -242,7 +222,7 @@ const Admin = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">الأسئلة</p>
+                    <p className="text-sm text-muted-foreground mb-1">ذاكرة الأسئلة</p>
                     <p className="text-3xl font-bold text-success">
                       {questionsCount !== undefined ? questionsCount : <Loader2 className="w-6 h-6 animate-spin" />}
                     </p>
@@ -271,14 +251,11 @@ const Admin = () => {
             </Card>
           </div>
 
-          {/* Main Content Tabs */}
+          {/* Main Content Tabs - Simplified to 5 tabs */}
           <Tabs defaultValue="content" className="space-y-6" dir="rtl">
-            <TabsList className="grid w-full grid-cols-7 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto">
               <TabsTrigger value="content">📚 المحتوى</TabsTrigger>
-              <TabsTrigger value="files">📁 الملفات</TabsTrigger>
-              <TabsTrigger value="ai">🤖 AI</TabsTrigger>
-              <TabsTrigger value="cache">⚡ ذاكرة الأسئلة</TabsTrigger>
-              <TabsTrigger value="quality">🎯 جودة AI</TabsTrigger>
+              <TabsTrigger value="ai-training">🤖 تدريب AI</TabsTrigger>
               <TabsTrigger value="packages">💳 الباقات</TabsTrigger>
               <TabsTrigger value="ads">📢 الإعلانات</TabsTrigger>
               <TabsTrigger value="users">👥 المستخدمين</TabsTrigger>
@@ -289,24 +266,9 @@ const Admin = () => {
               <ContentManagement />
             </TabsContent>
 
-            {/* Unified File Manager */}
-            <TabsContent value="files" className="space-y-6">
-              <UnifiedFileManager />
-            </TabsContent>
-
-            {/* AI Settings */}
-            <TabsContent value="ai" className="space-y-6">
-              <AIContentManager />
-            </TabsContent>
-
-            {/* Cache Manager */}
-          <TabsContent value="cache" className="space-y-6">
-            <CacheManager />
-          </TabsContent>
-
-            {/* AI Quality Dashboard */}
-            <TabsContent value="quality" className="space-y-6">
-              <AIQualityDashboard />
+            {/* AI Training Manager - New consolidated tab */}
+            <TabsContent value="ai-training" className="space-y-6">
+              <AITrainingManager />
             </TabsContent>
 
             {/* Packages Management */}

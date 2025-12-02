@@ -1,32 +1,97 @@
 /**
- * هيكل اختبار القدرات فقط
- * يحتوي على قسمين: كمي ولفظي
+ * هيكل اختبار القدرات مع المواضيع الفرعية
+ * يحتوي على قسمين: كمي ولفظي مع مهارات فرعية لكل موضوع
  */
+
+export interface SubTopic {
+  id: string;
+  nameAr: string;
+  description?: string;
+}
+
+export interface TopicWithSubTopics {
+  id: string;
+  nameAr: string;
+  subTopics: SubTopic[];
+}
 
 export interface TestSection {
   id: string;
   nameAr: string;
   icon: string;
-  topics: string[];
+  topics: TopicWithSubTopics[];
 }
 
-// هيكل اختبار القدرات فقط
+// هيكل اختبار القدرات مع المواضيع الفرعية
 export const SECTIONS: TestSection[] = [
   {
     id: "كمي",
     nameAr: "الكمي",
     icon: "🔢",
     topics: [
-      "الجبر",
-      "الهندسة",
-      "الإحصاء",
-      "الأعداد",
-      "النسب والتناسب",
-      "المعادلات",
-      "الهندسة التحليلية",
-      "المتتاليات",
-      "الاحتمالات",
-      "القياس",
+      {
+        id: "الجبر",
+        nameAr: "الجبر",
+        subTopics: [
+          { id: "حساب_الكسور", nameAr: "حساب الكسور", description: "جمع وطرح وضرب وقسمة الكسور" },
+          { id: "المعادلات_الخطية", nameAr: "المعادلات الخطية", description: "حل معادلات بمتغير واحد أو أكثر" },
+          { id: "الجذور_والأسس", nameAr: "الجذور والأسس", description: "قوانين الأسس والجذور التربيعية" },
+          { id: "المتباينات", nameAr: "المتباينات", description: "حل المتباينات وتمثيلها" },
+        ],
+      },
+      {
+        id: "الهندسة",
+        nameAr: "الهندسة",
+        subTopics: [
+          { id: "المساحات_والمحيطات", nameAr: "المساحات والمحيطات", description: "حساب مساحة ومحيط الأشكال" },
+          { id: "الزوايا_والمثلثات", nameAr: "الزوايا والمثلثات", description: "خصائص الزوايا والمثلثات" },
+          { id: "الدوائر", nameAr: "الدوائر", description: "محيط ومساحة الدائرة والقطاعات" },
+          { id: "الحجوم", nameAr: "الحجوم", description: "حساب حجوم الأشكال ثلاثية الأبعاد" },
+        ],
+      },
+      {
+        id: "الإحصاء",
+        nameAr: "الإحصاء",
+        subTopics: [
+          { id: "المتوسط_والوسيط", nameAr: "المتوسط والوسيط", description: "مقاييس النزعة المركزية" },
+          { id: "المنوال_والمدى", nameAr: "المنوال والمدى", description: "المنوال ومقاييس التشتت" },
+          { id: "قراءة_الرسوم_البيانية", nameAr: "قراءة الرسوم البيانية", description: "تفسير وتحليل الرسوم البيانية" },
+        ],
+      },
+      {
+        id: "الأعداد",
+        nameAr: "الأعداد",
+        subTopics: [
+          { id: "النسب_والتناسب", nameAr: "النسب والتناسب", description: "حل مسائل النسب والتناسب" },
+          { id: "النسب_المئوية", nameAr: "النسب المئوية", description: "حساب النسب المئوية والزيادة والنقصان" },
+          { id: "الأعداد_الأولية", nameAr: "الأعداد الأولية", description: "خصائص الأعداد الأولية والتحليل" },
+          { id: "القواسم_والمضاعفات", nameAr: "القواسم والمضاعفات", description: "ق.م.أ و م.م.أ" },
+        ],
+      },
+      {
+        id: "المعادلات",
+        nameAr: "المعادلات",
+        subTopics: [
+          { id: "المقارنات_الكمية", nameAr: "المقارنات الكمية", description: "مقارنة قيمتين وتحديد العلاقة" },
+          { id: "المعادلات_التربيعية", nameAr: "المعادلات التربيعية", description: "حل المعادلات من الدرجة الثانية" },
+        ],
+      },
+      {
+        id: "الاحتمالات",
+        nameAr: "الاحتمالات",
+        subTopics: [
+          { id: "الاحتمالات_البسيطة", nameAr: "الاحتمالات البسيطة", description: "حساب احتمال حدث بسيط" },
+          { id: "التباديل_والتوافيق", nameAr: "التباديل والتوافيق", description: "عد الترتيبات والاختيارات" },
+        ],
+      },
+      {
+        id: "المتتاليات",
+        nameAr: "المتتاليات",
+        subTopics: [
+          { id: "المتتاليات_الحسابية", nameAr: "المتتاليات الحسابية", description: "إيجاد الحد العام والمجموع" },
+          { id: "المتتاليات_الهندسية", nameAr: "المتتاليات الهندسية", description: "إيجاد الحد العام والمجموع" },
+        ],
+      },
     ],
   },
   {
@@ -34,38 +99,129 @@ export const SECTIONS: TestSection[] = [
     nameAr: "اللفظي",
     icon: "📝",
     topics: [
-      "القراءة والاستيعاب",
-      "المفردات",
-      "التناظر اللفظي",
-      "إكمال الجمل",
-      "الخطأ السياقي",
-      "الارتباط والاختلاف",
-      "التحليل النقدي",
-      "الاستنتاج",
+      {
+        id: "القراءة والاستيعاب",
+        nameAr: "القراءة والاستيعاب",
+        subTopics: [
+          { id: "فهم_النص", nameAr: "فهم النص", description: "استخراج المعلومات من النص" },
+          { id: "الفكرة_الرئيسية", nameAr: "الفكرة الرئيسية", description: "تحديد الفكرة العامة للنص" },
+          { id: "الاستنتاج_من_النص", nameAr: "الاستنتاج من النص", description: "استنتاج معلومات ضمنية" },
+        ],
+      },
+      {
+        id: "المفردات",
+        nameAr: "المفردات",
+        subTopics: [
+          { id: "معاني_الكلمات", nameAr: "معاني الكلمات", description: "معرفة معاني المفردات" },
+          { id: "المترادفات", nameAr: "المترادفات", description: "الكلمات ذات المعنى المتشابه" },
+          { id: "الأضداد", nameAr: "الأضداد", description: "الكلمات ذات المعنى المتعاكس" },
+        ],
+      },
+      {
+        id: "التناظر اللفظي",
+        nameAr: "التناظر اللفظي",
+        subTopics: [
+          { id: "علاقات_الكلمات", nameAr: "علاقات الكلمات", description: "إيجاد العلاقة بين كلمتين" },
+          { id: "التناظر_المركب", nameAr: "التناظر المركب", description: "علاقات متعددة بين الكلمات" },
+        ],
+      },
+      {
+        id: "إكمال الجمل",
+        nameAr: "إكمال الجمل",
+        subTopics: [
+          { id: "السياق_اللغوي", nameAr: "السياق اللغوي", description: "اختيار الكلمة المناسبة للسياق" },
+          { id: "الروابط_اللغوية", nameAr: "الروابط اللغوية", description: "استخدام أدوات الربط" },
+        ],
+      },
+      {
+        id: "الخطأ السياقي",
+        nameAr: "الخطأ السياقي",
+        subTopics: [
+          { id: "تحديد_الخطأ", nameAr: "تحديد الخطأ", description: "إيجاد الكلمة الخاطئة في الجملة" },
+          { id: "تصحيح_الخطأ", nameAr: "تصحيح الخطأ", description: "اقتراح الكلمة الصحيحة" },
+        ],
+      },
+      {
+        id: "الارتباط والاختلاف",
+        nameAr: "الارتباط والاختلاف",
+        subTopics: [
+          { id: "التصنيف_المنطقي", nameAr: "التصنيف المنطقي", description: "تصنيف العناصر حسب خصائصها" },
+          { id: "الشاذ_المختلف", nameAr: "الشاذ المختلف", description: "إيجاد العنصر المختلف" },
+        ],
+      },
+      {
+        id: "الاستنتاج",
+        nameAr: "الاستنتاج",
+        subTopics: [
+          { id: "الاستنتاج_المنطقي", nameAr: "الاستنتاج المنطقي", description: "استخلاص نتائج من مقدمات" },
+          { id: "القياس_المنطقي", nameAr: "القياس المنطقي", description: "تطبيق قواعد القياس" },
+        ],
+      },
     ],
   },
 ] as const;
 
+// دوال مساعدة
 export function getSections(): TestSection[] {
-  return SECTIONS;
+  return SECTIONS as unknown as TestSection[];
 }
 
-export function getTopics(section: string): string[] {
-  return SECTIONS.find((s) => s.id === section)?.topics || [];
+export function getTopics(sectionId: string): string[] {
+  const section = SECTIONS.find((s) => s.id === sectionId);
+  return section?.topics.map((t) => t.id) || [];
+}
+
+export function getTopicsWithSubTopics(sectionId: string): TopicWithSubTopics[] {
+  const section = SECTIONS.find((s) => s.id === sectionId);
+  return (section?.topics as unknown as TopicWithSubTopics[]) || [];
+}
+
+export function getSubTopics(sectionId: string, topicId: string): SubTopic[] {
+  const section = SECTIONS.find((s) => s.id === sectionId);
+  const topic = section?.topics.find((t) => t.id === topicId);
+  return (topic?.subTopics as unknown as SubTopic[]) || [];
 }
 
 export function getAllTopics(): string[] {
-  return SECTIONS.flatMap((s) => s.topics);
+  return SECTIONS.flatMap((s) => s.topics.map((t) => t.id));
 }
 
-export function validateSectionAndTopic(
-  section: string,
-  topic: string
-): boolean {
+export function getAllSubTopics(): SubTopic[] {
+  return SECTIONS.flatMap((s) => s.topics.flatMap((t) => t.subTopics)) as unknown as SubTopic[];
+}
+
+export function getAllSubTopicsForSection(sectionId: string): SubTopic[] {
+  const section = SECTIONS.find((s) => s.id === sectionId);
+  return (section?.topics.flatMap((t) => t.subTopics) as unknown as SubTopic[]) || [];
+}
+
+export function validateSectionAndTopic(section: string, topic: string): boolean {
   const topics = getTopics(section);
   return topics.includes(topic);
 }
 
 export function getSectionInfo(sectionId: string): TestSection | undefined {
-  return SECTIONS.find((s) => s.id === sectionId);
+  return SECTIONS.find((s) => s.id === sectionId) as unknown as TestSection;
+}
+
+export function findSubTopicSection(subTopicId: string): { section: string; topic: string } | null {
+  for (const section of SECTIONS) {
+    for (const topic of section.topics) {
+      const found = topic.subTopics.find((st) => st.id === subTopicId);
+      if (found) {
+        return { section: section.id, topic: topic.id };
+      }
+    }
+  }
+  return null;
+}
+
+export function getSubTopicInfo(subTopicId: string): SubTopic | undefined {
+  for (const section of SECTIONS) {
+    for (const topic of section.topics) {
+      const found = topic.subTopics.find((st) => st.id === subTopicId);
+      if (found) return found as unknown as SubTopic;
+    }
+  }
+  return undefined;
 }
