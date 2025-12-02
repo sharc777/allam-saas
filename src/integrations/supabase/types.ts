@@ -236,43 +236,67 @@ export type Database = {
           correct_answer: string
           created_at: string | null
           difficulty: Database["public"]["Enums"]["difficulty_level"] | null
+          example_hash: string | null
           explanation: string | null
+          generated_questions_count: number | null
           id: string
+          last_used_at: string | null
           options: Json
           quality_score: number | null
           question_text: string
           section: string
+          sub_topic: string | null
           subject: string | null
+          success_rate: number | null
           test_type: Database["public"]["Enums"]["test_type"]
+          topic: string | null
           updated_at: string | null
+          usage_count: number | null
+          validation_status: string | null
         }
         Insert: {
           correct_answer: string
           created_at?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
+          example_hash?: string | null
           explanation?: string | null
+          generated_questions_count?: number | null
           id?: string
+          last_used_at?: string | null
           options: Json
           quality_score?: number | null
           question_text: string
           section: string
+          sub_topic?: string | null
           subject?: string | null
+          success_rate?: number | null
           test_type: Database["public"]["Enums"]["test_type"]
+          topic?: string | null
           updated_at?: string | null
+          usage_count?: number | null
+          validation_status?: string | null
         }
         Update: {
           correct_answer?: string
           created_at?: string | null
           difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
+          example_hash?: string | null
           explanation?: string | null
+          generated_questions_count?: number | null
           id?: string
+          last_used_at?: string | null
           options?: Json
           quality_score?: number | null
           question_text?: string
           section?: string
+          sub_topic?: string | null
           subject?: string | null
+          success_rate?: number | null
           test_type?: Database["public"]["Enums"]["test_type"]
+          topic?: string | null
           updated_at?: string | null
+          usage_count?: number | null
+          validation_status?: string | null
         }
         Relationships: []
       }
@@ -868,6 +892,7 @@ export type Database = {
           explanation: string | null
           id: string
           last_reviewed_at: string | null
+          last_used_at: string | null
           options: Json | null
           question_hash: string | null
           question_text: string
@@ -877,6 +902,8 @@ export type Database = {
           subject: Database["public"]["Enums"]["question_subject"]
           success_rate: number | null
           tags: string[] | null
+          times_answered: number | null
+          times_correct: number | null
           topic: string
           updated_at: string
           usage_count: number | null
@@ -890,6 +917,7 @@ export type Database = {
           explanation?: string | null
           id?: string
           last_reviewed_at?: string | null
+          last_used_at?: string | null
           options?: Json | null
           question_hash?: string | null
           question_text: string
@@ -899,6 +927,8 @@ export type Database = {
           subject: Database["public"]["Enums"]["question_subject"]
           success_rate?: number | null
           tags?: string[] | null
+          times_answered?: number | null
+          times_correct?: number | null
           topic: string
           updated_at?: string
           usage_count?: number | null
@@ -912,6 +942,7 @@ export type Database = {
           explanation?: string | null
           id?: string
           last_reviewed_at?: string | null
+          last_used_at?: string | null
           options?: Json | null
           question_hash?: string | null
           question_text?: string
@@ -921,6 +952,8 @@ export type Database = {
           subject?: Database["public"]["Enums"]["question_subject"]
           success_rate?: number | null
           tags?: string[] | null
+          times_answered?: number | null
+          times_correct?: number | null
           topic?: string
           updated_at?: string
           usage_count?: number | null
@@ -1666,6 +1699,18 @@ export type Database = {
           question_hash: string
         }[]
       }
+      get_questions_stats: {
+        Args: { p_sub_topic?: string; p_subject?: string }
+        Returns: {
+          approved_count: number
+          avg_success_rate: number
+          difficulty: string
+          pending_count: number
+          sub_topic: string
+          subject: string
+          total_questions: number
+        }[]
+      }
       has_active_access: { Args: { p_user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -1687,6 +1732,7 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: undefined
       }
+      refresh_questions_stats: { Args: never; Returns: undefined }
       validate_coupon: {
         Args: { p_code: string; p_package_id?: string }
         Returns: Json
