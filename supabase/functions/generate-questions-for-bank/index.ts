@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSmartTrainingExamples, getTopicInfo } from "../_shared/smartTrainingExamples.ts";
+import { buildAdvancedPrompt } from "../_shared/advancedPromptBuilder.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,9 +9,9 @@ const corsHeaders = {
 };
 
 interface GenerateRequest {
-  section: string;
+  section: 'كمي' | 'لفظي';
   subTopic: string;
-  difficulty: string;
+  difficulty: 'easy' | 'medium' | 'hard';
   count: number;
 }
 
@@ -25,7 +27,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify admin
+    // Verify admin authorization
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization" }), {
@@ -61,61 +63,28 @@ serve(async (req) => {
 
     const { section, subTopic, difficulty, count = 10 }: GenerateRequest = await req.json();
 
-    console.log(`Generating ${count} questions for ${section}/${subTopic}/${difficulty}`);
+    console.log(`🚀 Starting generation: ${count} questions for ${subTopic} (${section}/${difficulty})`);
 
-    // Fetch few-shot examples
-    const { data: examples } = await supabase
-      .from("ai_training_examples")
-      .select("*")
-      .eq("section", section)
-      .gte("quality_score", 3)
-      .limit(3);
+    // 1. Get topic info from sub_topic
+    const { topic } = getTopicInfo(subTopic);
+    console.log(`📂 Topic mapping: ${subTopic} -> ${topic} (${section})`);
 
-    // Build prompt
-    const examplesText = examples && examples.length > 0
-      ? examples.map((ex: any) => `
-سؤال: ${ex.question_text}
-الخيارات:
-أ) ${ex.options?.["أ"] || ex.options?.A || ""}
-ب) ${ex.options?.["ب"] || ex.options?.B || ""}
-ج) ${ex.options?.["ج"] || ex.options?.C || ""}
-د) ${ex.options?.["د"] || ex.options?.D || ""}
-الإجابة الصحيحة: ${ex.correct_answer}
-الشرح: ${ex.explanation || ""}
-`).join("\n---\n")
-      : "";
+    // 2. Fetch smart training examples (5 instead of 3)
+    const examples = await getSmartTrainingExamples(supabase, subTopic, difficulty, 5);
+    console.log(`📚 Found ${examples.length} training examples`);
 
-    const difficultyAr = difficulty === "easy" ? "سهل" : difficulty === "medium" ? "متوسط" : "صعب";
-    const sectionName = section === "كمي" ? "الكمي" : "اللفظي";
+    // 3. Build advanced prompt
+    const prompt = buildAdvancedPrompt({
+      subTopic,
+      difficulty,
+      count,
+      examples,
+      section,
+      topic
+    });
 
-    const systemPrompt = `أنت خبير في إنشاء أسئلة اختبار القدرات العامة السعودي.
-مهمتك: إنشاء ${count} أسئلة اختيار من متعدد للقسم ${sectionName} في الموضوع الفرعي "${subTopic}" بمستوى صعوبة ${difficultyAr}.
-
-## قواعد صارمة:
-1. كل سؤال يجب أن يكون مرتبطاً بشكل مباشر بالموضوع الفرعي "${subTopic}"
-2. مستوى الصعوبة يجب أن يكون ${difficultyAr} فعلاً
-3. الأسئلة باللغة العربية الفصحى
-4. 4 خيارات لكل سؤال (أ، ب، ج، د)
-5. إجابة صحيحة واحدة فقط
-6. شرح مختصر للإجابة الصحيحة
-7. الأسئلة متنوعة وغير مكررة
-
-${examplesText ? `## أمثلة للاسترشاد:\n${examplesText}` : ""}
-
-## تنسيق الإخراج:
-أرجع JSON array بالتنسيق التالي:
-[
-  {
-    "question_text": "نص السؤال",
-    "options": { "أ": "الخيار الأول", "ب": "الخيار الثاني", "ج": "الخيار الثالث", "د": "الخيار الرابع" },
-    "correct_answer": "أ",
-    "explanation": "شرح مختصر للإجابة"
-  }
-]
-
-أرجع فقط JSON array بدون أي نص إضافي.`;
-
-    // Call Lovable AI
+    // 4. Call Lovable AI
+    console.log(`🤖 Calling AI to generate ${count} questions...`);
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -125,8 +94,7 @@ ${examplesText ? `## أمثلة للاسترشاد:\n${examplesText}` : ""}
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `أنشئ ${count} أسئلة للموضوع الفرعي "${subTopic}" في القسم ${sectionName} بمستوى ${difficultyAr}.` }
+          { role: "user", content: prompt }
         ],
         temperature: 0.8,
       }),
@@ -134,85 +102,174 @@ ${examplesText ? `## أمثلة للاسترشاد:\n${examplesText}` : ""}
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("AI Error:", errorText);
+      console.error("❌ AI Error:", errorText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "API credits exhausted. Please add funds." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
       throw new Error(`AI generation failed: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content || "";
 
-    // Parse JSON from response
+    // 5. Parse JSON from response
     let questions: any[] = [];
     try {
-      // Extract JSON from markdown code blocks if present
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-      const jsonStr = jsonMatch[1].trim();
-      questions = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error("Parse error:", parseError);
-      // Try to find array in content
-      const arrayMatch = content.match(/\[[\s\S]*\]/);
+      // Clean up response - remove markdown code blocks if present
+      let cleanContent = content.trim();
+      
+      // Remove ```json or ``` markers
+      cleanContent = cleanContent.replace(/^```(?:json)?\s*/i, '');
+      cleanContent = cleanContent.replace(/\s*```$/i, '');
+      cleanContent = cleanContent.trim();
+      
+      // Try to find JSON array
+      const arrayMatch = cleanContent.match(/\[[\s\S]*\]/);
       if (arrayMatch) {
         questions = JSON.parse(arrayMatch[0]);
       } else {
-        throw new Error("Could not parse AI response");
+        questions = JSON.parse(cleanContent);
       }
+    } catch (parseError) {
+      console.error("❌ JSON Parse error:", parseError);
+      console.error("Raw content:", content.substring(0, 500));
+      throw new Error("Could not parse AI response as JSON");
     }
 
     if (!Array.isArray(questions) || questions.length === 0) {
-      throw new Error("No questions generated");
+      throw new Error("No questions generated or invalid format");
     }
 
-    // Create hash function
-    const hashQuestion = (text: string) => {
-      let hash = 0;
-      for (let i = 0; i < text.length; i++) {
-        const char = text.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
+    console.log(`✅ AI generated ${questions.length} questions`);
+
+    // 6. Validate and save questions
+    const savedQuestions: any[] = [];
+    const errors: any[] = [];
+    const duplicates: string[] = [];
+
+    for (const q of questions) {
+      try {
+        // Validate required fields
+        const questionText = q.question || q.question_text;
+        const correctAnswer = q.correctAnswer || q.correct_answer;
+        const explanation = q.explanation;
+        const options = q.options;
+
+        if (!questionText || !options || !correctAnswer || !explanation) {
+          errors.push({ question: questionText?.substring(0, 50), error: 'Missing required fields' });
+          continue;
+        }
+
+        // Validate correct answer format
+        if (!['أ', 'ب', 'ج', 'د', 'A', 'B', 'C', 'D'].includes(correctAnswer)) {
+          errors.push({ question: questionText?.substring(0, 50), error: 'Invalid correct answer format' });
+          continue;
+        }
+
+        // Generate unique hash
+        const questionHash = await generateQuestionHash(questionText, subTopic);
+
+        // Check for duplicates
+        const { data: existing } = await supabase
+          .from("questions_bank")
+          .select("id")
+          .eq("question_hash", questionHash)
+          .single();
+
+        if (existing) {
+          duplicates.push(questionText.substring(0, 50));
+          continue;
+        }
+
+        // Normalize correct answer to Arabic
+        const normalizedAnswer = normalizeAnswer(correctAnswer);
+
+        // Insert into questions_bank
+        const { data: saved, error: insertError } = await supabase
+          .from("questions_bank")
+          .insert({
+            subject: section,
+            topic: topic,
+            sub_topic: subTopic,
+            difficulty: difficulty,
+            question_type: "multiple_choice",
+            question_text: questionText,
+            options: options,
+            correct_answer: normalizedAnswer,
+            explanation: explanation,
+            question_hash: questionHash,
+            created_by: "ai_admin",
+            validation_status: "approved",
+            usage_count: 0,
+            times_answered: 0,
+            times_correct: 0
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          errors.push({ question: questionText.substring(0, 50), error: insertError.message });
+        } else if (saved) {
+          savedQuestions.push(saved);
+        }
+
+      } catch (err: any) {
+        errors.push({ question: 'Unknown', error: err.message });
       }
-      return Math.abs(hash).toString(36);
-    };
-
-    // Insert into questions_bank
-    const questionsToInsert = questions.map((q: any) => ({
-      subject: section,
-      topic: subTopic,
-      sub_topic: subTopic,
-      difficulty: difficulty as "easy" | "medium" | "hard",
-      question_type: "multiple_choice" as const,
-      question_text: q.question_text,
-      options: q.options,
-      correct_answer: q.correct_answer,
-      explanation: q.explanation || null,
-      question_hash: hashQuestion(q.question_text),
-      created_by: "ai_admin",
-      validation_status: "approved",
-    }));
-
-    const { data: inserted, error: insertError } = await supabase
-      .from("questions_bank")
-      .insert(questionsToInsert)
-      .select();
-
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      throw new Error(`Failed to save questions: ${insertError.message}`);
     }
 
-    console.log(`Successfully generated and saved ${inserted?.length || 0} questions`);
+    // 7. Update training examples - increment generated_questions_count
+    if (examples.length > 0 && savedQuestions.length > 0) {
+      for (const example of examples) {
+        const currentCount = (example as any).generated_questions_count || 0;
+        await supabase
+          .from('ai_training_examples')
+          .update({ 
+            generated_questions_count: currentCount + savedQuestions.length,
+            last_used_at: new Date().toISOString()
+          })
+          .eq('id', example.id);
+      }
+    }
+
+    // 8. Refresh materialized view (best effort)
+    try {
+      await supabase.rpc('refresh_questions_stats');
+    } catch (refreshError) {
+      console.warn('⚠️ Could not refresh materialized view:', refreshError);
+    }
+
+    console.log(`✅ Successfully saved ${savedQuestions.length}/${questions.length} questions`);
+    console.log(`⚠️ Duplicates skipped: ${duplicates.length}`);
+    console.log(`❌ Errors: ${errors.length}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         generated: questions.length,
-        saved: inserted?.length || 0,
+        saved: savedQuestions.length,
+        duplicates: duplicates.length,
+        errors: errors.length,
+        errorDetails: errors.length > 0 ? errors : undefined,
+        duplicateDetails: duplicates.length > 0 ? duplicates : undefined
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: unknown) {
-    console.error("Error:", error);
+    console.error("❌ Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage }),
@@ -223,3 +280,22 @@ ${examplesText ? `## أمثلة للاسترشاد:\n${examplesText}` : ""}
     );
   }
 });
+
+// Helper: Generate unique hash for question
+async function generateQuestionHash(questionText: string, subTopic: string): Promise<string> {
+  const content = `${questionText}-${subTopic}`;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+}
+
+// Helper: Normalize answer to Arabic letters
+function normalizeAnswer(answer: string): string {
+  const mapping: Record<string, string> = {
+    'A': 'أ', 'B': 'ب', 'C': 'ج', 'D': 'د',
+    'a': 'أ', 'b': 'ب', 'c': 'ج', 'd': 'د'
+  };
+  return mapping[answer] || answer;
+}
