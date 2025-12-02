@@ -3,24 +3,43 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, User, Loader2 } from "lucide-react";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
+// دالة التحقق من localStorage
+const checkLocalStorageForImpersonation = () => {
+  const storedUser = localStorage.getItem("impersonating_user");
+  const storedSession = localStorage.getItem("admin_original_session");
+  return !!storedUser && !!storedSession;
+};
+
 export const ImpersonationBanner = () => {
   const { isImpersonating, impersonatedUser, isLoading, returnToAdmin } = useImpersonation();
-  const [visible, setVisible] = useState(false);
+  
+  // التحقق الفوري عند التهيئة
+  const [visible, setVisible] = useState(() => checkLocalStorageForImpersonation());
 
   useEffect(() => {
-    // Check localStorage on mount and when it changes
     const checkImpersonation = () => {
-      const storedUser = localStorage.getItem("impersonating_user");
-      const storedSession = localStorage.getItem("admin_original_session");
-      setVisible(!!storedUser && !!storedSession);
+      const isImpersonatingNow = checkLocalStorageForImpersonation();
+      setVisible(isImpersonatingNow);
     };
 
+    // فحص فوري
     checkImpersonation();
+    
+    // فحص دوري كل ثانية للتأكد
+    const interval = setInterval(checkImpersonation, 1000);
 
-    // Listen for storage changes
+    // الاستماع لتغييرات localStorage
     window.addEventListener("storage", checkImpersonation);
-    return () => window.removeEventListener("storage", checkImpersonation);
-  }, [isImpersonating]);
+    
+    // الاستماع للـ custom event من useImpersonation
+    window.addEventListener("impersonation-changed", checkImpersonation);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", checkImpersonation);
+      window.removeEventListener("impersonation-changed", checkImpersonation);
+    };
+  }, []);
 
   if (!visible && !isImpersonating) return null;
 
