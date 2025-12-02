@@ -224,7 +224,7 @@ async function triggerCacheRefill(
   "difficulty": "${difficulty}"
 }]`;
 
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${LOVABLE_API_KEY}`,
@@ -1148,11 +1148,12 @@ serve(async (req) => {
     });
     console.log(`📦 Cache status: ${cacheStatus.available}/${cacheStatus.total} available`);
     
-    // 5. Try to fetch from cache first
+    // 5. Try to fetch from cache first - SMART FALLBACK: get whatever is available
     const startTime = Date.now();
     let cachedQuestions: any[] = [];
     
-    if (cacheStatus.available >= targetQuestions && sectionFilter) {
+    // Always try to fetch from cache if section is specified
+    if (sectionFilter && cacheStatus.available > 0) {
       cachedQuestions = await fetchFromCache(supabase, targetQuestions, {
         testType,
         section: sectionFilter,
@@ -1160,9 +1161,10 @@ serve(async (req) => {
         track,
         userId: user.id
       });
+      console.log(`📦 Fetched ${cachedQuestions.length} from cache`);
     }
     
-    // 6. If cache is sufficient, use it
+    // 6. If cache is sufficient, use it directly
     if (cachedQuestions.length >= targetQuestions) {
       const finalQuestions = cachedQuestions.slice(0, targetQuestions);
       const generationTime = Date.now() - startTime;
@@ -1174,6 +1176,12 @@ serve(async (req) => {
       
       // Log questions
       await logQuestions(supabase, user.id, finalQuestions, dayNumber);
+      
+      // Trigger auto-refill in background if cache is running low
+      if (cacheStatus.available < CACHE_REFILL_THRESHOLD && sectionFilter) {
+        console.log(`⚠️ Cache running low (${cacheStatus.available}/${CACHE_REFILL_THRESHOLD}), triggering auto-refill...`);
+        triggerCacheRefill(sectionFilter, difficulty, testType).catch(e => console.error("Auto-refill error:", e));
+      }
       
       return new Response(
         JSON.stringify({
@@ -1189,8 +1197,10 @@ serve(async (req) => {
       );
     }
     
-    // 7. Build prompts for AI generation
-    console.log(`🤖 Cache insufficient (${cachedQuestions.length}/${targetQuestions}), generating with AI...`);
+    // 7. SMART FALLBACK: Calculate how many questions we still need from AI
+    const questionsFromCache = cachedQuestions.length;
+    const questionsNeededFromAI = targetQuestions - questionsFromCache;
+    console.log(`🤖 Cache partial (${questionsFromCache}/${targetQuestions}), generating ${questionsNeededFromAI} with AI...`);
     
     // ============= LOAD STUDENT DATA FOR PERSONALIZATION =============
     console.log("📊 Loading student weaknesses and performance level...");
@@ -1251,8 +1261,11 @@ serve(async (req) => {
     // ============= BUILD DYNAMIC SYSTEM PROMPT =============
     console.log("🔨 Building dynamic system prompt...");
     
+    // Use questionsNeededFromAI instead of targetQuestions for AI generation
+    const aiQuestionCount = Math.ceil(questionsNeededFromAI * 1.3); // Buffer for validation failures
+    
     const baseSystemPrompt = buildSystemPrompt({ 
-      testType, sectionFilter, targetQuestions, difficulty, 
+      testType, sectionFilter, targetQuestions: aiQuestionCount, difficulty, 
       availableTopics, allRelatedTopics, systemPromptOverride, isPractice, topicFilter 
     });
     
@@ -1265,7 +1278,7 @@ serve(async (req) => {
     
     // ============= BUILD USER PROMPT WITH FEW-SHOT EXAMPLES =============
     const baseUserPrompt = buildUserPrompt({ 
-      mode, testType, targetQuestions, content, additionalKnowledge, 
+      mode, testType, targetQuestions: aiQuestionCount, content, additionalKnowledge, 
       sectionFilter, isInitialAssessment, knowledgeData, topicFilter 
     });
     
