@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,12 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, XCircle, Brain, ArrowRight, ArrowLeft } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Brain, ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
 import { useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import { SubscriptionGuard } from "@/components/SubscriptionGuard";
 import { usePerformanceTracking, generateQuestionHash } from "@/hooks/usePerformanceTracking";
+import { QuestionTimer, getTimeIndicator, formatTimeDisplay } from "@/components/QuestionTimer";
+import { QuestionNote, QuestionNoteDisplay } from "@/components/QuestionNote";
+import { useQuestionNotes } from "@/hooks/useQuestionNotes";
 
 interface Question {
   question_text: string;
@@ -53,9 +56,19 @@ const CustomTestContent = () => {
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [startTime] = useState(Date.now());
-  const [questionStartTimes, setQuestionStartTimes] = useState<Record<number, number>>({});
+  const [questionTimes, setQuestionTimes] = useState<Record<number, number>>({});
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
   
   const trackPerformance = usePerformanceTracking();
+  const { notes, saveNote, deleteNote, getNoteForQuestion } = useQuestionNotes(currentExerciseId || undefined);
+
+  // Callback for timer updates
+  const handleTimeUpdate = useCallback((seconds: number) => {
+    setQuestionTimes(prev => ({
+      ...prev,
+      [currentQuestion]: seconds
+    }));
+  }, [currentQuestion]);
 
   useEffect(() => {
     if (!state?.topic) {
@@ -132,6 +145,7 @@ const CustomTestContent = () => {
 
       setQuestions(data.questions);
       setSelectedAnswers(new Array(data.questions.length).fill(""));
+      setQuestionTimes({ 0: 0 });
 
       // Increment custom test count
       await supabase.rpc('increment_custom_test_count', { p_user_id: profile.id });
@@ -153,10 +167,11 @@ const CustomTestContent = () => {
     newAnswers[currentQuestion] = answer;
     setSelectedAnswers(newAnswers);
     
+    // Save the time spent on this question
+    const timeSpent = questionTimes[currentQuestion] || 0;
+    
     // Track performance for this question
     const question = questions[currentQuestion];
-    const questionStartTime = questionStartTimes[currentQuestion] || Date.now();
-    const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
     
     trackPerformance.mutate({
       questionHash: generateQuestionHash(question.question_text, question.options),
@@ -181,11 +196,10 @@ const CustomTestContent = () => {
     if (currentQuestion < questions.length - 1) {
       const nextQuestion = currentQuestion + 1;
       setCurrentQuestion(nextQuestion);
-      // Start timer for next question
-      setQuestionStartTimes(prev => ({
-        ...prev,
-        [nextQuestion]: Date.now()
-      }));
+      // Initialize timer for next question if not set
+      if (!questionTimes[nextQuestion]) {
+        setQuestionTimes(prev => ({ ...prev, [nextQuestion]: 0 }));
+      }
     } else {
       submitTest();
     }
@@ -220,6 +234,7 @@ const CustomTestContent = () => {
         ...q,
         user_answer: selectedAnswers[index],
         is_correct: selectedAnswers[index] === q.correct_answer,
+        time_spent_seconds: questionTimes[index] || 0,
       }));
 
       // Save to daily_exercises with custom test marker
@@ -244,6 +259,8 @@ const CustomTestContent = () => {
       if (saveError || !savedExercise) {
         throw new Error(`فشل حفظ الاختبار: ${saveError?.message}`);
       }
+
+      setCurrentExerciseId(savedExercise.id);
 
       // Log questions to prevent repetition
       const questionLogs = questions.map(q => ({
@@ -347,6 +364,10 @@ const CustomTestContent = () => {
                   {questions.map((q, index) => {
                     const isCorrect = selectedAnswers[index] === q.correct_answer;
                     const wasAnswered = selectedAnswers[index] !== "";
+                    const timeSpent = questionTimes[index] || 0;
+                    const timeIndicator = getTimeIndicator(timeSpent);
+                    const questionHash = generateQuestionHash(q.question_text, q.options);
+                    const questionNote = getNoteForQuestion(questionHash);
 
                     return (
                       <Card key={index} className={`border-2 ${
@@ -360,7 +381,14 @@ const CustomTestContent = () => {
                               <XCircle className="w-5 h-5 text-red-600 mt-1" />
                             )}
                             <div className="flex-1 text-right" dir="rtl">
-                              <p className="font-semibold">{q.question_text}</p>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="font-semibold">{q.question_text}</p>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Clock className="w-4 h-4" />
+                                  <span className={timeIndicator.color}>{formatTimeDisplay(timeSpent)}</span>
+                                  <span>{timeIndicator.icon}</span>
+                                </div>
+                              </div>
                               {!isCorrect && wasAnswered && (
                                 <div className="mt-2 space-y-1">
                                   <p className="text-sm text-red-600">
@@ -379,6 +407,19 @@ const CustomTestContent = () => {
                               <p className="text-sm text-muted-foreground mt-2">
                                 {q.explanation}
                               </p>
+                              
+                              {/* Question Note */}
+                              <div className="mt-3 flex items-center gap-2">
+                                <QuestionNote
+                                  questionHash={questionHash}
+                                  exerciseId={currentExerciseId || undefined}
+                                  existingNote={questionNote}
+                                  onSave={(note) => saveNote({ questionHash, note, exerciseId: currentExerciseId || undefined })}
+                                  onDelete={() => deleteNote(questionHash)}
+                                  compact
+                                />
+                              </div>
+                              {questionNote && <QuestionNoteDisplay note={questionNote} />}
                             </div>
                           </div>
                         </CardContent>
@@ -421,9 +462,16 @@ const CustomTestContent = () => {
                 <Badge className="text-base px-3 py-1">
                   السؤال {currentQuestion + 1} من {questions.length}
                 </Badge>
-                <Badge variant="outline" className="text-base px-3 py-1">
-                  اختبار مخصص: {state?.topic}
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <QuestionTimer 
+                    isActive={!showResults && !loading}
+                    onTimeUpdate={handleTimeUpdate}
+                    initialTime={questionTimes[currentQuestion] || 0}
+                  />
+                  <Badge variant="outline" className="text-base px-3 py-1">
+                    {state?.topic}
+                  </Badge>
+                </div>
               </div>
               <Progress value={progress} className="h-2" />
             </CardHeader>
