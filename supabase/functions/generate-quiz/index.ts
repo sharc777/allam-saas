@@ -51,6 +51,26 @@ function validateQuestionCount(count: number | undefined, defaults: any): number
   return Math.min(Math.max(count, defaults.min_questions), defaults.max_questions);
 }
 
+// دالة الكشف عن القسم الصحيح من الموضوع
+function detectCorrectSection(topicFilter: string): string | null {
+  const verbalKeywords = [
+    'استيعاب', 'مقروء', 'قراءة', 'مفردات', 'تناظر', 'لفظي',
+    'جمل', 'سياق', 'ارتباط', 'اختلاف', 'نقدي', 'استنتاج',
+    'إكمال', 'خطأ', 'نص', 'فهم', 'تحليل'
+  ];
+  
+  const quantKeywords = [
+    'جبر', 'هندسة', 'إحصاء', 'أعداد', 'نسب', 'تناسب',
+    'معادلات', 'متتاليات', 'احتمالات', 'قياس', 'حساب', 'رياضيات',
+    'كسور', 'نسبة', 'مئوية', 'مساحة', 'محيط', 'زاوية'
+  ];
+  
+  if (verbalKeywords.some(kw => topicFilter.includes(kw))) return 'لفظي';
+  if (quantKeywords.some(kw => topicFilter.includes(kw))) return 'كمي';
+  
+  return null;
+}
+
 // ============= CACHE FUNCTIONS =============
 
 async function fetchFromCache(
@@ -1094,8 +1114,18 @@ serve(async (req) => {
     
     // Sanitize and validate inputs
     const topicFilter = sanitizeTopicFilter(params.topicFilter);
-    const sectionFilter = params.sectionFilter;
+    let sectionFilter = params.sectionFilter;
     const { dayNumber, difficulty = "medium", testType = "قدرات", track = "عام", mode } = params;
+    
+    // 🔧 تصحيح تلقائي للقسم إذا كان الموضوع لا يتطابق
+    if (topicFilter) {
+      const detectedSection = detectCorrectSection(topicFilter);
+      if (detectedSection && detectedSection !== sectionFilter) {
+        console.log(`⚠️ Section mismatch detected! Topic "${topicFilter}" requires "${detectedSection}", not "${sectionFilter}"`);
+        console.log(`🔧 Auto-correcting section: ${sectionFilter} → ${detectedSection}`);
+        sectionFilter = detectedSection;
+      }
+    }
     
     // 1. Authenticate
     const { user, supabase } = await authenticateUser(req);
