@@ -367,11 +367,36 @@ async function fetchFromCache(
   
   console.log(`✅ Cache hit: ${selected.length} questions (shuffled from ${cachedQuestions.length})`);
   
-  // Convert to quiz format
-  return selected.map((q: any) => ({
-    ...q.question_data,
-    question_hash: q.question_hash
-  }));
+  // Helper to normalize options format
+  const normalizeOpts = (options: any): any[] => {
+    if (Array.isArray(options)) return options;
+    if (typeof options === 'object' && options !== null) {
+      return Object.entries(options).map(([key, value]) => ({
+        label: key,
+        text: value
+      }));
+    }
+    return [];
+  };
+
+  // Convert to quiz format with unified field names
+  return selected.map((q: any) => {
+    const data = q.question_data;
+    return {
+      question_text: data.question || data.question_text,
+      options: normalizeOpts(data.options),
+      correct_answer: data.correctAnswer || data.correct_answer,
+      explanation: data.explanation || '',
+      topic: data.topic || section,
+      subTopic: data.subTopic || data.sub_topic,
+      section: section,
+      subject: section,
+      difficulty: data.difficulty || q.difficulty,
+      question_type: 'multiple_choice',
+      question_hash: q.question_hash,
+      source: 'cache'
+    };
+  });
 }
 
 async function markCacheAsUsed(supabase: any, questions: any[]): Promise<void> {
