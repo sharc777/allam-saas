@@ -201,6 +201,17 @@ serve(async (req) => {
           continue;
         }
 
+        // Validate explanation quality
+        const explanationValidation = validateExplanation(explanation);
+        if (!explanationValidation.valid) {
+          console.warn(`⚠️ Poor explanation quality for question: ${explanationValidation.issues.join(', ')}`);
+          errors.push({ 
+            question: questionText?.substring(0, 50), 
+            error: `Explanation quality issues: ${explanationValidation.issues.join(', ')}` 
+          });
+          continue;
+        }
+
         // Validate correct answer format
         if (!['أ', 'ب', 'ج', 'د', 'A', 'B', 'C', 'D'].includes(correctAnswer)) {
           errors.push({ question: questionText?.substring(0, 50), error: 'Invalid correct answer format' });
@@ -328,6 +339,67 @@ function normalizeAnswer(answer: string): string {
     'a': 'أ', 'b': 'ب', 'c': 'ج', 'd': 'د'
   };
   return mapping[answer] || answer;
+}
+
+// Helper: Validate explanation quality
+function validateExplanation(explanation: string): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  
+  if (!explanation) {
+    issues.push('الشرح فارغ');
+    return { valid: false, issues };
+  }
+  
+  // 1. Check length - minimum 80 characters (roughly 15-20 words in Arabic)
+  if (explanation.length < 80) {
+    issues.push('الشرح قصير جداً (أقل من 80 حرف)');
+  }
+  
+  // 2. Check for truncated sentences (ending with incomplete words)
+  const truncatedPatterns = [
+    /هو\s*$/,           // ends with "هو" alone
+    /على\s*$/,          // ends with "على" alone
+    /يساوي\s*$/,        // ends with "يساوي" alone
+    /أن\s*$/,           // ends with "أن" alone
+    /في\s*$/,           // ends with "في" alone
+    /من\s*$/,           // ends with "من" alone
+    /=\s*$/,            // ends with "=" alone
+    /×\s*$/,            // ends with "×" alone
+    /÷\s*$/,            // ends with "÷" alone
+    /\+\s*$/,           // ends with "+" alone
+    /-\s*$/,            // ends with "-" alone
+  ];
+  
+  for (const pattern of truncatedPatterns) {
+    if (pattern.test(explanation.trim())) {
+      issues.push('الشرح يحتوي على جمل مبتورة');
+      break;
+    }
+  }
+  
+  // 3. Check for incomplete calculations (e.g., "5 × 4 = " without result)
+  const incompleteCalcPattern = /\d+\s*[×÷\+\-\*\/]\s*\d+\s*=\s*(?![٠-٩0-9])/;
+  if (incompleteCalcPattern.test(explanation)) {
+    issues.push('الشرح يحتوي على حسابات غير مكتملة');
+  }
+  
+  // 4. Check for justification (should contain "لأن" or similar)
+  const hasJustification = /لأن|بسبب|نظراً|حيث أن|والسبب/.test(explanation);
+  if (!hasJustification) {
+    issues.push('الشرح لا يحتوي على تبرير واضح');
+  }
+  
+  // 5. Check if correct answer is mentioned
+  const mentionsAnswer = /الإجابة الصحيحة|الجواب الصحيح|الخيار الصحيح/.test(explanation);
+  if (!mentionsAnswer && explanation.length > 100) {
+    // Only warn if explanation is substantial but doesn't mention the answer
+    issues.push('الشرح لا يذكر الإجابة الصحيحة صراحة');
+  }
+  
+  return { 
+    valid: issues.length === 0, 
+    issues 
+  };
 }
 
 // Helper: Extract complete question objects from potentially truncated JSON
