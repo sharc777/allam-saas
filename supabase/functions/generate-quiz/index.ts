@@ -168,6 +168,134 @@ async function checkCacheStatus(
   };
 }
 
+// ============= AUTO-REFILL CACHE =============
+const CACHE_REFILL_THRESHOLD = 20;
+const CACHE_REFILL_COUNT = 50;
+
+async function triggerCacheRefill(
+  section: string,
+  difficulty: string,
+  testType: string
+): Promise<void> {
+  console.log(`🔄 Auto-refill triggered for ${section}/${difficulty}...`);
+  
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("❌ Auto-refill failed: LOVABLE_API_KEY not configured");
+      return;
+    }
+    
+    // Load knowledge base for this section
+    const { data: kbData } = await supabaseAdmin
+      .from('knowledge_base')
+      .select('content, title, related_topics')
+      .eq('section', section)
+      .eq('test_type', testType)
+      .eq('is_active', true)
+      .limit(5);
+    
+    const knowledgeContext = kbData?.map(kb => kb.content || kb.title).join('\n') || '';
+    const relatedTopics = kbData?.flatMap(kb => kb.related_topics || []).slice(0, 10) || [];
+    
+    // Generate questions using AI
+    const systemPrompt = `أنت خبير في إنشاء أسئلة اختبار القدرات العامة السعودي.
+قم بإنشاء ${CACHE_REFILL_COUNT} سؤال متنوع ومميز في قسم ${section} بمستوى صعوبة ${difficulty === 'easy' ? 'سهل' : difficulty === 'hard' ? 'صعب' : 'متوسط'}.
+
+متطلبات صارمة:
+- كل سؤال يجب أن يكون فريداً ومختلفاً تماماً
+- الأسئلة باللغة العربية الفصحى
+- كل سؤال له 4 خيارات (أ، ب، ج، د)
+- شرح واضح ومفصل للإجابة الصحيحة
+- تغطية مواضيع متنوعة: ${relatedTopics.join('، ')}
+
+أرجع JSON array فقط بالصيغة:
+[{
+  "question": "نص السؤال",
+  "options": {"أ": "...", "ب": "...", "ج": "...", "د": "..."},
+  "correctAnswer": "أ",
+  "explanation": "شرح مفصل",
+  "topic": "اسم الموضوع",
+  "difficulty": "${difficulty}"
+}]`;
+
+    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `سياق تعليمي:\n${knowledgeContext}\n\nأنشئ ${CACHE_REFILL_COUNT} سؤال متنوع الآن.` }
+        ],
+        temperature: 0.8,
+        max_tokens: 15000
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Auto-refill AI error: ${response.status}`);
+      return;
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices?.[0]?.message?.content || "";
+    
+    // Parse questions
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error("❌ Auto-refill: No valid JSON array found");
+      return;
+    }
+    
+    const questions = JSON.parse(jsonMatch[0]);
+    
+    // Prepare cache entries
+    const cacheEntries = questions.slice(0, CACHE_REFILL_COUNT).map((q: any) => ({
+      test_type: testType,
+      section: section,
+      difficulty: difficulty,
+      question_hash: simpleHash(q.question + q.correctAnswer),
+      question_data: {
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+        topic: q.topic || section,
+        section: section,
+        difficulty: difficulty
+      },
+      generation_source: 'auto_refill',
+      topic: q.topic || section
+    }));
+    
+    // Insert with conflict handling
+    const { error: insertError } = await supabaseAdmin
+      .from('questions_cache')
+      .upsert(cacheEntries, { 
+        onConflict: 'question_hash',
+        ignoreDuplicates: true 
+      });
+    
+    if (insertError) {
+      console.error("❌ Auto-refill insert error:", insertError);
+    } else {
+      console.log(`✅ Auto-refill complete: ${cacheEntries.length} questions added for ${section}/${difficulty}`);
+    }
+    
+  } catch (error) {
+    console.error("❌ Auto-refill error:", error);
+  }
+}
+
 // ============= AUTHENTICATION =============
 
 async function authenticateUser(req: Request) {
@@ -1398,7 +1526,16 @@ serve(async (req) => {
       ).length / finalQuestions.length) * 100)
     } : undefined;
     
-    // 16. Return response
+    // 16. Auto-refill cache if running low (background task)
+    if (sectionFilter && cacheStatus.available < CACHE_REFILL_THRESHOLD) {
+      console.log(`⚠️ Cache running low (${cacheStatus.available}/${CACHE_REFILL_THRESHOLD}), triggering auto-refill...`);
+      // Fire-and-forget background refill
+      triggerCacheRefill(sectionFilter, difficulty, testType).catch(e => 
+        console.error('Auto-refill error:', e)
+      );
+    }
+    
+    // 17. Return response
     return new Response(
       JSON.stringify({
         questions: finalQuestions,
