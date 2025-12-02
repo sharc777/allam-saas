@@ -85,7 +85,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.generate-questions-for-bank]
-verify_jwt = true
+verify_jwt = false
 
 [functions.auto-refill-monitor]
 verify_jwt = false
