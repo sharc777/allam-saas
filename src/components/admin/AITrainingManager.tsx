@@ -71,24 +71,51 @@ export const AITrainingManager = () => {
   const { data: trainingStats } = useQuery({
     queryKey: ["training-stats"],
     queryFn: async () => {
-      const { count: examplesCount } = await supabase
-        .from("ai_training_examples")
-        .select("*", { count: "exact", head: true });
-
-      const { count: skillsCount } = await supabase
-        .from("skills_taxonomy")
-        .select("*", { count: "exact", head: true });
-
-      const { count: cacheCount } = await supabase
-        .from("questions_cache")
-        .select("*", { count: "exact", head: true })
-        .eq("is_used", false);
+      const [examplesResult, skillsResult, cacheResult, bankResult] = await Promise.all([
+        supabase.from("ai_training_examples").select("*", { count: "exact", head: true }),
+        supabase.from("skills_taxonomy").select("*", { count: "exact", head: true }),
+        supabase.from("questions_cache").select("*", { count: "exact", head: true }).eq("is_used", false),
+        supabase.from("questions_bank").select("*", { count: "exact", head: true }).eq("validation_status", "approved")
+      ]);
 
       return {
-        examples: examplesCount || 0,
-        skills: skillsCount || 0,
-        cache: cacheCount || 0,
+        examples: examplesResult.count || 0,
+        skills: skillsResult.count || 0,
+        cache: cacheResult.count || 0,
+        bank: bankResult.count || 0,
       };
+    },
+  });
+
+  // Question bank stats by sub-topic
+  const { data: bankStats } = useQuery({
+    queryKey: ["bank-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("questions_bank")
+        .select("subject, sub_topic, difficulty")
+        .eq("validation_status", "approved");
+
+      if (error) throw error;
+
+      const stats: Record<string, Record<string, { total: number; byDifficulty: Record<string, number> }>> = {};
+      
+      data?.forEach((q: any) => {
+        const section = q.subject || "عام";
+        const subTopic = q.sub_topic || "عام";
+        
+        if (!stats[section]) stats[section] = {};
+        if (!stats[section][subTopic]) {
+          stats[section][subTopic] = { total: 0, byDifficulty: { easy: 0, medium: 0, hard: 0 } };
+        }
+        
+        stats[section][subTopic].total++;
+        if (stats[section][subTopic].byDifficulty[q.difficulty] !== undefined) {
+          stats[section][subTopic].byDifficulty[q.difficulty]++;
+        }
+      });
+      
+      return stats;
     },
   });
 
@@ -198,10 +225,17 @@ export const AITrainingManager = () => {
     return examplesByTopic[section]?.[topic] || 0;
   };
 
+  // Get bank count for a sub-topic
+  const getBankCount = (section: string, subTopic: string): number => {
+    if (!bankStats) return 0;
+    const sectionKey = section === "كمي" ? "كمي" : "لفظي";
+    return bankStats[sectionKey]?.[subTopic]?.total || 0;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <Card className="border-2">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
@@ -210,6 +244,18 @@ export const AITrainingManager = () => {
             <div>
               <p className="text-sm text-muted-foreground">أمثلة التدريب</p>
               <p className="text-2xl font-bold">{trainingStats?.examples || 0}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-green-500/30 bg-green-500/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+              <Database className="w-6 h-6 text-green-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">بنك الأسئلة</p>
+              <p className="text-2xl font-bold text-green-600">{trainingStats?.bank || 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -228,11 +274,11 @@ export const AITrainingManager = () => {
 
         <Card className="border-2">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
-              <Database className="w-6 h-6 text-success" />
+            <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center">
+              <Database className="w-6 h-6 text-orange-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">ذاكرة الأسئلة</p>
+              <p className="text-sm text-muted-foreground">ذاكرة مؤقتة</p>
               <p className="text-2xl font-bold">{trainingStats?.cache || 0}</p>
             </div>
           </CardContent>
@@ -299,25 +345,34 @@ export const AITrainingManager = () => {
                                 <AccordionContent>
                                   <div className="space-y-2 pr-6">
                                     {topic.subTopics.map((subTopic) => {
-                                      const count = getTopicExamplesCount(section.id, subTopic.id);
+                                      const exampleCount = getTopicExamplesCount(section.id, subTopic.id);
+                                      const bankCount = getBankCount(section.id, subTopic.id);
                                       return (
                                         <div
                                           key={subTopic.id}
                                           className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
                                         >
                                           <div className="flex items-center gap-2">
-                                            {count >= 3 ? (
-                                              <CheckCircle2 className="w-4 h-4 text-success" />
-                                            ) : count > 0 ? (
-                                              <AlertCircle className="w-4 h-4 text-warning" />
+                                            {bankCount >= 10 ? (
+                                              <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                            ) : bankCount > 0 ? (
+                                              <AlertCircle className="w-4 h-4 text-yellow-500" />
                                             ) : (
                                               <AlertCircle className="w-4 h-4 text-muted-foreground" />
                                             )}
                                             <span className="text-sm">{subTopic.nameAr}</span>
                                           </div>
-                                          <Badge variant="outline" className="text-xs">
-                                            {count} مثال
-                                          </Badge>
+                                          <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-xs">
+                                              {exampleCount} مثال
+                                            </Badge>
+                                            <Badge 
+                                              variant={bankCount >= 10 ? "default" : "secondary"}
+                                              className={`text-xs ${bankCount >= 10 ? 'bg-green-500' : ''}`}
+                                            >
+                                              {bankCount} سؤال
+                                            </Badge>
+                                          </div>
                                         </div>
                                       );
                                     })}
