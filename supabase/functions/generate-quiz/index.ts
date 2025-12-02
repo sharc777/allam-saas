@@ -148,14 +148,16 @@ async function fetchFromQuestionBank(
   };
 
   return selected.map((q: any) => ({
-    question: q.question_text,
+    question_text: q.question_text,
     options: normalizeOptions(q.options),
-    correctAnswer: q.correct_answer,
+    correct_answer: q.correct_answer,
     explanation: q.explanation || '',
     topic: q.topic || q.sub_topic || section,
     subTopic: q.sub_topic,
     section: section,
+    subject: section,
     difficulty: q.difficulty,
+    question_type: 'multiple_choice',
     question_hash: q.question_hash || simpleHash(q.question_text),
     source: 'question_bank'
   }));
