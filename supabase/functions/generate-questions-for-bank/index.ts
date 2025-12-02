@@ -30,12 +30,16 @@ serve(async (req) => {
     // Verify authorization - support both admin JWT and internal service calls
     const authHeader = req.headers.get("Authorization");
     const cronSecret = req.headers.get("x-cron-secret");
+    const envCronSecret = Deno.env.get("CRON_SECRET");
+    
+    console.log(`🔐 Auth check - cronSecret received: ${cronSecret ? 'yes' : 'no'}, envCronSecret set: ${envCronSecret ? 'yes' : 'no'}`);
     
     // Allow internal service calls with cron secret
-    const isInternalCall = cronSecret === Deno.env.get("CRON_SECRET");
+    const isInternalCall = cronSecret && envCronSecret && cronSecret === envCronSecret;
     
     if (!isInternalCall) {
       if (!authHeader) {
+        console.log(`❌ No auth header and cron secret mismatch`);
         return new Response(JSON.stringify({ error: "No authorization" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
