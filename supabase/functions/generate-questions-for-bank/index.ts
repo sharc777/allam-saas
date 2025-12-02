@@ -27,39 +27,48 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify admin authorization
+    // Verify authorization - support both admin JWT and internal service calls
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const cronSecret = req.headers.get("x-cron-secret");
     
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Allow internal service calls with cron secret
+    const isInternalCall = cronSecret === Deno.env.get("CRON_SECRET");
+    
+    if (!isInternalCall) {
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "No authorization" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    // Check if admin
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .single();
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // Check if admin
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .single();
+
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
+    
+    console.log(`🔐 Auth: ${isInternalCall ? 'Internal service call' : 'Admin user'}`)
 
     const { section, subTopic, difficulty, count = 10 }: GenerateRequest = await req.json();
 
@@ -209,7 +218,7 @@ serve(async (req) => {
             correct_answer: normalizedAnswer,
             explanation: explanation,
             question_hash: questionHash,
-            created_by: "ai_admin",
+            created_by: "ai",
             validation_status: "approved",
             usage_count: 0,
             times_answered: 0,
