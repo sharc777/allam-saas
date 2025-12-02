@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, LogIn } from "lucide-react";
+import { useImpersonation } from "@/hooks/useImpersonation";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -22,6 +23,7 @@ interface UserManagementDialogProps {
 
 export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDialogProps) => {
   const queryClient = useQueryClient();
+  const { impersonateUser, isLoading: impersonationLoading } = useImpersonation();
   const [formData, setFormData] = useState({
     full_name: user?.full_name || "",
     test_type_preference: "قدرات" as TestType,
@@ -272,6 +274,30 @@ export const UserManagementDialog = ({ user, isOpen, onClose }: UserManagementDi
               </Button>
             </div>
           </div>
+
+          {/* Impersonation */}
+          {!isAdmin && (
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="font-semibold text-lg">الدخول كمستخدم</h3>
+              <p className="text-sm text-muted-foreground">
+                يمكنك الدخول لحساب هذا المستخدم لرؤية ما يراه وتشخيص المشاكل
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => impersonateUser(user.id)}
+                disabled={impersonationLoading}
+                className="gap-2"
+              >
+                {impersonationLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogIn className="h-4 w-4" />
+                )}
+                الدخول كهذا المستخدم
+              </Button>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-2 justify-end pt-4 border-t">
