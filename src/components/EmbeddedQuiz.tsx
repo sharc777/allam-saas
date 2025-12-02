@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "./ui/button";
@@ -6,9 +6,12 @@ import { Card, CardContent } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Label } from "./ui/label";
-import { Loader2, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, ChevronRight, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePerformanceTracking, generateQuestionHash } from "@/hooks/usePerformanceTracking";
+import { QuestionTimer, getTimeIndicator, formatTimeDisplay } from "@/components/QuestionTimer";
+import { QuestionNote, QuestionNoteDisplay } from "@/components/QuestionNote";
+import { useQuestionNotes } from "@/hooks/useQuestionNotes";
 
 interface EmbeddedQuizProps {
   contentId: string;
@@ -22,10 +25,20 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
   const [showResults, setShowResults] = useState(false);
   const [showEarlyFinish, setShowEarlyFinish] = useState(false);
   const [wrongQuestions, setWrongQuestions] = useState<any[]>([]);
-  const [questionStartTimes, setQuestionStartTimes] = useState<Record<number, number>>({});
+  const [questionTimes, setQuestionTimes] = useState<Record<number, number>>({});
+  const [currentQuizId, setCurrentQuizId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   
   const trackPerformance = usePerformanceTracking();
+  const { notes, saveNote, deleteNote, getNoteForQuestion } = useQuestionNotes();
+
+  // Callback for timer updates
+  const handleTimeUpdate = useCallback((seconds: number) => {
+    setQuestionTimes(prev => ({
+      ...prev,
+      [currentQuestionIndex]: seconds
+    }));
+  }, [currentQuestionIndex]);
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ["embedded-quiz", contentId],
@@ -77,8 +90,7 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
     // Track performance for this question
     const question = questions?.[currentQuestionIndex];
     if (question) {
-      const questionStartTime = questionStartTimes[currentQuestionIndex] || Date.now();
-      const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+      const timeSpent = questionTimes[currentQuestionIndex] || 0;
       
       // Get profile for test type
       const { data: profile } = await supabase
@@ -117,11 +129,10 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
     if (currentQuestionIndex < (questions?.length || 0) - 1) {
       const nextQuestion = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextQuestion);
-      // Start timer for next question
-      setQuestionStartTimes(prev => ({
-        ...prev,
-        [nextQuestion]: Date.now()
-      }));
+      // Initialize timer for next question if not set
+      if (!questionTimes[nextQuestion]) {
+        setQuestionTimes(prev => ({ ...prev, [nextQuestion]: 0 }));
+      }
     }
   };
 
@@ -238,11 +249,18 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <div className="flex justify-between text-sm text-muted-foreground">
+        <div className="flex justify-between items-center text-sm text-muted-foreground">
           <span>
             السؤال {currentQuestionIndex + 1} من {questions.length}
           </span>
-          <span>{progress.toFixed(0)}%</span>
+          <div className="flex items-center gap-3">
+            <QuestionTimer 
+              isActive={!showResults}
+              onTimeUpdate={handleTimeUpdate}
+              initialTime={questionTimes[currentQuestionIndex] || 0}
+            />
+            <span>{progress.toFixed(0)}%</span>
+          </div>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
