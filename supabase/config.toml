@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.generate-questions-for-bank]
 verify_jwt = true
+
+[functions.auto-refill-monitor]
+verify_jwt = false

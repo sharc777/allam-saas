@@ -40,13 +40,16 @@ type Difficulty = "easy" | "medium" | "hard";
 interface TrainingExample {
   id: string;
   section: string;
-  subject: string | null;
+  topic: string | null;
+  sub_topic: string | null;
   question_text: string;
   options: any;
   correct_answer: string;
   explanation: string | null;
   difficulty: Difficulty;
   quality_score: number | null;
+  validation_status: string | null;
+  usage_count: number | null;
   created_at: string;
 }
 
@@ -135,27 +138,27 @@ export const AITrainingManager = () => {
     },
   });
 
-  // Fetch examples count by section and topic
+  // Fetch examples count by section and sub_topic
   const { data: examplesByTopic } = useQuery({
     queryKey: ["examples-by-topic"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_training_examples")
-        .select("section, subject");
+        .select("section, sub_topic");
 
       if (error) throw error;
 
       const counts: Record<string, Record<string, number>> = {};
       data?.forEach((ex) => {
         if (!counts[ex.section]) counts[ex.section] = {};
-        const topic = ex.subject || "عام";
-        counts[ex.section][topic] = (counts[ex.section][topic] || 0) + 1;
+        const subTopic = ex.sub_topic || "عام";
+        counts[ex.section][subTopic] = (counts[ex.section][subTopic] || 0) + 1;
       });
       return counts;
     },
   });
 
-  // Add training example mutation
+  // Add training example mutation with topic, sub_topic, and example_hash
   const addExampleMutation = useMutation({
     mutationFn: async () => {
       const options = {
@@ -165,9 +168,21 @@ export const AITrainingManager = () => {
         د: formData.optionD,
       };
 
+      // Generate unique hash for the example
+      const hashContent = `${formData.questionText}-${formData.subTopic || formData.topic}`;
+      const hashBuffer = await crypto.subtle.digest(
+        'SHA-256', 
+        new TextEncoder().encode(hashContent)
+      );
+      const exampleHash = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+        .substring(0, 32);
+
       const { error } = await supabase.from("ai_training_examples").insert({
         section: formData.section,
-        subject: formData.subTopic || formData.topic || null,
+        topic: formData.topic || null,
+        sub_topic: formData.subTopic || null,
         question_text: formData.questionText,
         options,
         correct_answer: formData.correctAnswer,
@@ -175,6 +190,8 @@ export const AITrainingManager = () => {
         difficulty: formData.difficulty,
         test_type: "قدرات",
         quality_score: 4,
+        example_hash: exampleHash,
+        validation_status: 'approved',
       });
 
       if (error) throw error;
@@ -480,10 +497,10 @@ export const AITrainingManager = () => {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <Badge>{example.section}</Badge>
-                              {example.subject && (
-                                <Badge variant="outline">{example.subject}</Badge>
+                              {example.sub_topic && (
+                                <Badge variant="outline">{example.sub_topic}</Badge>
                               )}
                               <Badge variant="secondary">
                                 {example.difficulty === "easy"
@@ -492,6 +509,19 @@ export const AITrainingManager = () => {
                                   ? "متوسط"
                                   : "صعب"}
                               </Badge>
+                              {example.validation_status && (
+                                <Badge 
+                                  variant={example.validation_status === 'approved' ? 'default' : 'secondary'}
+                                  className={example.validation_status === 'approved' ? 'bg-green-500' : ''}
+                                >
+                                  {example.validation_status === 'approved' ? 'معتمد' : example.validation_status}
+                                </Badge>
+                              )}
+                              {example.usage_count !== null && example.usage_count > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  استُخدم {example.usage_count} مرة
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm line-clamp-2">{example.question_text}</p>
                           </div>

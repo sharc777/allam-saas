@@ -10,6 +10,8 @@ import {
   buildDynamicSystemPrompt 
 } from "../_shared/dynamicPrompt.ts";
 import { getSections, getTopics, validateSectionAndTopic } from "../_shared/testStructure.ts";
+import { getSmartTrainingExamples, getTopicInfo, TrainingExample } from "../_shared/smartTrainingExamples.ts";
+import { buildAdvancedPrompt, buildValidationPrompt } from "../_shared/advancedPromptBuilder.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -200,46 +202,29 @@ async function autoRefillQuestionBank(
   }
   
   try {
-    // Fetch few-shot examples for this sub-topic
-    const { data: examples } = await supabase
-      .from('ai_training_examples')
-      .select('*')
-      .eq('section', section)
-      .gte('quality_score', 3)
-      .limit(3);
+    // 🆕 Use smart training examples instead of random selection
+    const smartExamples = await getSmartTrainingExamples(
+      supabase, 
+      subTopic, 
+      difficulty as 'easy' | 'medium' | 'hard', 
+      5
+    );
     
-    const examplesText = examples?.map((ex: any) => 
-      `السؤال: ${ex.question_text}\nالخيارات: ${JSON.stringify(ex.options)}\nالإجابة: ${ex.correct_answer}\nالشرح: ${ex.explanation || ''}`
-    ).join('\n\n---\n\n') || '';
+    console.log(`📚 Got ${smartExamples.length} smart training examples for ${subTopic}`);
     
-    const difficultyAr = difficulty === 'easy' ? 'سهل' : difficulty === 'hard' ? 'صعب' : 'متوسط';
+    // 🆕 Get topic info for better prompt building
+    const topicInfo = getTopicInfo(subTopic);
     
-    const systemPrompt = `أنت خبير في إنشاء أسئلة اختبار القدرات العامة السعودي.
-قم بإنشاء ${BANK_REFILL_COUNT} سؤال متنوع ومميز.
-
-📌 المتطلبات:
-- القسم: ${section}
-- الموضوع الفرعي: ${subTopic}
-- مستوى الصعوبة: ${difficultyAr}
-- اللغة: العربية الفصحى
-- كل سؤال له 4 خيارات (أ، ب، ج، د)
-- شرح واضح ومفصل للإجابة الصحيحة
-
-${examplesText ? `📚 أمثلة للاسترشاد:\n${examplesText}\n` : ''}
-
-⚠️ كل سؤال يجب أن يكون:
-- فريداً ومختلفاً تماماً
-- متعلقاً بموضوع "${subTopic}" حصرياً
-- بمستوى صعوبة ${difficultyAr}
-
-أرجع JSON array فقط بالصيغة:
-[{
-  "question": "نص السؤال",
-  "options": {"أ": "...", "ب": "...", "ج": "...", "د": "..."},
-  "correctAnswer": "أ",
-  "explanation": "شرح مفصل",
-  "difficulty": "${difficulty}"
-}]`;
+    // 🆕 Use advanced prompt builder
+    const promptSection = (topicInfo.section || section) as 'كمي' | 'لفظي';
+    const advancedPrompt = buildAdvancedPrompt({
+      subTopic,
+      difficulty: difficulty as 'easy' | 'medium' | 'hard',
+      count: BANK_REFILL_COUNT,
+      examples: smartExamples,
+      section: promptSection,
+      topic: topicInfo.topic || subTopic
+    });
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -250,8 +235,8 @@ ${examplesText ? `📚 أمثلة للاسترشاد:\n${examplesText}\n` : ''}
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `أنشئ ${BANK_REFILL_COUNT} سؤال عن "${subTopic}" بمستوى ${difficultyAr} الآن.` }
+          { role: "system", content: advancedPrompt },
+          { role: "user", content: `أنشئ ${BANK_REFILL_COUNT} سؤال متنوع عن "${subTopic}" الآن.` }
         ],
         temperature: 0.85,
         max_tokens: 15000
@@ -279,7 +264,7 @@ ${examplesText ? `📚 أمثلة للاسترشاد:\n${examplesText}\n` : ''}
     // Prepare bank entries
     const bankEntries = questions.slice(0, BANK_REFILL_COUNT).map((q: any) => ({
       subject: sectionValue,
-      topic: subTopic,
+      topic: topicInfo.topic || subTopic,
       sub_topic: subTopic,
       difficulty: difficulty,
       question_type: 'multiple_choice',
@@ -288,7 +273,7 @@ ${examplesText ? `📚 أمثلة للاسترشاد:\n${examplesText}\n` : ''}
       correct_answer: q.correctAnswer,
       explanation: q.explanation,
       question_hash: simpleHash(q.question + q.correctAnswer),
-      created_by: 'ai_auto_refill',
+      created_by: 'ai_smart_refill',
       validation_status: 'approved'
     }));
     
