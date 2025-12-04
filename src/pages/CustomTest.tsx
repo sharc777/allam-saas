@@ -512,6 +512,17 @@ const CustomTestContent = () => {
                     </RadioGroup>
                   </div>
 
+                  {/* Note Area During Quiz */}
+                  <div className="pt-4 border-t border-border">
+                    <QuestionNote
+                      questionHash={generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options)}
+                      existingNote={getNoteForQuestion(generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options))}
+                      onSave={(note) => saveNote({ questionHash: generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options), note })}
+                      onDelete={() => deleteNote(generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options))}
+                      compact
+                    />
+                  </div>
+
                   <div className="flex gap-3 pt-4" dir="rtl">
                     <Button
                       onClick={handleNext}
