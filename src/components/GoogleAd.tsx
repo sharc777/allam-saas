@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAdSettings } from '@/hooks/useAdSettings';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -11,6 +11,7 @@ interface GoogleAdProps {
 export const GoogleAd = ({ slot, format = 'auto', className = '' }: GoogleAdProps) => {
   const { data: adSettings, isLoading } = useAdSettings();
   const [isAdmin, setIsAdmin] = useState(false);
+  const adPushedRef = useRef(false);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -29,10 +30,11 @@ export const GoogleAd = ({ slot, format = 'auto', className = '' }: GoogleAdProp
   }, []);
 
   useEffect(() => {
-    if (adSettings?.is_enabled && adSettings.adsense_client_id && typeof window !== 'undefined') {
+    if (adSettings?.is_enabled && adSettings.adsense_client_id && typeof window !== 'undefined' && !adPushedRef.current) {
       try {
         // @ts-ignore
         (window.adsbygoogle = window.adsbygoogle || []).push({});
+        adPushedRef.current = true;
       } catch (err) {
         console.error('AdSense error:', err);
       }
