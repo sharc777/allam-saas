@@ -20,6 +20,8 @@ import { AITrainingManager } from "@/components/admin/AITrainingManager";
 import { PackageManager } from "@/components/admin/PackageManager";
 import { UserManagementDialog } from "@/components/admin/UserManagementDialog";
 import { AdManager } from "@/components/admin/AdManager";
+import { UsersStats } from "@/components/admin/UsersStats";
+import { UsersTable } from "@/components/admin/UsersTable";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,22 +93,6 @@ const Admin = () => {
     }
   });
 
-  const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: ['all-users'],
-    staleTime: 2 * 60 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (error) throw error;
-      return data;
-    }
-  });
 
   const { data: adminsCount } = useQuery({
     queryKey: ['admins-count'],
@@ -294,66 +280,17 @@ const Admin = () => {
                   </AlertDescription>
                 </Alert>
               )}
-              <Card className="border-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-6 h-6 text-success" />
-                    إدارة المستخدمين ({studentsCount || 0})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {usersLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-8 h-8 animate-spin" />
-                    </div>
-                  ) : users && users.length > 0 ? (
-                    <div className="space-y-3">
-                      {users.map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-4 border-2 rounded-lg hover:border-primary/30 transition-smooth">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                              {user.full_name?.charAt(0) || 'ط'}
-                            </div>
-                            <div>
-                              <h4 className="font-bold">{user.full_name}</h4>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant={user.subscription_active ? 'default' : 'secondary'}>
-                                  {user.subscription_active ? 'مشترك' : `تجريبي (${user.trial_days} أيام)`}
-                                </Badge>
-                                <Badge variant="outline">{user.test_type_preference}</Badge>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-left">
-                              <p className="text-sm font-medium">اليوم {user.current_day} من 30</p>
-                              <p className="text-xs text-muted-foreground">
-                                {user.total_points} نقطة • {user.streak_days} يوم متتالي
-                              </p>
-                            </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setIsUserDialogOpen(true);
-                              }}
-                            >
-                              <Edit className="w-4 h-4 ml-2" />
-                              إدارة
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>لا يوجد مستخدمين مسجلين حالياً</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              
+              {/* Users Stats Dashboard */}
+              <UsersStats />
+              
+              {/* Enhanced Users Table */}
+              <UsersTable 
+                onEditUser={(user) => {
+                  setSelectedUser(user);
+                  setIsUserDialogOpen(true);
+                }}
+              />
             </TabsContent>
           </Tabs>
         </div>
