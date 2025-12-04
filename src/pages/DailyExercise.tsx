@@ -590,6 +590,17 @@ const DailyExerciseContent = () => {
                 </RadioGroup>
               </div>
 
+              {/* Note Area During Quiz */}
+              <div className="pt-4 border-t border-border">
+                <QuestionNote
+                  questionHash={generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options)}
+                  existingNote={getNoteForQuestion(generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options))}
+                  onSave={(note) => saveNote({ questionHash: generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options), note })}
+                  onDelete={() => deleteNote(generateQuestionHash(currentQuestionData.question_text, currentQuestionData.options))}
+                  compact
+                />
+              </div>
+
               <div className="flex gap-4">
                 <Button
                   onClick={handlePrevious}

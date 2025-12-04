@@ -311,6 +311,17 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
               );
             })}
           </RadioGroup>
+
+          {/* Note Area During Quiz */}
+          <div className="pt-4 border-t border-border">
+            <QuestionNote
+              questionHash={generateQuestionHash(currentQuestion.question_text, currentQuestion.options)}
+              existingNote={getNoteForQuestion(generateQuestionHash(currentQuestion.question_text, currentQuestion.options))}
+              onSave={(note) => saveNote({ questionHash: generateQuestionHash(currentQuestion.question_text, currentQuestion.options), note })}
+              onDelete={() => deleteNote(generateQuestionHash(currentQuestion.question_text, currentQuestion.options))}
+              compact
+            />
+          </div>
         </CardContent>
       </Card>
 
