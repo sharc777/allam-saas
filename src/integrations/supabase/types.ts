@@ -1711,6 +1711,13 @@ export type Database = {
           total_questions: number
         }[]
       }
+      get_user_emails_for_admin: {
+        Args: never
+        Returns: {
+          email: string
+          user_id: string
+        }[]
+      }
       has_active_access: { Args: { p_user_id: string }; Returns: boolean }
       has_role: {
         Args: {
