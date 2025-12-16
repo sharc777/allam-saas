@@ -30,9 +30,13 @@ import {
   Target,
   TrendingUp,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Mail,
+  Flame,
+  GraduationCap,
+  FileText
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Progress } from "@/components/ui/progress";
 
@@ -49,6 +53,23 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
   const [packageFilter, setPackageFilter] = useState<PackageFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+
+  // Fetch user emails (admin only)
+  const { data: userEmails } = useQuery({
+    queryKey: ['admin-user-emails'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_user_emails_for_admin');
+      if (error) {
+        console.error('Error fetching emails:', error);
+        return {};
+      }
+      const emailMap: Record<string, string> = {};
+      data?.forEach((row: { user_id: string; email: string }) => {
+        emailMap[row.user_id] = row.email;
+      });
+      return emailMap;
+    }
+  });
 
   // Fetch all users with their stats
   const { data: usersData, isLoading } = useQuery({
@@ -75,10 +96,10 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
         .select('user_id')
         .not('completed_at', 'is', null);
 
-      // Fetch quiz results for avg score
+      // Fetch quiz results for avg score and total questions
       const { data: quizResults } = await supabase
         .from('quiz_results')
-        .select('user_id, percentage');
+        .select('user_id, percentage, total_questions');
 
       // Fetch last activity per user
       const { data: activities } = await supabase
@@ -94,11 +115,13 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
 
       const avgScoreMap: Record<string, number> = {};
       const scoreCountMap: Record<string, number> = {};
+      const totalQuestionsMap: Record<string, number> = {};
       quizResults?.forEach(q => {
         if (q.percentage !== null) {
           avgScoreMap[q.user_id] = (avgScoreMap[q.user_id] || 0) + q.percentage;
           scoreCountMap[q.user_id] = (scoreCountMap[q.user_id] || 0) + 1;
         }
+        totalQuestionsMap[q.user_id] = (totalQuestionsMap[q.user_id] || 0) + (q.total_questions || 0);
       });
 
       const lastActivityMap: Record<string, string> = {};
@@ -114,6 +137,7 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
         avgScore: scoreCountMap[profile.id] 
           ? Math.round(avgScoreMap[profile.id] / scoreCountMap[profile.id]) 
           : 0,
+        totalQuestionsSolved: totalQuestionsMap[profile.id] || 0,
         lastActivity: lastActivityMap[profile.id] || profile.updated_at,
         packageName: profile.subscription_packages?.name_ar || 'غير محدد',
         isPaidPackage: (profile.subscription_packages?.price_monthly || 0) > 0
@@ -137,9 +161,13 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
     if (!usersData) return [];
     
     return usersData.filter(user => {
-      // Search filter
-      if (searchQuery && !user.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
+      // Search filter (name or email)
+      const email = userEmails?.[user.id] || '';
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        if (!user.full_name?.toLowerCase().includes(query) && !email.toLowerCase().includes(query)) {
+          return false;
+        }
       }
 
       // Status filter
@@ -160,7 +188,7 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
 
       return true;
     });
-  }, [usersData, searchQuery, statusFilter, packageFilter]);
+  }, [usersData, userEmails, searchQuery, statusFilter, packageFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -183,7 +211,7 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="بحث بالاسم..."
+              placeholder="بحث بالاسم أو البريد..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -237,11 +265,17 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
           </div>
         ) : paginatedUsers.length > 0 ? (
           <>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="text-right">المستخدم</TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center gap-1">
+                        <Mail className="w-4 h-4" />
+                        البريد
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
@@ -250,20 +284,32 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center gap-1">
-                        <Activity className="w-4 h-4" />
-                        آخر نشاط
+                        <Flame className="w-4 h-4" />
+                        الاستمرارية
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center gap-1">
-                        <Target className="w-4 h-4" />
-                        التمارين
+                        <GraduationCap className="w-4 h-4" />
+                        المستوى
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center gap-1">
+                        <FileText className="w-4 h-4" />
+                        الأسئلة
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center gap-1">
                         <TrendingUp className="w-4 h-4" />
                         المعدل
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center gap-1">
+                        <Activity className="w-4 h-4" />
+                        آخر اختبار
                       </div>
                     </TableHead>
                     <TableHead className="text-right">الباقة</TableHead>
@@ -276,6 +322,7 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
                   {paginatedUsers.map((user) => {
                     const activityStatus = getActivityStatus(user.lastActivity);
                     const progressPercent = Math.round(((user.current_day || 1) / 30) * 100);
+                    const email = userEmails?.[user.id] || '-';
                     
                     return (
                       <TableRow key={user.id} className="hover:bg-muted/30">
@@ -293,6 +340,11 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
                           </div>
                         </TableCell>
                         <TableCell>
+                          <span className="text-sm text-muted-foreground truncate max-w-[150px] block" title={email}>
+                            {email}
+                          </span>
+                        </TableCell>
+                        <TableCell>
                           <span className="text-sm">
                             {formatDistanceToNow(new Date(user.created_at), { 
                               addSuffix: true, 
@@ -301,15 +353,18 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">
-                            {formatDistanceToNow(new Date(user.lastActivity), { 
-                              addSuffix: true, 
-                              locale: ar 
-                            })}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <Flame className={`w-4 h-4 ${(user.streak_days || 0) > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                            <span className="font-medium">{user.streak_days || 0}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium">{user.exercisesCount}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {user.user_level || 'مبتدئ'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">{user.totalQuestionsSolved}</span>
                         </TableCell>
                         <TableCell>
                           <span className={`font-medium ${
@@ -321,15 +376,22 @@ export const UsersTable = ({ onEditUser }: UsersTableProps) => {
                           </span>
                         </TableCell>
                         <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {user.last_quiz_date 
+                              ? format(new Date(user.last_quiz_date), 'dd/MM', { locale: ar })
+                              : '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant={user.isPaidPackage ? 'default' : 'secondary'}>
                             {user.packageName}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="w-24">
+                          <div className="w-20">
                             <Progress value={progressPercent} className="h-2" />
                             <p className="text-xs text-muted-foreground mt-1">
-                              {user.current_day || 1}/30 يوم
+                              {user.current_day || 1}/30
                             </p>
                           </div>
                         </TableCell>

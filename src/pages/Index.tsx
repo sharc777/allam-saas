@@ -2,8 +2,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
-import { Brain, GraduationCap, Trophy, TrendingUp, Sparkles, BookOpen, MessageSquare, CheckCircle2, AlertTriangle } from "lucide-react";
-import { PackagesPreview } from "@/components/PackagesPreview";
+import { Brain, GraduationCap, Trophy, TrendingUp, Sparkles, BookOpen, AlertTriangle } from "lucide-react";
 import { GoogleAd } from "@/components/GoogleAd";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
@@ -292,30 +291,6 @@ const Index = () => {
                 بعد 30 يوم، ستكون مستعداً تماماً لاجتياز اختباراتك بثقة وتميز
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Packages Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">
-              اختر <span className="text-primary">الباقة المناسبة</span> لك
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              باقات مرنة تناسب جميع الاحتياجات
-            </p>
-          </div>
-
-          <PackagesPreview />
-
-          <div className="text-center mt-8">
-            <Link to="/subscription">
-              <Button size="lg" variant="outline" className="border-2">
-                عرض جميع الباقات
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
