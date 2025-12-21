@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-
+import { rateLimiter } from "../_shared/rateLimit.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -108,6 +108,15 @@ serve(async (req) => {
     }
 
     console.log(`✅ [Analyze Weaknesses] User authenticated: ${user.email}`);
+
+    // ✅ Rate limiting - 10 requests per minute per user
+    if (!rateLimiter.check(user.id, 10, 60000)) {
+      console.warn(`⚠️ [Analyze Weaknesses] Rate limit exceeded for user: ${user.id}`);
+      return new Response(
+        JSON.stringify({ error: "تم تجاوز الحد المسموح. يرجى الانتظار دقيقة." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const body = await req.json().catch(() => ({}));
     const { userId, timeRange = 30 } = body || {};
