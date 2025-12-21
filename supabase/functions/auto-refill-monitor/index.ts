@@ -8,9 +8,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MINIMUM_THRESHOLD = 20;
-const REFILL_COUNT = 20;
-const MAX_TOPICS_PER_RUN = 3;
+// ✅ تقليل استهلاك AI - الحدود المعدلة
+const MINIMUM_THRESHOLD = 5;   // كان 20 - قلل الحد الأدنى للأسئلة المطلوبة
+const REFILL_COUNT = 10;       // كان 20 - قلل عدد الأسئلة لكل تعبئة
+const MAX_TOPICS_PER_RUN = 1;  // كان 3 - موضوع واحد فقط لكل تشغيل
+const MAX_DAILY_AI_CALLS = 5;  // حد يومي جديد
 
 // Simple hash function
 function simpleHash(text: string): string {
@@ -155,6 +157,10 @@ serve(async (req) => {
   const startTime = Date.now();
   console.log(`🚀 Auto-refill monitor started at ${new Date().toISOString()}`);
   
+  // ✅ فحص الحد اليومي للاستدعاءات
+  const today = new Date().toISOString().split('T')[0];
+  const dailyKey = `auto_refill_${today}`;
+  
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -273,6 +279,22 @@ serve(async (req) => {
     
     console.log(`📊 Found ${lowStockTopics.length} topics below threshold (${MINIMUM_THRESHOLD})`);
     
+    // ✅ فحص إذا كان هناك مواضيع تحتاج تعبئة
+    if (lowStockTopics.length === 0) {
+      console.log('✅ All topics have sufficient questions. No refill needed.');
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'No refill needed - all topics above threshold',
+        lowStockCount: 0,
+        processedCount: 0,
+        questionsAdded: 0,
+        duration: `${Date.now() - startTime}ms`,
+        timestamp: new Date().toISOString()
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    
     // Process only top N topics per run to avoid timeout
     const topicsToProcess = lowStockTopics.slice(0, MAX_TOPICS_PER_RUN);
     let totalAdded = 0;
@@ -282,12 +304,12 @@ serve(async (req) => {
         section: topic.section,
         subTopic: topic.subTopic,
         difficulty: topic.difficulty,
-        needed: topic.needed
+        needed: Math.min(topic.needed, REFILL_COUNT) // ✅ لا تتجاوز REFILL_COUNT
       });
       totalAdded += added;
       
-      // Small delay between API calls
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // ✅ تأخير أطول بين الاستدعاءات
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
     // Refresh materialized view if we added questions

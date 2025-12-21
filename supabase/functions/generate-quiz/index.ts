@@ -12,6 +12,7 @@ import {
 import { getSections, getTopics, validateSectionAndTopic } from "../_shared/testStructure.ts";
 import { getSmartTrainingExamples, getTopicInfo, TrainingExample } from "../_shared/smartTrainingExamples.ts";
 import { buildAdvancedPrompt, buildValidationPrompt } from "../_shared/advancedPromptBuilder.ts";
+import { rateLimiter } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -195,118 +196,8 @@ async function getQuestionBankStats(
   return { total: data.length, byDifficulty };
 }
 
-// Auto-generate and save to question bank
-const BANK_MINIMUM_THRESHOLD = 10;
-const BANK_REFILL_COUNT = 20;
-
-async function autoRefillQuestionBank(
-  supabase: any,
-  section: string,
-  subTopic: string,
-  difficulty: string
-): Promise<void> {
-  console.log(`🔄 Auto-refill bank: ${section}/${subTopic}/${difficulty}...`);
-  
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
-    console.error("❌ Auto-refill failed: LOVABLE_API_KEY not configured");
-    return;
-  }
-  
-  try {
-    // 🆕 Use smart training examples instead of random selection
-    const smartExamples = await getSmartTrainingExamples(
-      supabase, 
-      subTopic, 
-      difficulty as 'easy' | 'medium' | 'hard', 
-      5
-    );
-    
-    console.log(`📚 Got ${smartExamples.length} smart training examples for ${subTopic}`);
-    
-    // 🆕 Get topic info for better prompt building
-    const topicInfo = getTopicInfo(subTopic);
-    
-    // 🆕 Use advanced prompt builder
-    const promptSection = (topicInfo.section || section) as 'كمي' | 'لفظي';
-    const advancedPrompt = buildAdvancedPrompt({
-      subTopic,
-      difficulty: difficulty as 'easy' | 'medium' | 'hard',
-      count: BANK_REFILL_COUNT,
-      examples: smartExamples,
-      section: promptSection,
-      topic: topicInfo.topic || subTopic
-    });
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: advancedPrompt },
-          { role: "user", content: `أنشئ ${BANK_REFILL_COUNT} سؤال متنوع عن "${subTopic}" الآن.` }
-        ],
-        temperature: 0.85,
-        max_tokens: 15000
-      })
-    });
-
-    if (!response.ok) {
-      console.error(`❌ Auto-refill AI error: ${response.status}`);
-      return;
-    }
-
-    const aiData = await response.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
-    
-    // Parse questions
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error("❌ Auto-refill: No valid JSON array found");
-      return;
-    }
-    
-    const questions = JSON.parse(jsonMatch[0]);
-    const sectionValue = section === 'كمي' ? 'كمي' : 'لفظي';
-    
-    // Prepare bank entries
-    const bankEntries = questions.slice(0, BANK_REFILL_COUNT).map((q: any) => ({
-      subject: sectionValue,
-      topic: topicInfo.topic || subTopic,
-      sub_topic: subTopic,
-      difficulty: difficulty,
-      question_type: 'multiple_choice',
-      question_text: q.question,
-      options: q.options,
-      correct_answer: q.correctAnswer,
-      explanation: q.explanation,
-      question_hash: simpleHash(q.question + q.correctAnswer),
-      created_by: 'ai_smart_refill',
-      validation_status: 'approved'
-    }));
-    
-    // Insert with conflict handling
-    const { error: insertError } = await supabase
-      .from('questions_bank')
-      .upsert(bankEntries, { 
-        onConflict: 'question_hash',
-        ignoreDuplicates: true 
-      });
-    
-    if (insertError) {
-      console.error("❌ Auto-refill insert error:", insertError);
-    } else {
-      console.log(`✅ Auto-refill complete: ${bankEntries.length} questions added to bank for ${section}/${subTopic}/${difficulty}`);
-    }
-    
-  } catch (error) {
-    console.error("❌ Auto-refill error:", error);
-  }
-}
+// ✅ تم إزالة autoRefillQuestionBank - نعتمد على auto-refill-monitor بدلاً من ذلك
+// هذا يوفر استدعاءات AI كثيرة ويمنع استنزاف الرصيد
 
 // ============= CACHE FUNCTIONS =============
 
@@ -1255,75 +1146,11 @@ async function fillFromQuestionBank(supabase: any, missing: number, params: any)
     }));
 }
 
-async function topupWithAI(apiKey: string, missing: number, systemPrompt: string, params: any) {
-  const { sectionFilter, availableTopics, topicFilter } = params;
-  
-  const topupPrompt = `قم بتوليد ${missing} سؤال ${sectionFilter || ''} فقط:
-
-⚠️ **مهم:**
-- ${missing} سؤال بالضبط
-${sectionFilter ? `- ${sectionFilter} حصرياً` : ''}
-${topicFilter ? `- جميع الأسئلة عن موضوع "${topicFilter}" حصرياً` : ''}
-${availableTopics.length > 0 ? `- المواضيع: ${availableTopics.slice(0, 5).join('، ')}` : ''}`;
-
-  try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        temperature: 0.8,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: topupPrompt }
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "generate_quiz",
-            parameters: {
-              type: "object",
-              properties: {
-                questions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      question_text: { type: "string" },
-                      options: { type: "array", items: { type: "string" } },
-                      correct_answer: { type: "string" },
-                      explanation: { type: "string" },
-                      section: { type: "string" },
-                      subject: { type: "string" },
-                      question_type: { type: "string" },
-                      difficulty: { type: "string" },
-                      topic: { type: "string" }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "generate_quiz" } }
-      }),
-    });
-    
-    if (!response.ok) return [];
-    
-    const result = await response.json();
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return [];
-    
-    const data = JSON.parse(toolCall.function.arguments);
-    return (data.questions || []).slice(0, missing);
-  } catch (error) {
-    console.error("Top-up failed:", error);
-    return [];
-  }
+// ✅ تم إزالة topupWithAI - كانت تستدعي AI مرة إضافية
+// نكتفي بالأسئلة من Question Bank و Cache و AI call واحد فقط
+async function fillFromBankOnly(supabase: any, missing: number, params: any) {
+  // استخدام Question Bank فقط بدون AI إضافي
+  return fillFromQuestionBank(supabase, missing, params);
 }
 
 async function logQuestions(
@@ -1393,6 +1220,15 @@ serve(async (req) => {
     const { user, supabase } = await authenticateUser(req);
     console.log("✅ User authenticated:", user.id);
     
+    // ✅ Rate limiting - 10 requests per minute per user
+    if (!rateLimiter.check(user.id, 10, 60000)) {
+      console.warn(`⚠️ [Generate Quiz] Rate limit exceeded for user: ${user.id}`);
+      return new Response(
+        JSON.stringify({ error: "تم تجاوز الحد المسموح. يرجى الانتظار دقيقة." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const userId = user.id;
     
     // 2. Load content, KB, AI settings, and user's answered questions in parallel
@@ -1438,15 +1274,8 @@ serve(async (req) => {
       });
       console.log(`📚 Fetched ${bankQuestions.length} from question bank`);
       
-      // Check if we need auto-refill for this sub-topic
-      if (topicFilter && bankQuestions.length < targetQuestions) {
-        const bankStats = await getQuestionBankStats(supabase, sectionFilter, topicFilter);
-        if (bankStats.total < BANK_MINIMUM_THRESHOLD) {
-          console.log(`⚠️ Question bank low for ${topicFilter} (${bankStats.total}/${BANK_MINIMUM_THRESHOLD}), triggering auto-refill...`);
-          autoRefillQuestionBank(supabase, sectionFilter, topicFilter, difficulty)
-            .catch(e => console.error("Bank auto-refill error:", e));
-        }
-      }
+      // ✅ تم إزالة auto-refill من هنا - نعتمد على auto-refill-monitor المجدول
+      // هذا يقلل استهلاك AI بشكل كبير
     }
     
     // 5. If bank is sufficient, return directly
@@ -1736,20 +1565,17 @@ serve(async (req) => {
     if (missing > 0) {
       console.log(`⚠️ Missing ${missing} questions, filling from bank...`);
       
-      const bankQuestions = await fillFromQuestionBank(supabase, missing, {
+      const additionalBankQuestions = await fillFromQuestionBank(supabase, missing, {
         sectionFilter, difficulty, testType, availableTopics, allRelatedTopics, isPractice, topicFilter
       });
-      finalQuestions.push(...bankQuestions);
+      finalQuestions.push(...additionalBankQuestions);
       missing = targetQuestions - finalQuestions.length;
-      console.log(`📦 Added ${bankQuestions.length} from bank, still need: ${missing}`);
+      console.log(`📦 Added ${additionalBankQuestions.length} from bank, still need: ${missing}`);
       
+      // ✅ تم إزالة topupWithAI - لا نستدعي AI مرة أخرى
+      // نكتفي بالأسئلة المتوفرة من Bank و Cache و AI call الأساسي
       if (missing > 0) {
-        const topupQuestions = await topupWithAI(LOVABLE_API_KEY, missing, systemPrompt, {
-          sectionFilter, availableTopics, topicFilter
-        });
-        const validTopup = validateQuestionQuality(validateQuestions(topupQuestions)).slice(0, missing);
-        finalQuestions.push(...validTopup);
-        console.log(`🔝 Added ${validTopup.length} from AI top-up`);
+        console.log(`⚠️ Could not fill all questions. Returning ${finalQuestions.length}/${targetQuestions}`);
       }
     }
     

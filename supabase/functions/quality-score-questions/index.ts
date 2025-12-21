@@ -1,7 +1,7 @@
 // AI Quality Scoring System for Generated Questions
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-
+import { rateLimiter } from "../_shared/rateLimit.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -47,6 +47,14 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // ✅ Rate limiting - 5 requests per minute per user
+    if (!rateLimiter.check(user.id, 5, 60000)) {
+      console.warn(`⚠️ [Quality Score] Rate limit exceeded for user: ${user.id}`);
+      return new Response(
+        JSON.stringify({ error: "تم تجاوز الحد المسموح. يرجى الانتظار دقيقة." }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     // Parse and validate request body
     let requestBody;
     try {
