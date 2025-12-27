@@ -20,6 +20,7 @@ import { QuestionTimer, getTimeIndicator, formatTimeDisplay } from "@/components
 import { QuestionNote, QuestionNoteDisplay } from "@/components/QuestionNote";
 import { useQuestionNotes } from "@/hooks/useQuestionNotes";
 import { isAnswerCorrect } from "@/lib/answerUtils";
+import { useTestStructure } from "@/hooks/useTestStructure";
 
 interface Question {
   question_text: string;
@@ -39,7 +40,7 @@ const DailyExercise = () => {
 
 const DailyExerciseContent = () => {
   const [searchParams] = useSearchParams();
-  const sectionType = searchParams.get("section") || "كمي";
+  const initialSection = searchParams.get("section") || "كمي";
   const testType = searchParams.get("testType") || "قدرات";
   const dayNumber = parseInt(searchParams.get("day") || "1");
   
@@ -47,6 +48,7 @@ const DailyExerciseContent = () => {
   const { toast } = useToast();
   const { data: profile } = useProfile();
   const queryClient = useQueryClient();
+  const { sections, getAllSubTopicsForSection } = useTestStructure();
 
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -58,12 +60,23 @@ const DailyExerciseContent = () => {
   const [showEarlyEndDialog, setShowEarlyEndDialog] = useState(false);
   const [selectedQuestionCount, setSelectedQuestionCount] = useState(10);
   const [selectedDifficulty, setSelectedDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [selectedSection, setSelectedSection] = useState(initialSection);
+  const [selectedTopic, setSelectedTopic] = useState("عام");
   const [questionStartTimes, setQuestionStartTimes] = useState<Record<number, number>>({});
   const [questionTimes, setQuestionTimes] = useState<Record<number, number>>({});
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
   
   const trackPerformance = usePerformanceTracking();
   const { notes, saveNote, deleteNote, getNoteForQuestion } = useQuestionNotes(currentExerciseId || undefined);
+  
+  // Get available topics based on selected section
+  const availableTopics = getAllSubTopicsForSection(selectedSection);
+  
+  // Reset topic when section changes
+  const handleSectionChange = (newSection: string) => {
+    setSelectedSection(newSection);
+    setSelectedTopic("عام");
+  };
 
   // Callback for timer updates
   const handleTimeUpdate = useCallback((seconds: number) => {
@@ -104,8 +117,9 @@ const DailyExerciseContent = () => {
         body: {
           mode: "practice",
           difficulty: selectedDifficulty,
-          sectionFilter: sectionType,
+          sectionFilter: selectedSection,
           questionCount: selectedQuestionCount,
+          topic: selectedTopic !== "عام" ? selectedTopic : undefined,
         },
       });
 
@@ -158,7 +172,7 @@ const DailyExerciseContent = () => {
     trackPerformance.mutate({
       questionHash: generateQuestionHash(question.question_text, question.options),
       topic: question.topic || 'عام',
-      section: sectionType,
+      section: selectedSection,
       difficulty: selectedDifficulty as 'easy' | 'medium' | 'hard',
       isCorrect: isAnswerCorrect(answer, question.correct_answer),
       timeSpentSeconds: timeSpent,
@@ -215,7 +229,7 @@ const DailyExerciseContent = () => {
         throw new Error("لا توجد أسئلة للحفظ");
       }
 
-      if (!sectionType || !testType) {
+      if (!selectedSection || !testType) {
         throw new Error("نوع القسم أو الاختبار غير محدد");
       }
 
@@ -243,7 +257,7 @@ const DailyExerciseContent = () => {
         .insert([{
           user_id: profile.id,
           day_number: dayNumber,
-          section_type: sectionType,
+          section_type: selectedSection,
           test_type: "قدرات" as "قدرات" | "تحصيلي",
           questions: questionsWithAnswers,
           score: score,
@@ -258,7 +272,7 @@ const DailyExerciseContent = () => {
         console.error("❌ Error saving exercise:", {
           error: saveError.message,
           userId: profile.id,
-          sectionType,
+          sectionType: selectedSection,
           dayNumber,
           questionsCount: questions.length
         });
@@ -272,7 +286,7 @@ const DailyExerciseContent = () => {
       try {
         const { error: countError } = await supabase.rpc('increment_daily_count', {
           p_user_id: profile.id,
-          p_section: sectionType
+          p_section: selectedSection
         });
         
         if (countError) {
@@ -311,7 +325,7 @@ const DailyExerciseContent = () => {
       console.error("❌ Error in submitExercise:", {
         error: error.message,
         userId: profile?.id,
-        sectionType,
+        sectionType: selectedSection,
         dayNumber,
         questionsCount: questions.length
       });
@@ -338,16 +352,52 @@ const DailyExerciseContent = () => {
             <Card className="border-2">
               <CardHeader>
                 <CardTitle className="text-3xl text-center">
-                  تمرين {sectionType} - اليوم {dayNumber}
+                  تمرين {selectedSection} - اليوم {dayNumber}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="text-center space-y-4">
                   <p className="text-lg text-muted-foreground">
-                    استعد لحل أسئلة في قسم {sectionType}
+                    استعد لحل أسئلة في قسم {selectedSection}
                   </p>
                   
                   <div className="space-y-4">
+                    {/* اختيار القسم */}
+                    <div>
+                      <Label htmlFor="section" className="text-base">القسم</Label>
+                      <Select value={selectedSection} onValueChange={handleSectionChange}>
+                        <SelectTrigger id="section" className="mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sections.map((section) => (
+                            <SelectItem key={section.id} value={section.id}>
+                              {section.icon} {section.nameAr}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* اختيار الموضوع */}
+                    <div>
+                      <Label htmlFor="topic" className="text-base">الموضوع</Label>
+                      <Select value={selectedTopic} onValueChange={setSelectedTopic}>
+                        <SelectTrigger id="topic" className="mt-2">
+                          <SelectValue placeholder="اختر الموضوع" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="عام">📋 اختبار عام (جميع المواضيع)</SelectItem>
+                          {availableTopics.map((subTopic) => (
+                            <SelectItem key={subTopic.id} value={subTopic.id}>
+                              {subTopic.nameAr}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* عدد الأسئلة */}
                     <div>
                       <Label htmlFor="question-count" className="text-base">عدد الأسئلة</Label>
                       <Select value={selectedQuestionCount.toString()} onValueChange={(v) => setSelectedQuestionCount(parseInt(v))}>
@@ -363,6 +413,7 @@ const DailyExerciseContent = () => {
                       </Select>
                     </div>
 
+                    {/* مستوى الصعوبة */}
                     <div>
                       <Label htmlFor="difficulty" className="text-base">مستوى الصعوبة</Label>
                       <Select value={selectedDifficulty} onValueChange={(v: any) => setSelectedDifficulty(v)}>
