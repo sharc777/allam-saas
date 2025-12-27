@@ -17,6 +17,7 @@ import { usePerformanceTracking, generateQuestionHash } from "@/hooks/usePerform
 import { QuestionTimer, getTimeIndicator, formatTimeDisplay } from "@/components/QuestionTimer";
 import { QuestionNote, QuestionNoteDisplay } from "@/components/QuestionNote";
 import { useQuestionNotes } from "@/hooks/useQuestionNotes";
+import { isAnswerCorrect } from "@/lib/answerUtils";
 
 interface Question {
   question_text: string;
@@ -178,7 +179,7 @@ const CustomTestContent = () => {
       topic: question.topic || state.topic,
       section: state.section,
       difficulty: state.difficulty as 'easy' | 'medium' | 'hard',
-      isCorrect: answer === question.correct_answer,
+      isCorrect: isAnswerCorrect(answer, question.correct_answer),
       timeSpentSeconds: timeSpent,
       metadata: {
         questionText: question.question_text,
@@ -223,7 +224,7 @@ const CustomTestContent = () => {
       let correctAnswers = 0;
 
       questions.forEach((q, index) => {
-        if (selectedAnswers[index] === q.correct_answer) {
+        if (isAnswerCorrect(selectedAnswers[index], q.correct_answer)) {
           correctAnswers++;
         }
       });
@@ -233,7 +234,7 @@ const CustomTestContent = () => {
       const questionsWithAnswers = questions.map((q, index) => ({
         ...q,
         user_answer: selectedAnswers[index],
-        is_correct: selectedAnswers[index] === q.correct_answer,
+        is_correct: isAnswerCorrect(selectedAnswers[index], q.correct_answer),
         time_spent_seconds: questionTimes[index] || 0,
       }));
 
@@ -325,7 +326,7 @@ const CustomTestContent = () => {
 
   if (showResults) {
     const correctAnswers = questions.filter(
-      (q, index) => selectedAnswers[index] === q.correct_answer
+      (q, index) => isAnswerCorrect(selectedAnswers[index], q.correct_answer)
     ).length;
     const score = (correctAnswers / questions.length) * 100;
     const passed = score >= 70;
@@ -362,7 +363,7 @@ const CustomTestContent = () => {
 
                 <div className="space-y-4">
                   {questions.map((q, index) => {
-                    const isCorrect = selectedAnswers[index] === q.correct_answer;
+                    const isCorrect = isAnswerCorrect(selectedAnswers[index], q.correct_answer);
                     const wasAnswered = selectedAnswers[index] !== "";
                     const timeSpent = questionTimes[index] || 0;
                     const timeIndicator = getTimeIndicator(timeSpent);

@@ -12,6 +12,7 @@ import { usePerformanceTracking, generateQuestionHash } from "@/hooks/usePerform
 import { QuestionTimer, getTimeIndicator, formatTimeDisplay } from "@/components/QuestionTimer";
 import { QuestionNote, QuestionNoteDisplay } from "@/components/QuestionNote";
 import { useQuestionNotes } from "@/hooks/useQuestionNotes";
+import { isAnswerCorrect } from "@/lib/answerUtils";
 
 interface EmbeddedQuizProps {
   contentId: string;
@@ -103,7 +104,7 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
         topic: question.topic || 'عام',
         section: question.section || 'كمي',
         difficulty: (question.difficulty as 'easy' | 'medium' | 'hard') || 'medium',
-        isCorrect: answer === question.correct_answer,
+        isCorrect: isAnswerCorrect(answer, question.correct_answer),
         timeSpentSeconds: timeSpent,
         metadata: {
           questionText: question.question_text,
@@ -140,7 +141,7 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
     if (!questions) return;
 
     const score = questions.reduce((acc, question, idx) => {
-      return acc + (selectedAnswers[idx] === question.correct_answer ? 1 : 0);
+      return acc + (isAnswerCorrect(selectedAnswers[idx], question.correct_answer) ? 1 : 0);
     }, 0);
 
     const percentage = (score / questions.length) * 100;
@@ -174,7 +175,7 @@ export function EmbeddedQuiz({ contentId, dayNumber, onComplete }: EmbeddedQuizP
 
   if (showResults) {
     const score = questions.reduce((acc, question, idx) => {
-      return acc + (selectedAnswers[idx] === question.correct_answer ? 1 : 0);
+      return acc + (isAnswerCorrect(selectedAnswers[idx], question.correct_answer) ? 1 : 0);
     }, 0);
     const percentage = (score / questions.length) * 100;
     const passed = percentage >= 70;
