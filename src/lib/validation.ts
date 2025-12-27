@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// قائمة كلمات المرور الشائعة المحظورة
+const COMMON_PASSWORDS = [
+  'password', '123456', '12345678', 'qwerty', 'abc123',
+  'password1', '11111111', 'password123', 'admin123', 'letmein',
+  'welcome', 'monkey', '1234567890', 'qwerty123', 'admin'
+];
+
 // Auth Schemas
 export const signUpSchema = z.object({
   email: z.string()
@@ -11,7 +18,12 @@ export const signUpSchema = z.object({
     .max(72, "كلمة المرور طويلة جداً")
     .regex(/[A-Z]/, "يجب أن تحتوي على حرف كبير")
     .regex(/[a-z]/, "يجب أن تحتوي على حرف صغير")
-    .regex(/[0-9]/, "يجب أن تحتوي على رقم"),
+    .regex(/[0-9]/, "يجب أن تحتوي على رقم")
+    .regex(/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~]/, "يجب أن تحتوي على رمز خاص (!@#$%^&* إلخ)")
+    .refine(
+      (val) => !COMMON_PASSWORDS.includes(val.toLowerCase()),
+      "كلمة المرور شائعة جداً وغير آمنة"
+    ),
   fullName: z.string()
     .trim()
     .min(2, "الاسم قصير جداً")
