@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { customTestSchema } from "@/lib/validation";
 import { toast } from "sonner";
@@ -51,29 +50,37 @@ export const CustomTestDialog = ({
   initialTopic = "",
   isGenerating = false
 }: CustomTestDialogProps) => {
-  const { sections } = useTestStructure();
-  const [topic, setTopic] = useState(initialTopic);
+  const { sections, getTopicsWithSubTopics, getAllSubTopicsForSection } = useTestStructure();
+  const [topic, setTopic] = useState(initialTopic || "عام");
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [section, setSection] = useState(sections[0]?.id || "كمي");
+
+  // الحصول على المواضيع المتاحة للقسم المحدد
+  const availableTopics = useMemo(() => {
+    const subTopics = getAllSubTopicsForSection(section);
+    return subTopics;
+  }, [section, getAllSubTopicsForSection]);
 
   // Update topic when initialTopic changes
   useEffect(() => {
     if (initialTopic) {
       setTopic(initialTopic);
+      
+      // الكشف التلقائي عن القسم من الموضوع
+      const detectedSection = detectSectionFromTopic(initialTopic);
+      if (detectedSection) {
+        setSection(detectedSection);
+      }
     }
   }, [initialTopic]);
 
-  // الكشف التلقائي عن القسم عند تغيير الموضوع
+  // إعادة تعيين الموضوع عند تغيير القسم
   useEffect(() => {
-    if (topic.trim().length >= 3) {
-      const detectedSection = detectSectionFromTopic(topic);
-      if (detectedSection && detectedSection !== section) {
-        setSection(detectedSection);
-        console.log(`🔄 Auto-detected section: ${detectedSection} for topic: ${topic}`);
-      }
+    if (!initialTopic) {
+      setTopic("عام");
     }
-  }, [topic]);
+  }, [section, initialTopic]);
 
   const handleCreate = () => {
     // Validate inputs
@@ -118,13 +125,19 @@ export const CustomTestDialog = ({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="topic">الموضوع</Label>
-            <Input
-              id="topic"
-              placeholder="مثال: النسبة المئوية، الاستنتاج، المعاني..."
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              disabled={isGenerating}
-            />
+            <Select value={topic} onValueChange={setTopic} disabled={isGenerating}>
+              <SelectTrigger id="topic">
+                <SelectValue placeholder="اختر الموضوع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="عام">📋 اختبار عام (جميع المواضيع)</SelectItem>
+                {availableTopics.map((subTopic) => (
+                  <SelectItem key={subTopic.id} value={subTopic.id}>
+                    {subTopic.nameAr}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -193,7 +206,7 @@ export const CustomTestDialog = ({
           <Button 
             onClick={handleCreate} 
             className="flex-1 gradient-primary text-primary-foreground"
-            disabled={!topic.trim() || isGenerating}
+            disabled={isGenerating}
           >
             {isGenerating ? (
               <>
