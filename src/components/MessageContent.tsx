@@ -6,8 +6,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import { formatMathText } from '@/lib/mathFormatter';
 import 'katex/dist/katex.min.css';
 
 interface MessageContentProps {
@@ -56,8 +57,11 @@ const MessageContent = ({ content, role }: MessageContentProps) => {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  // تنسيق المحتوى الرياضي (تحويل الأسس والرموز)
+  const formattedContent = useMemo(() => formatMathText(content), [content]);
+
   if (role === 'user') {
-    return <p className="whitespace-pre-wrap break-words">{content}</p>;
+    return <p className="whitespace-pre-wrap break-words">{formattedContent}</p>;
   }
 
   return (
@@ -202,7 +206,7 @@ const MessageContent = ({ content, role }: MessageContentProps) => {
         ),
       }}
       >
-        {content}
+        {formattedContent}
       </ReactMarkdown>
     </div>
   );
