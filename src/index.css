@@ -222,3 +222,51 @@ All colors MUST be HSL.
 .dark .katex:not(.katex-display .katex) {
   background-color: rgba(139, 92, 246, 0.15);
 }
+
+/* تحسين عرض الكسور العمودية */
+.katex .frac-line {
+  border-color: currentColor;
+  min-width: 0.8em;
+}
+
+.katex .mfrac .frac-line {
+  border-bottom-width: 0.06em;
+}
+
+/* تباعد أفضل للبسط والمقام */
+.katex .mfrac .vlist-t2 {
+  margin: 0.15em 0;
+}
+
+/* دعم RTL للمعادلات - المعادلات تبقى LTR داخل نص RTL */
+.katex-display,
+.katex {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: center;
+}
+
+/* الكسور داخل النص العربي */
+.katex-display {
+  text-align: center !important;
+}
+
+/* تكبير الخط للمعادلات للوضوح */
+.katex {
+  font-size: 1.1em;
+}
+
+/* تحسين مظهر الكسور الكبيرة */
+.katex .mfrac {
+  margin: 0 0.2em;
+}
+
+/* تحسين الجذور */
+.katex .sqrt {
+  padding-left: 0.15em;
+}
+
+/* تحسين الأسس */
+.katex .msupsub {
+  text-align: right;
+}

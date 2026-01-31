@@ -125,6 +125,49 @@ export function formatMathOperators(text: string): string {
 }
 
 /**
+ * تحويل الكسور النصية إلى صيغة LaTeX
+ * مثال: 2/3 → $\frac{2}{3}$
+ * يحافظ على الكسور الموجودة بالفعل في LaTeX
+ */
+export function formatFractionsToLatex(text: string): string {
+  if (!text) return text;
+  
+  // لا نحول إذا كان النص يحتوي بالفعل على frac (تجنب التحويل المزدوج)
+  if (text.includes('\\frac')) return text;
+  
+  // تحويل الكسور البسيطة مثل 2/3 إلى $\frac{2}{3}$
+  // نتجنب تحويل الكسور داخل URLs أو المسارات
+  const fractionRegex = /(?<![a-zA-Z0-9_/\\])(\d+)\/(\d+)(?![a-zA-Z0-9_/])/g;
+  
+  return text.replace(fractionRegex, (match, num, den) => {
+    // تجنب الكسور التي قد تكون تواريخ أو أرقام أخرى
+    const numVal = parseInt(num);
+    const denVal = parseInt(den);
+    
+    // فقط الكسور المنطقية (البسط أصغر من أو يساوي المقام × 10)
+    if (denVal > 0 && denVal <= 100 && numVal <= denVal * 10) {
+      return `$\\frac{${num}}{${den}}$`;
+    }
+    return match;
+  });
+}
+
+/**
+ * تحويل الأعداد الكسرية إلى LaTeX
+ * مثال: 2 1/2 → $2\\frac{1}{2}$
+ */
+export function formatMixedFractionsToLatex(text: string): string {
+  if (!text) return text;
+  
+  // تحويل الأعداد الكسرية مثل "2 1/2" أو "٣ ١/٢"
+  const mixedFractionRegex = /(\d+)\s+(\d+)\/(\d+)/g;
+  
+  return text.replace(mixedFractionRegex, (_, whole, num, den) => {
+    return `$${whole}\\frac{${num}}{${den}}$`;
+  });
+}
+
+/**
  * تنسيق كامل للنص الرياضي
  * يطبق جميع التحويلات بالترتيب الصحيح
  */
@@ -133,17 +176,20 @@ export function formatMathText(text: string): string {
   
   let result = text;
   
-  // 1. تحويل الأسس أولاً (قبل تحويل العمليات)
+  // 1. تحويل الأعداد الكسرية أولاً (قبل الكسور البسيطة)
+  result = formatMixedFractionsToLatex(result);
+  
+  // 2. تحويل الكسور البسيطة إلى LaTeX
+  result = formatFractionsToLatex(result);
+  
+  // 3. تحويل الأسس
   result = formatMathExponents(result);
   
-  // 2. تحويل العمليات الرياضية
+  // 4. تحويل العمليات الرياضية
   result = formatMathOperators(result);
   
-  // 3. تحويل الكسور
+  // 5. تحويل الكسور الشائعة (Unicode)
   result = formatFractions(result);
-  
-  // 4. تحويل المتغيرات إلى عربية (اختياري - قد لا يكون مطلوباً دائماً)
-  // result = arabicVariables(result);
   
   return result;
 }
