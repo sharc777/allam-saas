@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { formatMathText } from '@/lib/mathFormatter';
+import { formatMathText, formatFractionsToLatex, formatMixedFractionsToLatex } from '@/lib/mathFormatter';
 import 'katex/dist/katex.min.css';
 
 interface MessageContentProps {
